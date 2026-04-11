@@ -1,3 +1,9 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,12 +12,12 @@
 
 :root {
   --color-primary: #d97757;
-  --color-bg: #f5f0e8;
-  --color-surface: #fafaf8;
-  --color-sidebar: #ede8e0;
+  --color-bg: #faf9f7;
+  --color-surface: #ffffff;
+  --color-sidebar: #f5f3f0;
   --color-text: #1a1715;
   --color-muted: #6b6459;
-  --color-border: #e5ded5;
+  --color-border: #e8e5e0;
 }
 
 body {
@@ -22,6 +28,7 @@ body {
     ui-sans-serif,
     system-ui,
     sans-serif;
+  font-size: 15px;
   background: var(--color-bg);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
