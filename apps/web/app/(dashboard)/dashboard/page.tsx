@@ -1,99 +1,374 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { apiJson } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+
+// ─── 型定義 ───────────────────────────────────────────────
 
 type Summary = {
   totalCalls: number;
   completionRate: number;
   avgDuration: number;
   transferCount: number;
+  prevPeriodComparison?: {
+    totalCalls: number;
+    completionRate: number;
+  };
 };
 
-export default function DashboardPage() {
-  const q = useQuery({
-    queryKey: ["dashboard", "summary"],
-    queryFn: async () => {
-      const r = await apiJson<Summary>("/v1/dashboard/summary?period=month");
-      if (!r.ok) throw new Error(r.message ?? r.error);
-      return r.data;
-    },
-  });
+type DailyCalls = Array<{ date: string; count: number }>;
 
-  if (q.isLoading) {
-    return (
-      <div>
-        <PageHeader title="ダッシュボード" />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28" />
-          ))}
-        </div>
-      </div>
-    );
+type HourlyDist = Array<{ hour: number; count: number }>;
+
+type PeriodTab = "today" | "week" | "month" | "custom";
+
+const PERIOD_LABELS: Record<PeriodTab, string> = {
+  today: "今日",
+  week: "今週",
+  month: "今月",
+  custom: "カスタム",
+};
+
+// ─── ユーティリティ ───────────────────────────────────────
+
+function buildPeriodQuery(
+  tab: PeriodTab,
+  from: string,
+  to: string,
+): string {
+  if (tab === "custom" && from && to) {
+    return `period=custom&from=${from}&to=${to}`;
   }
+  const map: Record<PeriodTab, string> = {
+    today: "today",
+    week: "week",
+    month: "month",
+    custom: "month",
+  };
+  return `period=${map[tab]}`;
+}
 
-  if (q.isError || !q.data) {
-    const msg =
-      q.error instanceof Error ? q.error.message : "不明なエラー";
-    return (
-      <EmptyState
-        title="データを読み込めませんでした"
-        description={`${msg} — API（${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}）が起動しているか確認してください。`}
-      />
-    );
-  }
+// ─── サブコンポーネント ───────────────────────────────────
 
-  const d = q.data;
-
+function PeriodFilter({
+  tab,
+  from,
+  to,
+  onTabChange,
+  onFromChange,
+  onToChange,
+}: {
+  tab: PeriodTab;
+  from: string;
+  to: string;
+  onTabChange: (t: PeriodTab) => void;
+  onFromChange: (v: string) => void;
+  onToChange: (v: string) => void;
+}) {
   return (
-    <div>
-      <PageHeader title="ダッシュボード" />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="今月の受電数" value={String(d.totalCalls)} />
-        <KpiCard
-          title="自動完結率"
-          value={`${Math.round(d.completionRate * 100)}%`}
-        />
-        <KpiCard title="平均通話時間" value={`${d.avgDuration}秒`} />
-        <KpiCard title="有人転送件数" value={String(d.transferCount)} />
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex rounded-lg border border-[#e8e5e0] bg-[#faf9f7] p-0.5">
+        {(Object.keys(PERIOD_LABELS) as PeriodTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => onTabChange(t)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              tab === t
+                ? "bg-white text-[#1a1715] shadow-sm"
+                : "text-muted hover:text-[#1a1715]"
+            }`}
+          >
+            {PERIOD_LABELS[t]}
+          </button>
+        ))}
       </div>
-      {d.totalCalls === 0 ? (
-        <div className="mt-8">
-          <EmptyState
-            title="まだ通話データがありません。"
-            description="電話番号を設定してシナリオを公開してみましょう。"
-            action={{
-              label: "電話番号を追加する",
-              onClick: () => {
-                window.location.href = "/numbers";
-              },
-            }}
+      {tab === "custom" && (
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => onFromChange(e.target.value)}
+            className="rounded-lg border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm text-[#1a1715] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
           />
-        </div>
-      ) : (
-        <div className="mt-8">
-          <Link href="/numbers">
-            <Button variant="outline">電話番号管理へ</Button>
-          </Link>
+          <span className="text-sm text-muted">〜</span>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => onToChange(e.target.value)}
+            className="rounded-lg border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm text-[#1a1715] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
+          />
         </div>
       )}
     </div>
   );
 }
 
-function KpiCard({ title, value }: { title: string; value: string }) {
+function DeltaBadge({ delta }: { delta: number }) {
+  if (delta === 0) {
+    return <span className="text-xs text-[#64748B]">±0%</span>;
+  }
+  const pct = Math.round(Math.abs(delta) * 100);
+  if (delta > 0) {
+    return (
+      <span className="text-xs font-medium text-green-600">
+        ↑ {pct}%
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs font-medium text-red-500">
+      ↓ {pct}%
+    </span>
+  );
+}
+
+function KpiCard({
+  title,
+  value,
+  delta,
+}: {
+  title: string;
+  value: string;
+  delta?: number;
+}) {
   return (
     <div className="rounded-xl border border-[#e8e5e0] bg-white p-5">
-      <p className="text-xs font-medium tracking-wide text-muted">
-        {title}
-      </p>
+      <p className="text-xs font-medium tracking-wide text-muted">{title}</p>
       <p className="mt-3 text-2xl font-semibold text-[#1a1715]">{value}</p>
+      {delta !== undefined && (
+        <div className="mt-1.5">
+          <DeltaBadge delta={delta} />
+          <span className="ml-1 text-xs text-[#64748B]">先月比</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KpiCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-[#e8e5e0] bg-white p-5">
+      <Skeleton className="h-3 w-24" />
+      <Skeleton className="mt-3 h-8 w-20" />
+      <Skeleton className="mt-1.5 h-3 w-16" />
+    </div>
+  );
+}
+
+// ─── メインページ ─────────────────────────────────────────
+
+export default function DashboardPage() {
+  const [tab, setTab] = useState<PeriodTab>("month");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+
+  const periodQuery = buildPeriodQuery(tab, from, to);
+  const isCustomReady = tab !== "custom" || (from !== "" && to !== "");
+
+  const summaryQ = useQuery({
+    queryKey: ["dashboard", "summary", periodQuery],
+    queryFn: async () => {
+      const r = await apiJson<Summary>(`/v1/dashboard/summary?${periodQuery}`);
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+    enabled: isCustomReady,
+  });
+
+  const dailyQ = useQuery({
+    queryKey: ["dashboard", "daily-calls", periodQuery],
+    queryFn: async () => {
+      const r = await apiJson<DailyCalls>(
+        `/v1/dashboard/daily-calls?${periodQuery}`,
+      );
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+    enabled: isCustomReady,
+  });
+
+  const hourlyQ = useQuery({
+    queryKey: ["dashboard", "hourly-distribution", periodQuery],
+    queryFn: async () => {
+      const r = await apiJson<HourlyDist>(
+        `/v1/dashboard/hourly-distribution?${periodQuery}`,
+      );
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+    enabled: isCustomReady,
+  });
+
+  const summaryError =
+    summaryQ.isError
+      ? summaryQ.error instanceof Error
+        ? summaryQ.error.message
+        : "不明なエラー"
+      : null;
+
+  return (
+    <div>
+      <PageHeader title="ダッシュボード" />
+
+      {/* 期間フィルタ */}
+      <div className="mb-6">
+        <PeriodFilter
+          tab={tab}
+          from={from}
+          to={to}
+          onTabChange={setTab}
+          onFromChange={setFrom}
+          onToChange={setTo}
+        />
+      </div>
+
+      {/* KPIカード */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {summaryQ.isLoading || !isCustomReady ? (
+          [1, 2, 3, 4].map((i) => <KpiCardSkeleton key={i} />)
+        ) : summaryError || !summaryQ.data ? (
+          <div className="lg:col-span-4">
+            <EmptyState
+              title="データを読み込めませんでした"
+              description={`${summaryError ?? "不明なエラー"} — API が起動しているか確認してください。`}
+            />
+          </div>
+        ) : (
+          <>
+            <KpiCard
+              title="受電数"
+              value={String(summaryQ.data.totalCalls)}
+              delta={summaryQ.data.prevPeriodComparison?.totalCalls}
+            />
+            <KpiCard
+              title="自動完結率"
+              value={`${Math.round(summaryQ.data.completionRate * 100)}%`}
+              delta={summaryQ.data.prevPeriodComparison?.completionRate}
+            />
+            <KpiCard
+              title="平均通話時間"
+              value={`${summaryQ.data.avgDuration}秒`}
+            />
+            <KpiCard
+              title="有人転送件数"
+              value={String(summaryQ.data.transferCount)}
+            />
+          </>
+        )}
+      </div>
+
+      {/* グラフエリア */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* 日別受電数グラフ */}
+        <div className="rounded-xl border border-[#e8e5e0] bg-white p-5 lg:col-span-2">
+          <p className="text-sm font-medium text-[#1a1715]">日別受電数</p>
+          {dailyQ.isLoading || !isCustomReady ? (
+            <Skeleton className="mt-4 h-48 w-full" />
+          ) : dailyQ.isError || !dailyQ.data ? (
+            <div className="mt-4">
+              <EmptyState title="グラフデータを取得できませんでした" />
+            </div>
+          ) : dailyQ.data.length === 0 ? (
+            <div className="mt-4">
+              <EmptyState
+                title="この期間のデータがありません"
+                description="別の期間を選択してみてください。"
+              />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220} className="mt-4">
+              <LineChart data={dailyQ.data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0ede9" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: "#64748B" }}
+                  tickFormatter={(v: string) => {
+                    const d = new Date(v);
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                  }}
+                />
+                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "1px solid #e8e5e0",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: number) => [value, "受電数"]}
+                  labelFormatter={(label: string) => {
+                    const d = new Date(label);
+                    return `${d.getMonth() + 1}/${d.getDate()}`;
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#2563EB"
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* 時間帯別受電分布グラフ */}
+        <div className="rounded-xl border border-[#e8e5e0] bg-white p-5 lg:col-span-1">
+          <p className="text-sm font-medium text-[#1a1715]">時間帯別受電分布</p>
+          {hourlyQ.isLoading || !isCustomReady ? (
+            <Skeleton className="mt-4 h-48 w-full" />
+          ) : hourlyQ.isError || !hourlyQ.data ? (
+            <div className="mt-4">
+              <EmptyState title="グラフデータを取得できませんでした" />
+            </div>
+          ) : hourlyQ.data.length === 0 ? (
+            <div className="mt-4">
+              <EmptyState
+                title="この期間のデータがありません"
+                description="別の期間を選択してみてください。"
+              />
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220} className="mt-4">
+              <BarChart data={hourlyQ.data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0ede9" />
+                <XAxis
+                  dataKey="hour"
+                  tick={{ fontSize: 11, fill: "#64748B" }}
+                  tickFormatter={(v: number) => `${v}時`}
+                />
+                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: "8px",
+                    border: "1px solid #e8e5e0",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: number) => [value, "件数"]}
+                  labelFormatter={(label: number) => `${label}時台`}
+                />
+                <Bar dataKey="count" fill="#2563EB" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
