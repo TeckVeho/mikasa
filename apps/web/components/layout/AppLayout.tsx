@@ -2,10 +2,10 @@ import { Sidebar } from "./Sidebar";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-bg">
+    <div className="flex min-h-screen bg-[#faf9f7]">
       <Sidebar />
       <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-5xl px-8 py-8">{children}</div>
+        <div className="mx-auto max-w-4xl px-10 py-10">{children}</div>
       </main>
     </div>
   );
