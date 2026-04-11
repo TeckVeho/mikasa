@@ -4,16 +4,16 @@ import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const variants = cva(
-  "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50",
+  "inline-flex items-center justify-center font-medium transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-white hover:bg-primary-hover",
-        secondary: "bg-[#e8e2d9] text-[#1a1715] hover:bg-[#ddd6cc]",
-        danger: "bg-danger text-white hover:bg-red-700",
-        ghost: "bg-transparent text-[#3d3530] hover:bg-primary/5",
-        outline:
-          "border border-border bg-surface text-[#3d3530] hover:bg-[#f0ece4]",
+        primary: "rounded-lg bg-primary text-white hover:bg-primary-hover",
+        secondary: "rounded-lg bg-[#ede9e3] text-[#1a1715] hover:bg-[#e3ddd6]",
+        danger: "rounded-lg bg-danger text-white hover:bg-red-700",
+        ghost: "rounded-lg bg-transparent text-[#3d3530] hover:bg-primary/5",
+        outline: "rounded-lg border border-[#e8e5e0] bg-white text-[#3d3530] hover:bg-[#faf9f7]",
+        pill: "rounded-full border border-[#e8e5e0] bg-white text-[#3d3530] hover:bg-[#faf9f7]",
       },
       size: {
         sm: "h-8 px-3 text-xs",
