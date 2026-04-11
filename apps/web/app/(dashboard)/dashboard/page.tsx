@@ -89,8 +89,8 @@ export default function DashboardPage() {
 
 function KpiCard({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+    <div className="rounded-xl border border-[#e8e5e0] bg-white p-5">
+      <p className="text-xs font-medium tracking-wide text-muted">
         {title}
       </p>
       <p className="mt-3 text-2xl font-semibold text-[#1a1715]">{value}</p>
