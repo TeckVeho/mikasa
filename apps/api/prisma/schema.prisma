@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @db.VarChar(26)
+  name      String   @db.VarChar(255)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users        User[]
+  phoneNumbers PhoneNumber[]
+  scenarios    Scenario[]
+  callLogs     CallLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id          String   @id @db.VarChar(26)
+  tenantId    String   @map("tenant_id") @db.VarChar(26)
+  email       String   @unique @db.VarChar(255)
+  firebaseUid String   @unique @map("firebase_uid") @db.VarChar(128)
+  role        String   @default("operator") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([firebaseUid])
+  @@map("users")
+}
+
+model PhoneNumber {
+  id              String   @id @db.VarChar(26)
+  tenantId        String   @map("tenant_id") @db.VarChar(26)
+  scenarioId      String?  @map("scenario_id") @db.VarChar(26)
+  number          String   @db.VarChar(20)
+  twilioNumberSid String   @unique @map("twilio_number_sid") @db.VarChar(64)
+  status          String   @default("inactive") @db.VarChar(20)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  scenario  Scenario?  @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  callLogs  CallLog[]
+
+  @@map("phone_numbers")
+}
+
+model Scenario {
+  id          String    @id @db.VarChar(26)
+  tenantId    String    @map("tenant_id") @db.VarChar(26)
+  name        String    @db.VarChar(255)
+  flowJson    Json      @map("flow_json")
+  status      String    @default("draft") @db.VarChar(20)
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneNumbers PhoneNumber[]
+  callLogs     CallLog[]
+
+  @@index([tenantId, status])
+  @@map("scenarios")
+}
+
+model CallLog {
+  id                String   @id @db.VarChar(26)
+  tenantId          String   @map("tenant_id") @db.VarChar(26)
+  phoneNumberId     String   @map("phone_number_id") @db.VarChar(26)
+  scenarioId        String   @map("scenario_id") @db.VarChar(26)
+  twilioCallSid     String   @unique @map("twilio_call_sid") @db.VarChar(64)
+  callerNumber      String   @map("caller_number") @db.VarChar(20)
+  durationSeconds   Int?     @map("duration_seconds")
+  status            String   @db.VarChar(20)
+  transcriptText    String?  @map("transcript_text") @db.Text
+  summaryText       String?  @map("summary_text") @db.Text
+  structuredData    Json?    @map("structured_data")
+  audioStoragePath  String?  @map("audio_storage_path") @db.Text
+  operatorNote      String   @default("") @map("operator_note") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  scenario    Scenario    @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, status])
+  @@map("call_logs")
+}

@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap");
+
+:root {
+  --color-primary: #d97757;
+  --color-bg: #f5f0e8;
+  --color-surface: #fafaf8;
+  --color-sidebar: #ede8e0;
+  --color-text: #1a1715;
+  --color-muted: #6b6459;
+  --color-border: #e5ded5;
+}
+
+body {
+  font-family:
+    "Inter",
+    "Noto Sans JP",
+    "Hiragino Sans",
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
