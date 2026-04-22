@@ -10,10 +10,11 @@ import { twilioWebhookRouter } from "./routes/webhooks/twilio.route.js";
 import { settingsRouter } from "./routes/settings.route.js";
 import { usersRouter } from "./routes/users.route.js";
 import { dictionaryRouter } from "./routes/dictionary.route.js";
-import { voiceTemplatesRouter } from "./routes/voice-templates.route.js";
 import { billingRouter } from "./routes/billing.route.js";
 import { vocRouter } from "./routes/voc.route.js";
 import { callbacksRouter } from "./routes/callbacks.route.js";
+import { monitorRouter } from "./routes/monitor.route.js";
+import { transfersRouter } from "./routes/transfers.route.js";
 import { formsRouter } from "./routes/forms.route.js";
 
 export function createApp(): express.Express {
@@ -74,10 +75,11 @@ export function createApp(): express.Express {
   app.use("/v1/settings", express.json(), settingsRouter);
   app.use("/v1/users", express.json(), usersRouter);
   app.use("/v1/dictionary", express.json(), dictionaryRouter);
-  app.use("/v1/voice-templates", express.json(), voiceTemplatesRouter);
   app.use("/v1/billing", express.json(), billingRouter);
   app.use("/v1/voc", express.json(), vocRouter);
   app.use("/v1/callbacks", express.json(), callbacksRouter);
+  app.use("/v1/monitor", express.json(), monitorRouter);
+  app.use("/v1/transfers", express.json(), transfersRouter);
   app.use("/v1/forms", express.json(), formsRouter);
   app.use("/webhooks/twilio", express.urlencoded({ extended: false }), twilioWebhookRouter);
 

@@ -1,6 +1,6 @@
 import { logger } from "../lib/logger.js";
 import { prisma } from "../lib/prisma.js";
-import { sendSms } from "../lib/twilio.js";
+import { newId } from "../utils/id.js";
 
 export type ToolCallRequest = {
   id: string;
@@ -38,8 +38,8 @@ export async function dispatchToolCall(
     switch (request.name) {
       case "transfer_to_operator":
         return wrap(await handleTransfer(request.args, context));
-      case "send_sms":
-        return wrap(await handleSendSms(request.args));
+      case "register_callback":
+        return wrap(await handleRegisterCallback(request.args, context));
       default:
         return wrap(await handleCustomTool(request.args, request.name));
     }
@@ -69,15 +69,24 @@ async function handleTransfer(
   return { status: "transferring", reason: args.reason };
 }
 
-async function handleSendSms(args: Record<string, unknown>): Promise<unknown> {
-  const to = String(args.to ?? "");
-  const body = String(args.body ?? "");
+async function handleRegisterCallback(
+  args: Record<string, unknown>,
+  context: ToolDispatchContext,
+): Promise<unknown> {
+  await prisma.callbackRequest.create({
+    data: {
+      id: newId(),
+      tenantId: context.tenantId,
+      callerNumber: context.callerNumber,
+      preferredTime: args.preferred_time != null ? String(args.preferred_time) : undefined,
+      status: "pending",
+    },
+  });
 
-  const result = await sendSms(to, body);
-  if (result.ok) {
-    return { status: "sent" };
-  }
-  return { status: "failed", error: result.error };
+  return {
+    status: "registered",
+    message: "折り返しリクエストを登録しました",
+  };
 }
 
 async function handleCustomTool(

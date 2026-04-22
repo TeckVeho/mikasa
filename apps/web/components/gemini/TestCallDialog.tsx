@@ -68,6 +68,7 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nextIdRef = useRef(1);
+  const nextPlayTimeRef = useRef(0);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
 
   const cleanup = useCallback(() => {
@@ -95,6 +96,7 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
     setMuted(false);
     setError(null);
     nextIdRef.current = 1;
+    nextPlayTimeRef.current = 0;
 
     const capture = new AudioCapture();
     const client = new TestCallClient();
@@ -114,16 +116,25 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
           const source = ctx.createBufferSource();
           source.buffer = buffer;
           source.connect(ctx.destination);
-          source.start();
+          const now = ctx.currentTime;
+          const startAt = Math.max(now, nextPlayTimeRef.current);
+          source.start(startAt);
+          nextPlayTimeRef.current = startAt + buffer.duration;
         } catch {
           // ignore playback errors
         }
       },
       onTranscript: (role, text) => {
-        setTranscripts((prev) => [
-          ...prev,
-          { id: nextIdRef.current++, role, text },
-        ]);
+        setTranscripts((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === role) {
+            return [
+              ...prev.slice(0, -1),
+              { ...last, text: last.text + text },
+            ];
+          }
+          return [...prev, { id: nextIdRef.current++, role, text }];
+        });
       },
       onToolCall: (name, args) => {
         setToolLogs((prev) => [

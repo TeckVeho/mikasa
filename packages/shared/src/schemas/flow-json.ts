@@ -8,8 +8,6 @@ const positionSchema = z.object({
 const speakDataSchema = z.object({
   text: z.string(),
   speed: z.number().min(0.8).max(1.5).default(1),
-  source: z.enum(["tts", "template"]).default("tts"),
-  templateId: z.string().optional(),
 });
 
 const listenDataSchema = z.object({

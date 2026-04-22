@@ -21,6 +21,7 @@ import { flowJsonSchema } from "@logivoice/shared";
 import type { IncomingMessage } from "node:http";
 import { handleGeminiLiveCall } from "./gemini-call.handler.js";
 import * as geminiRepo from "../repositories/gemini-scenario.repo.js";
+import { activeCallsStore } from "../services/active-calls.service.js";
 
 type TwilioStreamMessage = {
   event: string;
@@ -160,6 +161,16 @@ export function attachCallStreamHandler(
           transcriptSegments: [],
           accumulatedTranscript: "",
         };
+        activeCallsStore.start({
+          callSid: callSid!,
+          tenantId: phone.tenantId,
+          callerNumber: from || "",
+          scenarioId: phone.scenarioId,
+          startedAt: Date.now(),
+          transcript: "",
+          status: "active",
+        });
+
         await handleGeminiLiveCall(
           ws,
           streamSid!,
@@ -208,6 +219,16 @@ export function attachCallStreamHandler(
         accumulatedTranscript: "",
       };
 
+      activeCallsStore.start({
+        callSid: callSid!,
+        tenantId: phone.tenantId,
+        callerNumber: from || "",
+        scenarioId: phone.scenarioId,
+        startedAt: Date.now(),
+        transcript: "",
+        status: "active",
+      });
+
       await runEngine(ws, { type: "start" });
       return;
     }
@@ -228,6 +249,7 @@ export function attachCallStreamHandler(
       waitingForDtmf = false;
       amivoice?.end();
       await finalizeCall(session, callSid, recordingMulawChunks);
+      if (callSid) activeCallsStore.end(callSid);
       recordingMulawChunks.length = 0;
       listening = false;
       session = null;
@@ -293,6 +315,7 @@ export function attachCallStreamHandler(
                 transcriptSegments: merged,
                 accumulatedTranscript: acc,
               };
+              if (callSid) activeCallsStore.updateTranscript(callSid, acc);
               if (callSid) {
                 await setSessionJson(
                   `${SESSION_PREFIX}${callSid}`,

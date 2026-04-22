@@ -62,7 +62,10 @@ export async function apiJson<T>(
         "X-Dev-Tenant-Id",
         process.env.NEXT_PUBLIC_DEV_TENANT_ID ?? DEFAULT_DEV_TENANT_ID,
       );
-      headers.set("X-Dev-User-Id", "dev-user");
+      headers.set(
+        "X-Dev-User-Id",
+        process.env.NEXT_PUBLIC_DEV_USER_ID ?? "dev-user",
+      );
     } else {
       const { getIdToken } = await import("./auth");
       const token = await getIdToken();
@@ -75,6 +78,61 @@ export async function apiJson<T>(
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers,
+    cache: "no-store",
+  });
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return {
+      ok: false,
+      error: "PARSE_ERROR",
+      message: `HTTP ${res.status}: レスポンスが JSON ではありません`,
+    };
+  }
+
+  const parsed = body as ApiEnvelope<T>;
+  if (!res.ok && !("ok" in parsed)) {
+    return {
+      ok: false,
+      error: "HTTP_ERROR",
+      message: `HTTP ${res.status}`,
+    };
+  }
+  return parsed;
+}
+
+/** FormData（ファイルアップロード等）用。Content-Type は自動設定に任せる。 */
+export async function apiFormData<T>(
+  path: string,
+  formData: FormData,
+): Promise<ApiEnvelope<T>> {
+  const headers = new Headers();
+
+  if (typeof window !== "undefined") {
+    if (shouldUseDevAuth()) {
+      headers.set(
+        "X-Dev-Tenant-Id",
+        process.env.NEXT_PUBLIC_DEV_TENANT_ID ?? DEFAULT_DEV_TENANT_ID,
+      );
+      headers.set(
+        "X-Dev-User-Id",
+        process.env.NEXT_PUBLIC_DEV_USER_ID ?? "dev-user",
+      );
+    } else {
+      const { getIdToken } = await import("./auth");
+      const token = await getIdToken();
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+    }
+  }
+
+  const res = await fetch(`${base}${path}`, {
+    method: "POST",
+    headers,
+    body: formData,
     cache: "no-store",
   });
 

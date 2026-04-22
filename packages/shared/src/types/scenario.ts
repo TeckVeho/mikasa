@@ -9,8 +9,6 @@ export type FlowEdge = {
 export type SpeakNodeData = {
   text: string;
   speed: number;
-  source?: "tts" | "template";
-  templateId?: string;
 };
 
 export type ListenNodeData = {

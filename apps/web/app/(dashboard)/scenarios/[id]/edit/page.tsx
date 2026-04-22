@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { ScenarioEditor } from "@/components/scenario/ScenarioEditor";
@@ -8,8 +8,6 @@ import { ScenarioFormEditor } from "@/components/scenario/ScenarioFormEditor";
 import { apiJson } from "@/lib/api";
 import type { FlowJson } from "@logivoice/shared";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { Sparkles } from "lucide-react";
 
 type TenantInfo = {
   voiceEngine?: string;
@@ -32,9 +30,11 @@ type VersionRow = {
 
 export default function EditScenarioPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
   const router = useRouter();
   const qc = useQueryClient();
+  const forceFlow = searchParams.get("mode") === "flow";
 
   const [tab, setTab] = useState<"flow" | "form">("flow");
   const [name, setName] = useState("");
@@ -50,6 +50,12 @@ export default function EditScenarioPage() {
       return r.data;
     },
   });
+
+  useEffect(() => {
+    if (!forceFlow && tenantQ.data?.voiceEngine === "gemini_live") {
+      router.replace(`/scenarios/${id}/gemini`);
+    }
+  }, [forceFlow, tenantQ.data?.voiceEngine, id, router]);
 
   const q = useQuery({
     queryKey: ["scenario", id],
@@ -134,26 +140,16 @@ export default function EditScenarioPage() {
     });
   }
 
+  if (
+    tenantQ.isLoading ||
+    (!forceFlow && tenantQ.data?.voiceEngine === "gemini_live")
+  )
+    return <p className="p-4">読み込み中...</p>;
   if (q.isLoading || !localFlow) return <p className="p-4">読み込み中...</p>;
   if (q.isError || !q.data) return <p className="p-4">読み込み失敗</p>;
 
   return (
     <div className="space-y-4">
-      {tenantQ.data?.voiceEngine === "gemini_live" && (
-        <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-          <span className="flex items-center gap-2 text-sm text-text">
-            <Sparkles size={16} className="text-primary" />
-            このテナントは Gemini Live モードです。
-          </span>
-          <Link
-            href={`/scenarios/${id}/gemini`}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Gemini Live 設定を開く →
-          </Link>
-        </div>
-      )}
-
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-surface p-4">
         <label className="text-sm flex-1 min-w-[200px]">
           <span className="text-muted text-xs">説明</span>

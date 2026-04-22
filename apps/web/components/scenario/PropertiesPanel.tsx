@@ -31,34 +31,10 @@ export function PropertiesPanel({
     const d = node.data as {
       text: string;
       speed: number;
-      source?: "tts" | "template";
-      templateId?: string;
     };
     return (
       <div className="w-80 shrink-0 border-l border-border bg-sidebar p-5 max-h-[calc(100vh-10rem)] overflow-y-auto">
         <p className="text-sm font-semibold text-text">発話</p>
-        <label className={labelClass}>ソース</label>
-        <select
-          className={inputClass}
-          value={d.source ?? "tts"}
-          onChange={(e) =>
-            patch({ source: e.target.value as "tts" | "template" })
-          }
-        >
-          <option value="tts">TTS 合成</option>
-          <option value="template">音声テンプレート</option>
-        </select>
-        {(d.source ?? "tts") === "template" && (
-          <>
-            <label className={labelClass}>テンプレート ID</label>
-            <input
-              className={inputClass}
-              value={d.templateId ?? ""}
-              onChange={(e) => patch({ templateId: e.target.value })}
-              placeholder="VoiceTemplate の ID"
-            />
-          </>
-        )}
         <label className={labelClass}>テキスト</label>
         <textarea
           className={textareaClass}

@@ -42,3 +42,8 @@ dashboardRouter.get("/cost-estimate", async (req, res) => {
   const r = await svc.dashboardCostEstimate(req.tenantId!);
   sendResult(res, r);
 });
+
+dashboardRouter.get("/operator-summary", async (req, res) => {
+  const r = await svc.operatorSummary(req.tenantId!);
+  sendResult(res, r);
+});

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { verifyAuthToken } from "../services/auth.service.js";
-import { sendResult } from "../middleware/auth.js";
+import { requireAuth, sendResult } from "../middleware/auth.js";
+import { prisma } from "../lib/prisma.js";
 
 export const authRouter = Router();
 
@@ -18,4 +19,16 @@ authRouter.post("/verify", async (req, res) => {
   }
   const r = await verifyAuthToken(token);
   sendResult(res, r);
+});
+
+authRouter.get("/me", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { id: true, email: true, role: true, tenantId: true },
+  });
+  if (!user) {
+    res.status(404).json({ ok: false, error: "NOT_FOUND", message: "User not found" });
+    return;
+  }
+  res.json({ ok: true, data: user });
 });

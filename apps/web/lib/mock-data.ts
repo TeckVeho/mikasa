@@ -262,7 +262,111 @@ export function resolveMockResponse<T>(
   const pathname = url.pathname;
   const type = url.searchParams.get("type");
 
+  // ─── 認証 ───
+  if (method === "GET" && pathname === "/v1/auth/me") {
+    return { ok: true, data: { id: "dev-user", email: "dev@example.com", role: "admin", tenantId: "01HZXEXAMPLE00000000000000" } as T };
+  }
+
+  // ─── モニタリング / 転送 ───
+  if (method === "GET" && pathname === "/v1/monitor/active-calls") {
+    return { ok: true, data: [] as T };
+  }
+  if (method === "GET" && pathname === "/v1/monitor/active-calls-snapshot") {
+    return {
+      ok: true,
+      data: [
+        {
+          callSid: "CA_mock_001",
+          tenantId: "01HZXEXAMPLE00000000000000",
+          callerNumber: "090-1234-5678",
+          scenarioId: "sc_1",
+          startedAt: Date.now() - 45000,
+          transcript: "オペレーター: お電話ありがとうございます。\nお客様: 再配達をお願いしたいのですが。\nオペレーター: かしこまりました。ご希望の日時をお伺いできますか？",
+          status: "active",
+        },
+        {
+          callSid: "CA_mock_002",
+          tenantId: "01HZXEXAMPLE00000000000000",
+          callerNumber: "080-9876-5432",
+          scenarioId: "sc_2",
+          startedAt: Date.now() - 120000,
+          transcript: "オペレーター: お電話ありがとうございます。\nお客様: 荷物の状況を確認したいです。",
+          status: "active",
+        },
+      ] as T,
+    };
+  }
+  if (method === "GET" && pathname.startsWith("/v1/transfers")) {
+    return {
+      ok: true,
+      data: {
+        items: [
+          {
+            id: "th_1",
+            callLogId: "cl_1",
+            callerNumber: "090-1234-5678",
+            reason: "料金に関する詳細な質問のため、専門担当者への転送をご希望",
+            collectedInfo: { name: "田中太郎", purpose: "料金問い合わせ", preferredDatetime: "特になし" },
+            transcript: "AI: お電話ありがとうございます。\nお客様: 料金について聞きたいのですが。\nAI: かしこまりました。どのようなご質問でしょうか？\nお客様: 先月の請求が高かったので詳細を教えてほしい。\nAI: 承知いたしました。専門の担当者におつなぎいたします。",
+            priority: "normal",
+            department: "billing",
+            status: "pending",
+            createdAt: new Date(Date.now() - 300000).toISOString(),
+          },
+          {
+            id: "th_2",
+            callLogId: "cl_2",
+            callerNumber: "080-9876-5432",
+            reason: "クレーム対応のため転送",
+            collectedInfo: { name: "佐藤花子", purpose: "クレーム" },
+            transcript: "AI: お電話ありがとうございます。\nお客様: 届いた荷物が破損していました。\nAI: 大変申し訳ございません。担当者におつなぎいたします。",
+            priority: "high",
+            department: "support",
+            status: "pending",
+            createdAt: new Date(Date.now() - 600000).toISOString(),
+          },
+          {
+            id: "th_3",
+            callLogId: null,
+            callerNumber: "070-5555-1234",
+            reason: "再配達の特殊対応",
+            collectedInfo: { name: "鈴木一郎", address: "東京都渋谷区1-2-3" },
+            transcript: null,
+            priority: "normal",
+            department: "general",
+            status: "handled",
+            createdAt: new Date(Date.now() - 3600000).toISOString(),
+          },
+        ],
+        total: 3,
+        page: 1,
+        limit: 50,
+      } as T,
+    };
+  }
+  if (method === "PATCH" && /^\/v1\/transfers\/[^/]+\/status$/.test(pathname)) {
+    return { ok: true, data: true as T };
+  }
+
   // ─── ダッシュボード ───
+  if (method === "GET" && pathname === "/v1/dashboard/operator-summary") {
+    return {
+      ok: true,
+      data: {
+        todayCalls: 23,
+        pendingCallbacks: 5,
+        pendingTransfers: 2,
+        recentCalls: [
+          { id: "cl_1", callerNumber: "090-1234-5678", status: "complete", summaryText: "再配達のご依頼。4月23日午前中に変更。", durationSeconds: 45, createdAt: new Date().toISOString() },
+          { id: "cl_2", callerNumber: "080-9876-5432", status: "transferred", summaryText: "料金に関するお問い合わせ。担当者へ転送。", durationSeconds: 120, createdAt: new Date(Date.now() - 600000).toISOString() },
+          { id: "cl_3", callerNumber: "070-5555-1234", status: "complete", summaryText: "配達状況の確認。本日中に到着予定とご案内。", durationSeconds: 30, createdAt: new Date(Date.now() - 1200000).toISOString() },
+          { id: "cl_4", callerNumber: "090-3333-7777", status: "abandoned", summaryText: null, durationSeconds: 8, createdAt: new Date(Date.now() - 1800000).toISOString() },
+          { id: "cl_5", callerNumber: "080-2222-8888", status: "complete", summaryText: "集荷のご依頼。明日14時〜16時で手配済み。", durationSeconds: 55, createdAt: new Date(Date.now() - 2400000).toISOString() },
+        ],
+      } as T,
+    };
+  }
+
   if (method === "GET" && pathname === "/v1/dashboard/summary") {
     return { ok: true, data: MOCK_SUMMARY as T };
   }
@@ -393,28 +497,21 @@ export function resolveMockResponse<T>(
   }
 
   // ─── その他 GET ───
-  if (method === "GET" && pathname === "/v1/callbacks") {
-    return {
-      ok: true,
-      data: [
-        {
-          id: "mock-cb-1",
-          callerNumber: "+8190111222333",
-          preferredTime: "今日 18:00 以降",
-          status: "pending",
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: "mock-cb-2",
-          callerNumber: "+8190444555666",
-          preferredTime: null,
-          status: "completed",
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-        },
-      ] as T,
-    };
+  if (method === "GET" && pathname.startsWith("/v1/callbacks")) {
+    const allCallbacks = [
+      { id: "cb_1", callerNumber: "090-1234-5678", preferredTime: "本日 14:00", status: "pending", createdAt: new Date(Date.now() - 1800000).toISOString(), completedAt: null },
+      { id: "cb_2", callerNumber: "080-9876-5432", preferredTime: "明日 午前中", status: "pending", createdAt: new Date(Date.now() - 3600000).toISOString(), completedAt: null },
+      { id: "cb_3", callerNumber: "070-5555-1234", preferredTime: null, status: "pending", createdAt: new Date(Date.now() - 7200000).toISOString(), completedAt: null },
+      { id: "cb_4", callerNumber: "090-3333-7777", preferredTime: "昨日 16:00", status: "completed", createdAt: new Date(Date.now() - 86400000).toISOString(), completedAt: new Date(Date.now() - 82800000).toISOString() },
+      { id: "cb_5", callerNumber: "080-2222-8888", preferredTime: "本日 10:00", status: "no_answer", createdAt: new Date(Date.now() - 14400000).toISOString(), completedAt: null },
+    ];
+    const statusFilter = url.searchParams.get("status");
+    const filtered = statusFilter && statusFilter !== "all"
+      ? allCallbacks.filter((r) => r.status === statusFilter)
+      : allCallbacks;
+    return { ok: true, data: filtered as T };
   }
-  if (method === "PATCH" && /^\/v1\/callbacks\/[^/]+\/complete$/.test(pathname)) {
+  if (method === "PATCH" && /^\/v1\/callbacks\/[^/]+\/(complete|no-answer)$/.test(pathname)) {
     return { ok: true, data: {} as T };
   }
 
@@ -442,26 +539,6 @@ export function resolveMockResponse<T>(
         estimatedSttUsd: 12.4,
         estimatedTtsUsd: 6.1,
       } as T,
-    };
-  }
-
-  if (method === "GET" && pathname === "/v1/voice-templates") {
-    return {
-      ok: true,
-      data: [
-        {
-          id: "mock-vt-1",
-          name: "オープニング（標準）",
-          storagePath: "tenants/mock/templates/opening.mp3",
-          durationMs: 4200,
-        },
-        {
-          id: "mock-vt-2",
-          name: "クロージング",
-          storagePath: "tenants/mock/templates/closing.mp3",
-          durationMs: 2800,
-        },
-      ] as T,
     };
   }
 

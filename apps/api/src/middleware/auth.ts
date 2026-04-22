@@ -15,9 +15,12 @@ export async function requireAuth(
   // Dev bypass: X-Dev-Tenant-Id + optional X-Dev-User-Id (no Firebase)
   const devTenant = req.headers["x-dev-tenant-id"];
   if (process.env.NODE_ENV !== "production" && typeof devTenant === "string") {
+    const devUserId = (req.headers["x-dev-user-id"] as string) ?? "dev-user";
     req.tenantId = devTenant;
-    req.userId = (req.headers["x-dev-user-id"] as string) ?? "dev-user";
-    req.userRole = "admin";
+    req.userId = devUserId;
+    // DB からロールを取得（見つからない場合は admin にフォールバック）
+    const devUser = await prisma.user.findUnique({ where: { id: devUserId } });
+    req.userRole = devUser?.role ?? "admin";
     next();
     return;
   }

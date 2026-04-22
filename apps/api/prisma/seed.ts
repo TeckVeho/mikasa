@@ -14,15 +14,27 @@ async function main(): Promise<void> {
   });
 
   await prisma.user.upsert({
-    where: { email: "admin@example.com" },
+    where: { id: "dev-user" },
     create: {
-      id: userId,
+      id: "dev-user",
       tenantId,
       email: "admin@example.com",
       firebaseUid: "dev-firebase-uid",
       role: "admin",
     },
     update: { tenantId, role: "admin" },
+  });
+
+  await prisma.user.upsert({
+    where: { id: "dev-operator" },
+    create: {
+      id: "dev-operator",
+      tenantId,
+      email: "operator@example.com",
+      firebaseUid: "dev-firebase-uid-operator",
+      role: "operator",
+    },
+    update: { tenantId, role: "operator" },
   });
 
   const demoFlow = {

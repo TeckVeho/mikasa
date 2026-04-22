@@ -62,6 +62,24 @@ export async function upsert(
   });
 }
 
+export async function updateKnowledge(
+  scenarioId: string,
+  businessKnowledge: string,
+) {
+  return prisma.geminiScenario.upsert({
+    where: { scenarioId },
+    create: {
+      scenarioId,
+      persona: "",
+      conversationRules: "",
+      businessKnowledge,
+      guardRails: "",
+      toolDefinitions: "[]",
+    },
+    update: { businessKnowledge },
+  });
+}
+
 export async function deleteByScenarioId(scenarioId: string) {
   return prisma.geminiScenario.deleteMany({
     where: { scenarioId },

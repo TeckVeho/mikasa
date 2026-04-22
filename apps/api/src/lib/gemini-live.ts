@@ -11,6 +11,7 @@ export type GeminiLiveConfig = {
 };
 
 export type GeminiLiveCallbacks = {
+  onSetupComplete?: () => void;
   onAudio: (pcm24kChunk: Buffer) => void;
   onTranscript: (role: "user" | "model", text: string) => void;
   onToolCall: (
@@ -53,9 +54,9 @@ type ToolCallMessage = {
 };
 
 type GeminiMessage = {
+  setupComplete?: unknown;
   serverContent?: ServerContent;
   toolCall?: ToolCallMessage;
-  sessionResumptionUpdate?: { newHandle?: string };
   goAway?: unknown;
 };
 
@@ -66,7 +67,6 @@ type GeminiMessage = {
 export class GeminiLiveSession {
   private ws: WebSocket | null = null;
   private callbacks: GeminiLiveCallbacks | null = null;
-  private sessionHandle: string | null = null;
 
   /** Gemini Live API に接続してセッションを確立 */
   connect(config: GeminiLiveConfig, callbacks: GeminiLiveCallbacks): void {
@@ -93,8 +93,16 @@ export class GeminiLiveSession {
       );
     });
 
-    this.ws.on("close", () => {
-      logger.info("Gemini Live WS closed");
+    this.ws.on("close", (code: number, reason: Buffer) => {
+      const reasonStr = reason?.toString() || "";
+      if (code !== 1000 && code !== 1001) {
+        logger.error({ code, reason: reasonStr }, "Gemini Live WS closed with error");
+        this.callbacks?.onError(
+          new Error(`Gemini Live 接続エラー (code=${code}): ${reasonStr || "不明なエラー"}`),
+        );
+      } else {
+        logger.info({ code, reason: reasonStr }, "Gemini Live WS closed");
+      }
       this.ws = null;
       this.callbacks?.onClose();
     });
@@ -145,6 +153,14 @@ export class GeminiLiveSession {
     );
   }
 
+  /** 初期ターンを送信して Gemini に最初の発話を促す */
+  sendInitialTurn(prompt = "通話が接続されました。挨拶してください。"): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    this.ws.send(JSON.stringify({
+      realtimeInput: { text: prompt },
+    }));
+  }
+
   /** セッションを終了 */
   close(): void {
     if (this.ws) {
@@ -165,7 +181,7 @@ export class GeminiLiveSession {
   private sendSetup(config: GeminiLiveConfig): void {
     const setup = {
       setup: {
-        model: config.model,
+        model: config.model.startsWith("models/") ? config.model : `models/${config.model}`,
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
@@ -179,15 +195,17 @@ export class GeminiLiveSession {
           parts: [{ text: config.systemInstruction }],
         },
         tools: config.tools,
-        sessionResumption: { transparent: true },
-        inputAudioTranscription: { languageCodes: [config.languageCode] },
-        outputAudioTranscription: { languageCodes: [config.languageCode] },
-        contextWindowCompression: {
-          triggerTokens: 100_000,
-          slidingWindow: { targetTokens: 4_000 },
-        },
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
       },
     };
+
+    logger.debug(
+      { toolCount: config.tools?.[0] && typeof config.tools[0] === "object"
+          ? (config.tools[0] as Record<string, unknown[]>).functionDeclarations?.length ?? 0
+          : 0 },
+      "Gemini Live setup: sending tools",
+    );
 
     this.ws!.send(JSON.stringify(setup));
   }
@@ -201,12 +219,10 @@ export class GeminiLiveSession {
       return;
     }
 
-    if (msg.sessionResumptionUpdate?.newHandle) {
-      this.sessionHandle = msg.sessionResumptionUpdate.newHandle;
-      logger.debug(
-        { handle: this.sessionHandle },
-        "Gemini session handle updated",
-      );
+    if (msg.setupComplete) {
+      logger.info("Gemini Live setup complete");
+      this.callbacks?.onSetupComplete?.();
+      return;
     }
 
     if (msg.goAway) {
@@ -224,9 +240,6 @@ export class GeminiLiveSession {
           if (part.inlineData?.data) {
             const pcm = Buffer.from(part.inlineData.data, "base64");
             this.callbacks?.onAudio(pcm);
-          }
-          if (part.text) {
-            this.callbacks?.onTranscript("model", part.text);
           }
         }
       }
@@ -246,6 +259,7 @@ export class GeminiLiveSession {
 
     if (msg.toolCall?.functionCalls) {
       for (const fc of msg.toolCall.functionCalls) {
+        logger.info({ toolName: fc.name, args: fc.args }, "Gemini Live: tool call received");
         this.callbacks?.onToolCall(fc.id, fc.name, fc.args);
       }
     }

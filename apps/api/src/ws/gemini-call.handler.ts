@@ -23,6 +23,7 @@ import { newId } from "../utils/id.js";
 import * as callRepo from "../repositories/call-log.repo.js";
 import { publishCallCompleted } from "../lib/pubsub.js";
 import { logger } from "../lib/logger.js";
+import { activeCallsStore } from "../services/active-calls.service.js";
 
 type TwilioMediaMessage = {
   event: string;
@@ -86,6 +87,7 @@ export async function handleGeminiLiveCall(
     finalized = true;
 
     gemini.close();
+    activeCallsStore.end(callSid);
 
     const id = newId();
     let audioStoragePath: string | null = null;
@@ -137,13 +139,17 @@ export async function handleGeminiLiveCall(
   gemini.connect(
     {
       apiKey: process.env.GEMINI_API_KEY ?? "",
-      model: process.env.GEMINI_MODEL ?? "gemini-2.0-flash-live-001",
+      model: process.env.GEMINI_MODEL ?? "models/gemini-3.1-flash-live-preview",
       systemInstruction,
       tools: [{ functionDeclarations: tools }],
       voice: geminiScenario.voiceName,
       languageCode: geminiScenario.languageCode,
     },
     {
+      onSetupComplete() {
+        gemini.sendInitialTurn();
+      },
+
       onAudio(pcm24kChunk) {
         const pcm8k = resample24kTo8k(pcm24kChunk);
         const mulaw = pcm16ToMulawBuffer(pcm8k);
@@ -154,6 +160,7 @@ export async function handleGeminiLiveCall(
         if (text) {
           const prefix = role === "user" ? "お客様: " : "AI: ";
           accumulatedTranscript += prefix + text + "\n";
+          activeCallsStore.updateTranscript(callSid, accumulatedTranscript);
         }
       },
 

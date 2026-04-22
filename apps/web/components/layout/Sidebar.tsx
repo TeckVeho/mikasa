@@ -14,11 +14,13 @@ import {
   CreditCard,
   BarChart3,
   PhoneForwarded,
-  Mic2,
+  Activity,
+  ArrowRightLeft,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 /** 折りたたみ時のみ、右側にラベルをポップアップ表示 */
 function SidebarLabelPopup({
@@ -52,24 +54,29 @@ function SidebarLabelPopup({
   );
 }
 
-type Item = { href: string; label: string; icon: typeof LayoutDashboard };
+type Item = { href: string; label: string; icon: typeof LayoutDashboard; roles?: string[] };
 
 const items: Item[] = [
-  { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
-  { href: "/numbers", label: "電話番号", icon: Phone },
-  { href: "/scenarios", label: "シナリオ", icon: GitBranch },
+  { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard, roles: ["admin"] },
+  { href: "/operator", label: "ダッシュボード", icon: LayoutDashboard, roles: ["operator"] },
+  { href: "/numbers", label: "電話番号", icon: Phone, roles: ["admin"] },
+  { href: "/scenarios", label: "シナリオ", icon: GitBranch, roles: ["admin"] },
+  { href: "/monitor", label: "通話モニタリング", icon: Activity },
   { href: "/calls", label: "通話ログ", icon: PhoneCall },
-  { href: "/callbacks", label: "折り返し予約", icon: PhoneForwarded },
-  { href: "/voice-templates", label: "音声テンプレート", icon: Mic2 },
-  { href: "/analytics", label: "VOC 分析", icon: BarChart3 },
-  { href: "/billing", label: "支払い", icon: CreditCard },
-  { href: "/settings", label: "設定", icon: Settings },
+  { href: "/callbacks", label: "折り返し対応", icon: PhoneForwarded },
+  { href: "/transfers", label: "転送履歴", icon: ArrowRightLeft },
+  { href: "/analytics", label: "VOC 分析", icon: BarChart3, roles: ["admin"] },
+  { href: "/billing", label: "支払い", icon: CreditCard, roles: ["admin"] },
+  { href: "/settings", label: "設定", icon: Settings, roles: ["admin"] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const { data: user } = useCurrentUser();
+  const role = user?.role ?? "admin";
+  const filteredItems = items.filter((item) => !item.roles || item.roles.includes(role));
 
   async function handleLogout() {
     await logout();
@@ -108,7 +115,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4 scrollbar-hide">
-        {items.map((item) => {
+        {filteredItems.map((item) => {
           const active =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
@@ -133,18 +140,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div
-        className={cn(
-          "flex flex-col gap-1 border-t border-border px-2 py-3",
-        )}
-      >
+      <div className="flex flex-col gap-0.5 border-t border-border px-2 py-3">
         <SidebarLabelPopup label="ログアウト" collapsed={collapsed}>
           <button
             type="button"
             onClick={handleLogout}
             className={cn(
-              "flex items-center rounded-md px-2 py-2 text-sm text-muted transition-colors hover:bg-danger/5 hover:text-danger",
-              collapsed ? "w-full justify-center" : "gap-2.5 px-3",
+              "flex w-full items-center rounded-md px-2 py-2 text-sm text-muted transition-colors hover:bg-danger/5 hover:text-danger",
+              collapsed ? "justify-center" : "gap-2.5 px-3",
             )}
           >
             <LogOut className="h-4 w-4 shrink-0" />
@@ -152,31 +155,34 @@ export function Sidebar() {
           </button>
         </SidebarLabelPopup>
 
-        <div className={cn(
-          "flex items-center",
-          collapsed ? "justify-center" : "justify-between px-1",
-        )}>
-          {!collapsed && <p className="text-xs text-muted">v0.1.0</p>}
-          {collapsed ? (
-            <SidebarLabelPopup label="展開する" collapsed>
-              <button
-                type="button"
-                onClick={() => setCollapsed(false)}
-                className="rounded-md p-1 text-muted hover:bg-primary/5 hover:text-text transition-colors"
-              >
-                <PanelLeftOpen className="h-4 w-4" />
-              </button>
-            </SidebarLabelPopup>
-          ) : (
+        {collapsed ? (
+          <SidebarLabelPopup label="展開する" collapsed>
             <button
               type="button"
-              onClick={() => setCollapsed(true)}
-              className="rounded-md p-1 text-muted hover:bg-primary/5 hover:text-text transition-colors"
+              onClick={() => setCollapsed(false)}
+              className="flex w-full items-center justify-center rounded-md px-2 py-2 text-sm text-muted transition-colors hover:bg-primary/5 hover:text-text"
             >
-              <PanelLeftClose className="h-4 w-4" />
+              <PanelLeftOpen className="h-4 w-4 shrink-0" />
             </button>
-          )}
-        </div>
+          </SidebarLabelPopup>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="メニューを閉じる"
+            aria-label="メニューを閉じる"
+            className={cn(
+              "flex w-full items-center rounded-md px-2 py-2 text-sm text-muted transition-colors hover:bg-primary/5 hover:text-text",
+              "gap-2.5 px-3",
+            )}
+          >
+            <PanelLeftClose className="h-4 w-4 shrink-0" />
+          </button>
+        )}
+
+        {!collapsed && (
+          <p className="px-3 pb-0.5 pt-1 text-xs text-muted">v0.1.0</p>
+        )}
       </div>
     </aside>
   );

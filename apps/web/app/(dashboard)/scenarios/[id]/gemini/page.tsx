@@ -108,7 +108,7 @@ export default function GeminiSettingsPage() {
     setPreviewLoading(true);
     setShowPreview(true);
     try {
-      const r = await apiJson<{ prompt: string }>(
+      const r = await apiJson<{ systemInstruction: string }>(
         `/v1/scenarios/${id}/gemini/preview-prompt`,
         {
           method: "POST",
@@ -121,7 +121,7 @@ export default function GeminiSettingsPage() {
         },
       );
       if (r.ok) {
-        setPreviewText(r.data.prompt);
+        setPreviewText(r.data.systemInstruction);
       } else {
         setPreviewText(`エラー: ${r.message ?? r.error}`);
       }
@@ -160,13 +160,21 @@ export default function GeminiSettingsPage() {
       <PageHeader
         title="Gemini Live 設定"
         action={
-          <Link
-            href="/scenarios"
-            className="flex items-center gap-1 text-sm text-muted hover:text-text transition-colors"
-          >
-            <ArrowLeft size={14} />
-            シナリオ一覧に戻る
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href={`/scenarios/${id}/edit?mode=flow`}
+              className="text-sm text-muted hover:text-text transition-colors"
+            >
+              フロー編集
+            </Link>
+            <Link
+              href="/scenarios"
+              className="flex items-center gap-1 text-sm text-muted hover:text-text transition-colors"
+            >
+              <ArrowLeft size={14} />
+              シナリオ一覧に戻る
+            </Link>
+          </div>
         }
       />
 
@@ -196,7 +204,7 @@ export default function GeminiSettingsPage() {
           <RulesEditor value={rules} onChange={setRules} />
         )}
         {activeTab === "knowledge" && (
-          <KnowledgeEditor value={knowledge} onChange={setKnowledge} />
+          <KnowledgeEditor value={knowledge} onChange={setKnowledge} scenarioId={id} />
         )}
         {activeTab === "tools" && (
           <ToolDefinitionEditor

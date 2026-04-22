@@ -10,7 +10,6 @@ const LABEL_MAP: Record<string, string> = {
   scenarios: "シナリオ",
   calls: "通話ログ",
   callbacks: "折り返し予約",
-  "voice-templates": "音声テンプレート",
   analytics: "VOC 分析",
   billing: "支払い",
   settings: "設定",

@@ -201,3 +201,46 @@ export async function hourlyDistribution(
   }
   return { ok: true, data: buckets };
 }
+
+export async function operatorSummary(
+  tenantId: string,
+): Promise<Result<unknown>> {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [todayCalls, pendingCallbacks, recentTransfers, recentCalls] =
+    await Promise.all([
+      prisma.callLog.count({
+        where: { tenantId, createdAt: { gte: todayStart } },
+      }),
+      prisma.callbackRequest.count({
+        where: { tenantId, status: "pending" },
+      }),
+      prisma.transferHandoff.count({
+        where: { tenantId, status: "pending" },
+      }),
+      prisma.callLog.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          callerNumber: true,
+          status: true,
+          summaryText: true,
+          durationSeconds: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+  return {
+    ok: true,
+    data: {
+      todayCalls,
+      pendingCallbacks,
+      pendingTransfers: recentTransfers,
+      recentCalls,
+    },
+  };
+}

@@ -23,7 +23,6 @@ model Tenant {
   scenarios          Scenario[]
   callLogs           CallLog[]
   speechDictionaries SpeechDictionary[]
-  voiceTemplates     VoiceTemplate[]
   callbackRequests   CallbackRequest[]
 
   @@map("tenants")
@@ -137,20 +136,6 @@ model SpeechDictionary {
 
   @@index([tenantId])
   @@map("speech_dictionaries")
-}
-
-model VoiceTemplate {
-  id          String   @id @db.VarChar(26)
-  tenantId    String   @map("tenant_id") @db.VarChar(26)
-  name        String   @db.VarChar(255)
-  storagePath String   @map("storage_path") @db.Text
-  durationMs  Int?     @map("duration_ms")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
-  @@map("voice_templates")
 }
 
 model CallbackRequest {
