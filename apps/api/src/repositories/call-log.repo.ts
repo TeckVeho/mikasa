@@ -64,6 +64,7 @@ export async function upsertCallLogByTwilioSid(data: {
   callerNumber: string;
   status: string;
   transcriptText?: string | null;
+  transcriptSegments?: Prisma.InputJsonValue | null;
   durationSeconds?: number | null;
   structuredData?: Prisma.InputJsonValue | null;
   audioStoragePath?: string | null;
@@ -76,10 +77,15 @@ export async function upsertCallLogByTwilioSid(data: {
         data.structuredData === null || data.structuredData === undefined
           ? undefined
           : data.structuredData,
+      transcriptSegments:
+        data.transcriptSegments === null || data.transcriptSegments === undefined
+          ? undefined
+          : data.transcriptSegments,
     },
     update: {
       status: data.status,
       transcriptText: data.transcriptText,
+      transcriptSegments: data.transcriptSegments ?? undefined,
       durationSeconds: data.durationSeconds,
       structuredData: data.structuredData ?? undefined,
       audioStoragePath: data.audioStoragePath ?? undefined,
@@ -90,11 +96,14 @@ export async function upsertCallLogByTwilioSid(data: {
 export async function updateCallNote(
   tenantId: string,
   id: string,
-  operatorNote: string,
+  patch: { operatorNote?: string; callbackDone?: boolean },
 ) {
+  const data: Prisma.CallLogUpdateManyMutationInput = {};
+  if (patch.operatorNote !== undefined) data.operatorNote = patch.operatorNote;
+  if (patch.callbackDone !== undefined) data.callbackDone = patch.callbackDone;
   return prisma.callLog.updateMany({
     where: { id, tenantId },
-    data: { operatorNote },
+    data,
   });
 }
 

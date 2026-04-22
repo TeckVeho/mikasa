@@ -1,0 +1,69 @@
+import type { Prisma } from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
+
+export async function getByScenarioId(scenarioId: string) {
+  return prisma.geminiScenario.findUnique({
+    where: { scenarioId },
+  });
+}
+
+export async function upsert(
+  scenarioId: string,
+  data: {
+    persona: string;
+    conversationRules: string;
+    businessKnowledge: string;
+    guardRails: string;
+    toolDefinitions?: Prisma.InputJsonValue;
+    voiceName?: string;
+    languageCode?: string;
+    transferEnabled?: boolean;
+    transferNumber?: string | null;
+    transferTimeout?: number;
+  },
+) {
+  return prisma.geminiScenario.upsert({
+    where: { scenarioId },
+    create: {
+      scenarioId,
+      persona: data.persona,
+      conversationRules: data.conversationRules,
+      businessKnowledge: data.businessKnowledge,
+      guardRails: data.guardRails,
+      toolDefinitions: data.toolDefinitions ?? "[]",
+      voiceName: data.voiceName ?? "Aoede",
+      languageCode: data.languageCode ?? "ja-JP",
+      transferEnabled: data.transferEnabled ?? true,
+      transferNumber: data.transferNumber ?? null,
+      transferTimeout: data.transferTimeout ?? 30,
+    },
+    update: {
+      persona: data.persona,
+      conversationRules: data.conversationRules,
+      businessKnowledge: data.businessKnowledge,
+      guardRails: data.guardRails,
+      ...(data.toolDefinitions !== undefined && {
+        toolDefinitions: data.toolDefinitions,
+      }),
+      ...(data.voiceName !== undefined && { voiceName: data.voiceName }),
+      ...(data.languageCode !== undefined && {
+        languageCode: data.languageCode,
+      }),
+      ...(data.transferEnabled !== undefined && {
+        transferEnabled: data.transferEnabled,
+      }),
+      ...(data.transferNumber !== undefined && {
+        transferNumber: data.transferNumber,
+      }),
+      ...(data.transferTimeout !== undefined && {
+        transferTimeout: data.transferTimeout,
+      }),
+    },
+  });
+}
+
+export async function deleteByScenarioId(scenarioId: string) {
+  return prisma.geminiScenario.deleteMany({
+    where: { scenarioId },
+  });
+}

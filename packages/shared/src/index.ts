@@ -1,5 +1,10 @@
 export type { Result, ApiSuccess, ApiError } from "./types/api.js";
-export type { CallSession, CallSessionStatus } from "./types/session.js";
+export type {
+  CallSession,
+  CallSessionStatus,
+  TranscriptSegment,
+  ConversationTurn,
+} from "./types/session.js";
 export type {
   FlowEdge,
   FlowJson,
@@ -13,6 +18,10 @@ export type {
   SmsNodeData,
   TransferNodeData,
   EndNodeData,
+  DtmfNodeData,
+  DtmfBranch,
+  AiAgentNodeData,
+  AiAgentSlot,
 } from "./types/scenario.js";
 export { flowJsonSchema, flowEdgeSchema } from "./schemas/flow-json.js";
 export type { FlowJsonParsed } from "./schemas/flow-json.js";

@@ -100,7 +100,7 @@ function ScenarioModal({
               className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                 selectedId === null
                   ? "bg-primary/10 text-primary"
-                  : "hover:bg-[#f5f0e8]/60 text-[#3d3530]"
+                  : "hover:bg-primary/[0.03] text-muted-foreground"
               }`}
             >
               未設定
@@ -114,7 +114,7 @@ function ScenarioModal({
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   selectedId === s.id
                     ? "bg-primary/10 text-primary"
-                    : "hover:bg-[#f5f0e8]/60 text-[#3d3530]"
+                    : "hover:bg-primary/[0.03] text-muted-foreground"
                 }`}
               >
                 {s.name}
@@ -144,7 +144,7 @@ function AddNumberModal({ onClose }: { onClose: () => void }) {
         </Button>
       }
     >
-      <p className="text-sm text-[#3d3530]">
+      <p className="text-sm text-muted-foreground">
         Twilio連携が必要です。設定画面でAPIキーを登録してください。
       </p>
       <div className="mt-4">
@@ -195,7 +195,7 @@ export default function NumbersPage() {
   });
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <PageHeader
         title="電話番号管理"
         action={
@@ -241,15 +241,15 @@ export default function NumbersPage() {
                 return (
                   <tr
                     key={n.id}
-                    className="border-b border-border last:border-0 hover:bg-[#f5f0e8]/60"
+                    className="border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors"
                   >
-                    <td className="px-4 py-3 font-mono text-[#1a1715]">
+                    <td className="px-4 py-3 font-mono text-text">
                       {n.number}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <span
-                          className={n.scenarioName ? "text-[#3d3530]" : "text-muted"}
+                          className={n.scenarioName ? "text-muted-foreground" : "text-muted"}
                         >
                           {n.scenarioName ?? "未設定"}
                         </span>

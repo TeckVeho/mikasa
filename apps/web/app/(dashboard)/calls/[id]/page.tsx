@@ -16,6 +16,11 @@ type CallDetail = {
   duration: number | null;
   status: string;
   transcriptText: string | null;
+  transcriptSegments?: Array<{
+    startMs: number;
+    endMs: number;
+    text: string;
+  }> | null;
   summaryText: string | null;
   structuredData?: Record<string, string>;
   audioUrl?: string;
@@ -25,7 +30,7 @@ type CallDetail = {
 };
 
 const textareaClass =
-  "mt-2 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-[#1a1715] placeholder:text-muted outline-none transition-shadow focus:ring-2 focus:ring-primary/30";
+  "mt-2 w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text placeholder:text-muted outline-none transition-shadow focus:ring-2 focus:ring-primary/30";
 
 const fieldLabelMap: Record<string, string> = {
   name: "名前",
@@ -59,13 +64,28 @@ function statusLabel(status: string): string {
 const formatDuration = (s: number) =>
   `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-function AudioPlayer({ url }: { url: string }) {
+function AudioPlayer({
+  url,
+  segments,
+}: {
+  url: string;
+  segments?: Array<{ startMs: number; endMs: number; text: string }> | null;
+}) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
   const speeds = [1, 1.5, 2] as const;
+
+  const seekToMs = (ms: number) => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = ms / 1000;
+    setCurrentTime(el.currentTime);
+    void el.play();
+    setPlaying(true);
+  };
 
   const togglePlay = () => {
     const el = audioRef.current;
@@ -95,8 +115,8 @@ function AudioPlayer({ url }: { url: string }) {
   };
 
   return (
-    <div className="rounded-xl border border-[#e8e5e0] bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-[#1a1715]">音声</h2>
+    <div className="rounded-xl border border-border bg-white p-4">
+      <h2 className="mb-3 text-base font-medium text-text">音声</h2>
       <audio
         ref={audioRef}
         src={url}
@@ -128,11 +148,29 @@ function AudioPlayer({ url }: { url: string }) {
         </div>
         <button
           onClick={cycleSpeed}
-          className="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-medium text-[#3d3530] hover:bg-surface transition-colors"
+          className="shrink-0 rounded-lg border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-bg transition-colors"
         >
           {speed}x
         </button>
       </div>
+      {segments && segments.length > 0 && (
+        <ul className="mt-4 max-h-40 overflow-y-auto space-y-1 border-t border-border pt-3">
+          {segments.map((s, i) => (
+            <li key={`${s.startMs}-${i}`}>
+              <button
+                type="button"
+                className="w-full text-left text-xs text-primary hover:underline"
+                onClick={() => seekToMs(s.startMs)}
+              >
+                <span className="text-muted tabular-nums">
+                  {formatDuration(Math.floor(s.startMs / 1000))}
+                </span>{" "}
+                {s.text}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -215,15 +253,17 @@ export default function CallDetailPage() {
   });
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <PageHeader title="通話詳細" />
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 左カラム: 音声・文字起こし・AI要約 */}
         <div className="flex flex-col gap-4">
-          {d.audioUrl && <AudioPlayer url={d.audioUrl} />}
+          {d.audioUrl && (
+            <AudioPlayer url={d.audioUrl} segments={d.transcriptSegments} />
+          )}
 
           <div className="rounded-xl border border-border bg-surface p-5">
-            <h2 className="text-sm font-semibold text-[#1a1715]">文字起こし</h2>
+            <h2 className="text-base font-medium text-text">文字起こし</h2>
             <div className="mt-3 max-h-96 overflow-y-auto">
               <pre className="whitespace-pre-wrap text-sm text-muted leading-relaxed">
                 {d.transcriptText ?? "（なし）"}
@@ -232,8 +272,8 @@ export default function CallDetailPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-5">
-            <h2 className="text-sm font-semibold text-[#1a1715]">AI 要約</h2>
-            <p className="mt-3 text-sm text-[#3d3530] leading-relaxed">
+            <h2 className="text-base font-medium text-text">AI 要約</h2>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
               {d.summaryText ?? "—"}
             </p>
           </div>
@@ -242,16 +282,16 @@ export default function CallDetailPage() {
         {/* 右カラム: 通話情報・ヒアリング結果・メモ */}
         <div className="flex flex-col gap-4">
           <div className="rounded-xl border border-border bg-surface p-5">
-            <h2 className="text-sm font-semibold text-[#1a1715]">通話情報</h2>
+            <h2 className="text-base font-medium text-text">通話情報</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-2">
                 <dt className="text-muted">日時</dt>
-                <dd className="text-[#1a1715]">{dateStr}</dd>
+                <dd className="text-text">{dateStr}</dd>
               </div>
               {d.duration !== null && d.duration !== undefined && (
                 <div className="flex justify-between gap-2">
                   <dt className="text-muted">通話時間</dt>
-                  <dd className="text-[#1a1715]">
+                  <dd className="text-text">
                     {Math.floor(d.duration / 60)}分{String(d.duration % 60).padStart(2, "0")}秒
                   </dd>
                 </div>
@@ -266,19 +306,19 @@ export default function CallDetailPage() {
               </div>
               <div className="flex justify-between gap-2">
                 <dt className="text-muted">発信番号</dt>
-                <dd className="text-[#1a1715]">{d.callerNumber}</dd>
+                <dd className="text-text">{d.callerNumber}</dd>
               </div>
             </dl>
           </div>
 
           {d.structuredData && Object.keys(d.structuredData).length > 0 && (
             <div className="rounded-xl border border-border bg-surface p-5">
-              <h2 className="text-sm font-semibold text-[#1a1715]">ヒアリング結果</h2>
+              <h2 className="text-base font-medium text-text">ヒアリング結果</h2>
               <dl className="mt-3 space-y-2 text-sm">
                 {Object.entries(d.structuredData).map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-2">
                     <dt className="text-muted">{fieldLabelMap[key] ?? key}</dt>
-                    <dd className="text-[#1a1715] text-right">{mapFieldValue(key, value)}</dd>
+                    <dd className="text-text text-right">{mapFieldValue(key, value)}</dd>
                   </div>
                 ))}
               </dl>
@@ -286,7 +326,7 @@ export default function CallDetailPage() {
           )}
 
           <div className="rounded-xl border border-border bg-surface p-5">
-            <h2 className="text-sm font-semibold text-[#1a1715]">オペレーターメモ</h2>
+            <h2 className="text-base font-medium text-text">オペレーターメモ</h2>
             <textarea
               className={textareaClass}
               rows={4}
@@ -305,7 +345,7 @@ export default function CallDetailPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-5">
-            <h2 className="text-sm font-semibold text-[#1a1715]">アクション</h2>
+            <h2 className="text-base font-medium text-text">アクション</h2>
             <div className="mt-3">
               <Button
                 variant="outline"

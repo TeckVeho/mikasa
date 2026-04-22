@@ -27,3 +27,18 @@ dashboardRouter.get("/hourly-distribution", async (req, res) => {
   const r = await svc.hourlyDistribution(req.tenantId!);
   sendResult(res, r);
 });
+
+dashboardRouter.get("/by-scenario", async (req, res) => {
+  const r = await svc.dashboardByScenario(req.tenantId!);
+  sendResult(res, r);
+});
+
+dashboardRouter.get("/by-number", async (req, res) => {
+  const r = await svc.dashboardByNumber(req.tenantId!);
+  sendResult(res, r);
+});
+
+dashboardRouter.get("/cost-estimate", async (req, res) => {
+  const r = await svc.dashboardCostEstimate(req.tenantId!);
+  sendResult(res, r);
+});

@@ -9,6 +9,8 @@ export type FlowEdge = {
 export type SpeakNodeData = {
   text: string;
   speed: number;
+  source?: "tts" | "template";
+  templateId?: string;
 };
 
 export type ListenNodeData = {
@@ -17,6 +19,9 @@ export type ListenNodeData = {
   retryCount: number;
   retryText: string;
   label?: string;
+  excludeNumbers?: boolean;
+  noRetryOnFail?: boolean;
+  kanaConversion?: "none" | "name" | "all";
 };
 
 export type BranchBranch = {
@@ -59,6 +64,36 @@ export type EndNodeData = {
   farewell?: string;
 };
 
+export type DtmfBranch = {
+  id: string;
+  digit: string;
+  label: string;
+};
+
+export type DtmfNodeData = {
+  promptText: string;
+  variableName: string;
+  numDigits: number;
+  timeoutSeconds: number;
+  speed: number;
+  branches: DtmfBranch[];
+  defaultNextNodeId: string;
+};
+
+export type AiAgentSlot = {
+  name: string;
+  description: string;
+  required: boolean;
+  variableName: string;
+};
+
+export type AiAgentNodeData = {
+  systemPrompt: string;
+  slots: AiAgentSlot[];
+  maxTurns: number;
+  openingLine?: string;
+};
+
 export type ScenarioNodeType =
   | "speak"
   | "listen"
@@ -66,7 +101,9 @@ export type ScenarioNodeType =
   | "api_call"
   | "sms"
   | "transfer"
-  | "end";
+  | "end"
+  | "dtmf"
+  | "ai_agent";
 
 export type ScenarioFlowNode =
   | {
@@ -109,6 +146,18 @@ export type ScenarioFlowNode =
       id: string;
       type: "end";
       data: EndNodeData;
+      position: { x: number; y: number };
+    }
+  | {
+      id: string;
+      type: "dtmf";
+      data: DtmfNodeData;
+      position: { x: number; y: number };
+    }
+  | {
+      id: string;
+      type: "ai_agent";
+      data: AiAgentNodeData;
       position: { x: number; y: number };
     };
 

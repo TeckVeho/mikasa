@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -17,6 +17,8 @@ import "reactflow/dist/style.css";
 import { SpeakNode } from "./nodes/SpeakNode";
 import { ListenNode } from "./nodes/ListenNode";
 import { BranchNode } from "./nodes/BranchNode";
+import { DtmfNode } from "./nodes/DtmfNode";
+import { AiAgentNode } from "./nodes/AiAgentNode";
 import {
   ApiCallNode,
   SmsNode,
@@ -31,6 +33,8 @@ import type { FlowJson } from "@logivoice/shared";
 const nodeTypes = {
   speak: SpeakNode,
   listen: ListenNode,
+  dtmf: DtmfNode,
+  ai_agent: AiAgentNode,
   branch: BranchNode,
   api_call: ApiCallNode,
   sms: SmsNode,
@@ -59,10 +63,14 @@ export function ScenarioEditorInner({
   initialName,
   initialFlow,
   onSave,
+  name: controlledName,
+  onNameChange,
 }: {
   initialName: string;
   initialFlow: FlowJson | null;
   onSave: (name: string, flow: FlowJson) => Promise<void>;
+  name?: string;
+  onNameChange?: (name: string) => void;
 }) {
   const defaultNodes: Node[] = useMemo(
     () => [
@@ -70,7 +78,7 @@ export function ScenarioEditorInner({
         id: "n1",
         type: "speak",
         position: { x: 100, y: 100 },
-        data: { text: "お電話ありがとうございます。", speed: 1 },
+        data: { text: "お電話ありがとうございます。", speed: 1, source: "tts" },
       },
       {
         id: "n2",
@@ -100,6 +108,13 @@ export function ScenarioEditorInner({
     initialFlow?.edges?.length ? (initialFlow.edges as Edge[]) : defaultEdges,
   );
 
+  const [internalName, setInternalName] = useState(initialName);
+  useEffect(() => {
+    setInternalName(initialName);
+  }, [initialName]);
+  const scenarioName = controlledName ?? internalName;
+  const setScenarioName = onNameChange ?? setInternalName;
+
   const selectNode = useScenarioEditorStore((s) => s.selectNode);
   const selectedNodeId = useScenarioEditorStore((s) => s.selectedNodeId);
 
@@ -112,12 +127,18 @@ export function ScenarioEditorInner({
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">{initialName}</h1>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <input
+          className="text-xl font-bold bg-transparent border-b border-border border-dashed px-1 py-0.5 min-w-0 flex-1 text-text focus:outline-none focus:border-primary"
+          value={scenarioName}
+          onChange={(e) => setScenarioName(e.target.value)}
+        />
         <button
           type="button"
-          className="rounded-md bg-primary px-4 py-2 text-sm text-white"
-          onClick={() => void onSave(initialName, toFlowJson(nodes, edges))}
+          className="rounded-md bg-primary px-4 py-2 text-sm text-white shrink-0"
+          onClick={() =>
+            void onSave(scenarioName, toFlowJson(nodes, edges))
+          }
         >
           保存
         </button>
@@ -168,13 +189,44 @@ export function ScenarioEditorInner({
 function defaultDataFor(type: string): Record<string, unknown> {
   switch (type) {
     case "speak":
-      return { text: "こんにちは", speed: 1 };
+      return { text: "こんにちは", speed: 1, source: "tts" };
     case "listen":
       return {
         variableName: "field",
         timeoutSeconds: 7,
         retryCount: 2,
         retryText: "もう一度お話しください。",
+        excludeNumbers: false,
+        noRetryOnFail: false,
+        kanaConversion: "none",
+      };
+    case "dtmf":
+      return {
+        promptText: "お好みの番号のボタンを押してください。",
+        variableName: "dtmf_digit",
+        numDigits: 1,
+        timeoutSeconds: 7,
+        speed: 1,
+        branches: [
+          { id: "db1", digit: "1", label: "1番" },
+          { id: "db2", digit: "2", label: "2番" },
+        ],
+        defaultNextNodeId: "",
+      };
+    case "ai_agent":
+      return {
+        systemPrompt:
+          "あなたは物流コールセンターの受付です。丁寧にヒアリングしてください。",
+        slots: [
+          {
+            name: "お名前",
+            description: "お客様の氏名",
+            required: true,
+            variableName: "customer_name",
+          },
+        ],
+        maxTurns: 10,
+        openingLine: "お電話ありがとうございます。お名前を教えてください。",
       };
     case "branch":
       return {
@@ -209,6 +261,8 @@ export function ScenarioEditor(props: {
   initialName: string;
   initialFlow: FlowJson | null;
   onSave: (name: string, flow: FlowJson) => Promise<void>;
+  name?: string;
+  onNameChange?: (name: string) => void;
 }) {
   return (
     <ReactFlowProvider>

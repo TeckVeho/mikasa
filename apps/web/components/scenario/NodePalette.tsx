@@ -3,6 +3,8 @@
 const items: { type: string; label: string; icon: string }[] = [
   { type: "speak", label: "発話", icon: "◎" },
   { type: "listen", label: "ヒアリング", icon: "◉" },
+  { type: "dtmf", label: "DTMF / IVR", icon: "⌗" },
+  { type: "ai_agent", label: "AIエージェント", icon: "✦" },
   { type: "branch", label: "分岐", icon: "◈" },
   { type: "api_call", label: "API 呼び出し", icon: "◇" },
   { type: "sms", label: "SMS 送信", icon: "◌" },
@@ -25,7 +27,7 @@ export function NodePalette({
           <li key={i.type}>
             <button
               type="button"
-              className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-[#3d3530] transition-colors hover:bg-primary/5 hover:text-[#1a1715]"
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-primary/5 hover:text-text"
               onClick={() => onAdd(i.type)}
             >
               <span className="text-xs text-muted">{i.icon}</span>

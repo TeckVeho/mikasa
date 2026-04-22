@@ -41,13 +41,13 @@ export function Modal({
       />
       <div
         className={cn(
-          "relative z-10 w-full rounded-2xl bg-white p-6 shadow-[0_8px_32px_rgba(30,20,10,0.10)]",
+          "relative z-10 w-full rounded-2xl bg-white p-6 shadow-[0_8px_32px_rgba(30,20,10,0.10)] animate-fade-in-up",
           width,
         )}
         role="dialog"
         aria-modal="true"
       >
-        <h2 className="mb-5 text-base font-semibold text-[#1a1715]">{title}</h2>
+        <h2 className="mb-5 text-base font-semibold text-text">{title}</h2>
         {children}
         {footer ? (
           <div className="mt-6 flex justify-end gap-2">{footer}</div>

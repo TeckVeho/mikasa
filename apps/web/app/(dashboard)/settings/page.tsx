@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Eye, EyeOff, Check, X, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -10,30 +10,31 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiJson } from "@/lib/api";
 
-type Tab = "tenant" | "api" | "notifications" | "users";
+type Tab = "tenant" | "api" | "notifications" | "users" | "dictionary";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "tenant", label: "テナント情報" },
   { id: "api", label: "API連携" },
   { id: "notifications", label: "通知設定" },
   { id: "users", label: "ユーザー管理" },
+  { id: "dictionary", label: "音声認識辞書" },
 ];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("tenant");
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <PageHeader title="設定" />
       <div className="mb-4 flex gap-2">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               activeTab === tab.id
                 ? "bg-primary/10 text-primary"
-                : "text-[#6b6560] hover:bg-[#f5f0e8]"
+                : "text-muted hover:bg-primary/5 hover:text-text"
             }`}
           >
             {tab.label}
@@ -45,6 +46,7 @@ export default function SettingsPage() {
         {activeTab === "api" && <ApiTab />}
         {activeTab === "notifications" && <NotificationsTab />}
         {activeTab === "users" && <UsersTab />}
+        {activeTab === "dictionary" && <DictionaryTab />}
       </div>
     </div>
   );
@@ -54,12 +56,23 @@ export default function SettingsPage() {
 /* Tab 1: テナント情報                                                   */
 /* ------------------------------------------------------------------ */
 
-type TenantSettings = { companyName: string };
+type VoiceEngine = "flow" | "gemini_live";
+
+type TenantSettings = {
+  companyName: string;
+  maintenanceMode?: boolean;
+  maintenanceMessage?: string | null;
+  voiceEngine?: VoiceEngine;
+};
 
 function TenantTab() {
   const qc = useQueryClient();
   const [companyName, setCompanyName] = useState("");
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState("");
+  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>("flow");
   const [saved, setSaved] = useState(false);
+  const [engineSaved, setEngineSaved] = useState(false);
 
   const q = useQuery({
     queryKey: ["settings", "tenant"],
@@ -70,16 +83,23 @@ function TenantTab() {
     },
   });
 
-  // sync initial value once loaded
-  if (q.data && companyName === "" && q.data.companyName) {
-    setCompanyName(q.data.companyName);
-  }
+  useEffect(() => {
+    if (!q.data) return;
+    setCompanyName(q.data.companyName ?? "");
+    setMaintenanceMode(q.data.maintenanceMode ?? false);
+    setMaintenanceMessage(q.data.maintenanceMessage ?? "");
+    setVoiceEngine(q.data.voiceEngine ?? "flow");
+  }, [q.data]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const r = await apiJson<TenantSettings>("/v1/settings/tenant", {
         method: "PATCH",
-        body: JSON.stringify({ companyName }),
+        body: JSON.stringify({
+          companyName,
+          maintenanceMode,
+          maintenanceMessage: maintenanceMessage || null,
+        }),
       });
       if (!r.ok) throw new Error(r.message ?? r.error);
       return r.data;
@@ -94,23 +114,67 @@ function TenantTab() {
     },
   });
 
+  const engineMutation = useMutation({
+    mutationFn: async (engine: VoiceEngine) => {
+      const r = await apiJson("/v1/settings/voice-engine", {
+        method: "PUT",
+        body: JSON.stringify({ voiceEngine: engine }),
+      });
+      if (!r.ok) throw new Error(r.message ?? r.error);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings", "tenant"] });
+      setEngineSaved(true);
+      setTimeout(() => setEngineSaved(false), 3000);
+    },
+    onError: (e) => {
+      window.alert(`エラー: ${e.message}`);
+    },
+  });
+
+  function handleEngineChange(engine: VoiceEngine) {
+    setVoiceEngine(engine);
+    engineMutation.mutate(engine);
+  }
+
   return (
-    <div className="rounded-xl border border-[#e8e5e0] bg-white p-6 max-w-lg">
-      <h2 className="text-base font-semibold text-[#1a1715] mb-4">テナント情報</h2>
+    <div className="space-y-6 max-w-2xl">
+    <div className="rounded-xl border border-border bg-white p-6">
+      <h2 className="text-base font-semibold text-text mb-4">テナント情報</h2>
       {q.isLoading ? (
         <Skeleton className="h-10 w-full" />
       ) : (
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium text-[#1a1715] mb-1 block">
+            <label className="text-sm font-medium text-text mb-1 block">
               会社名
             </label>
             <Input
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               placeholder="例: 株式会社ロジスティクス"
-              className="rounded-md border border-[#e8e5e0] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 w-full"
             />
+          </div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50/80 p-4 space-y-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-text">
+              <input
+                type="checkbox"
+                checked={maintenanceMode}
+                onChange={(e) => setMaintenanceMode(e.target.checked)}
+                className="rounded border-border"
+              />
+              メンテナンスモード（着信時に案内のみ再生して切断）
+            </label>
+            <div>
+              <label className="text-xs text-muted">メンテナンスメッセージ</label>
+              <textarea
+                value={maintenanceMessage}
+                onChange={(e) => setMaintenanceMessage(e.target.value)}
+                rows={3}
+                className="mt-1 w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30"
+                placeholder="ただいまメンテナンス中です..."
+              />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -128,6 +192,50 @@ function TenantTab() {
           </div>
         </div>
       )}
+    </div>
+
+    {/* Voice Engine */}
+    <div className="rounded-xl border border-border bg-white p-6">
+      <h2 className="text-base font-semibold text-text mb-2">音声エンジン</h2>
+      <p className="text-sm text-muted mb-4">
+        通話処理に使用するエンジンを選択してください。
+      </p>
+      <div className="flex rounded-lg border border-border p-0.5 bg-bg w-fit">
+        <button
+          type="button"
+          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            voiceEngine === "flow"
+              ? "bg-white shadow-sm text-text"
+              : "text-muted hover:text-text"
+          }`}
+          onClick={() => handleEngineChange("flow")}
+          disabled={engineMutation.isPending}
+        >
+          フロー型（従来）
+        </button>
+        <button
+          type="button"
+          className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+            voiceEngine === "gemini_live"
+              ? "bg-white shadow-sm text-text"
+              : "text-muted hover:text-text"
+          }`}
+          onClick={() => handleEngineChange("gemini_live")}
+          disabled={engineMutation.isPending}
+        >
+          Gemini Live
+        </button>
+      </div>
+      {engineMutation.isPending && (
+        <p className="mt-2 text-xs text-muted">切り替え中...</p>
+      )}
+      {engineSaved && (
+        <p className="mt-2 flex items-center gap-1 text-sm text-green-600">
+          <Check size={14} />
+          切り替えました
+        </p>
+      )}
+    </div>
     </div>
   );
 }
@@ -224,23 +332,23 @@ function ApiTab() {
     value?: string;
   }) => (
     <div className="flex items-center gap-2">
-      <span className="text-sm font-medium text-[#1a1715] w-32 shrink-0">{label}</span>
+      <span className="text-sm font-medium text-text w-32 shrink-0">{label}</span>
       {editing[fieldKey] ? (
         <Input
           value={values[fieldKey] ?? ""}
           onChange={(e) => setValues((v) => ({ ...v, [fieldKey]: e.target.value }))}
           type={visible[fieldKey] ? "text" : "password"}
-          className="rounded-md border border-[#e8e5e0] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 w-64"
+          className="w-64"
           placeholder="APIキーを入力"
         />
       ) : (
-        <span className="text-sm font-mono text-[#6b6560] w-64">
+        <span className="text-sm font-mono text-muted w-64">
           {value ? "••••••••••••" : "未設定"}
         </span>
       )}
       <button
         onClick={() => toggleVisible(fieldKey)}
-        className="p-1 text-[#6b6560] hover:text-[#1a1715]"
+        className="p-1 text-muted hover:text-text transition-colors"
         title={visible[fieldKey] ? "非表示" : "表示"}
       >
         {visible[fieldKey] ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -263,8 +371,8 @@ function ApiTab() {
       ) : (
         <>
           {/* AmiVoice */}
-          <div className="rounded-xl border border-[#e8e5e0] bg-white p-6">
-            <h3 className="text-sm font-semibold text-[#1a1715] mb-3">AmiVoice</h3>
+          <div className="rounded-xl border border-border bg-white p-6">
+            <h3 className="text-sm font-semibold text-text mb-3">AmiVoice</h3>
             <div className="space-y-2">
               <MaskedField
                 fieldKey="amivoiceKey"
@@ -297,8 +405,8 @@ function ApiTab() {
           </div>
 
           {/* OpenAI */}
-          <div className="rounded-xl border border-[#e8e5e0] bg-white p-6">
-            <h3 className="text-sm font-semibold text-[#1a1715] mb-3">OpenAI</h3>
+          <div className="rounded-xl border border-border bg-white p-6">
+            <h3 className="text-sm font-semibold text-text mb-3">OpenAI</h3>
             <div className="space-y-2">
               <MaskedField
                 fieldKey="openaiKey"
@@ -306,17 +414,17 @@ function ApiTab() {
                 value={q.data?.openaiKey}
               />
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-[#1a1715] w-32 shrink-0">
+                <span className="text-sm font-medium text-text w-32 shrink-0">
                   使用モデル
                 </span>
-                <span className="text-sm text-[#6b6560]">gpt-4o</span>
+                <span className="text-sm text-muted">gpt-4o</span>
               </div>
             </div>
           </div>
 
           {/* Twilio */}
-          <div className="rounded-xl border border-[#e8e5e0] bg-white p-6">
-            <h3 className="text-sm font-semibold text-[#1a1715] mb-3">Twilio</h3>
+          <div className="rounded-xl border border-border bg-white p-6">
+            <h3 className="text-sm font-semibold text-text mb-3">Twilio</h3>
             <div className="space-y-2">
               <MaskedField
                 fieldKey="twilioSid"
@@ -405,8 +513,8 @@ function NotificationsTab() {
   });
 
   return (
-    <div className="rounded-xl border border-[#e8e5e0] bg-white p-6 max-w-lg">
-      <h2 className="text-base font-semibold text-[#1a1715] mb-4">通知設定</h2>
+    <div className="rounded-xl border border-border bg-white p-6 max-w-2xl">
+      <h2 className="text-base font-semibold text-text mb-4">通知設定</h2>
       {q.isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8" />)}
@@ -420,9 +528,9 @@ function NotificationsTab() {
               onChange={(e) =>
                 setForm((f) => ({ ...f, callCompleteEmail: e.target.checked }))
               }
-              className="h-4 w-4 rounded border-[#e8e5e0] accent-primary"
+              className="h-4 w-4 rounded border-border accent-primary"
             />
-            <span className="text-sm text-[#1a1715]">通話完了メール通知</span>
+            <span className="text-sm text-text">通話完了メール通知</span>
           </label>
           <label className="flex items-center gap-3 cursor-pointer">
             <input
@@ -431,12 +539,12 @@ function NotificationsTab() {
               onChange={(e) =>
                 setForm((f) => ({ ...f, transferEmail: e.target.checked }))
               }
-              className="h-4 w-4 rounded border-[#e8e5e0] accent-primary"
+              className="h-4 w-4 rounded border-border accent-primary"
             />
-            <span className="text-sm text-[#1a1715]">転送発生時メール通知</span>
+            <span className="text-sm text-text">転送発生時メール通知</span>
           </label>
           <div>
-            <label className="text-sm font-medium text-[#1a1715] mb-1 block">
+            <label className="text-sm font-medium text-text mb-1 block">
               通知先メールアドレス
             </label>
             <Input
@@ -444,7 +552,6 @@ function NotificationsTab() {
               value={form.notifyEmail}
               onChange={(e) => setForm((f) => ({ ...f, notifyEmail: e.target.value }))}
               placeholder="notify@example.com"
-              className="rounded-md border border-[#e8e5e0] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 w-full"
             />
           </div>
           <div className="flex items-center gap-3">
@@ -550,7 +657,7 @@ function UsersTab() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-[#1a1715]">ユーザー管理</h2>
+        <h2 className="text-base font-semibold text-text">ユーザー管理</h2>
         <Button
           size="sm"
           onClick={() => setShowInvite((v) => !v)}
@@ -561,11 +668,11 @@ function UsersTab() {
       </div>
 
       {showInvite && (
-        <div className="rounded-xl border border-[#e8e5e0] bg-white p-4 mb-4 max-w-md">
-          <h3 className="text-sm font-semibold text-[#1a1715] mb-3">ユーザーを招待</h3>
+        <div className="rounded-xl border border-border bg-white p-4 mb-4 max-w-md">
+          <h3 className="text-sm font-semibold text-text mb-3">ユーザーを招待</h3>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium text-[#1a1715] mb-1 block">
+              <label className="text-sm font-medium text-text mb-1 block">
                 メールアドレス
               </label>
               <Input
@@ -573,17 +680,16 @@ function UsersTab() {
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="rounded-md border border-[#e8e5e0] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 w-full"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-[#1a1715] mb-1 block">
+              <label className="text-sm font-medium text-text mb-1 block">
                 権限
               </label>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as "admin" | "operator")}
-                className="rounded-md border border-[#e8e5e0] bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 w-full"
+                className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30"
               >
                 <option value="operator">オペレーター</option>
                 <option value="admin">管理者</option>
@@ -614,14 +720,14 @@ function UsersTab() {
           {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[#e8e5e0] bg-white">
+        <div className="overflow-x-auto rounded-xl border border-border bg-white">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#e8e5e0]">
+            <thead className="border-b border-border">
               <tr>
                 {["名前", "メール", "権限", "最終ログイン", "操作"].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-[#6b6560]"
+                    className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted"
                   >
                     {h}
                   </th>
@@ -632,23 +738,23 @@ function UsersTab() {
               {(q.data ?? []).map((user) => (
                 <tr
                   key={user.id}
-                  className="border-b border-[#e8e5e0] last:border-0 hover:bg-[#f5f0e8]/60"
+                  className="border-b border-border last:border-0 hover:bg-primary/[0.03] transition-colors"
                 >
-                  <td className="px-4 py-3 font-medium text-[#1a1715]">{user.name}</td>
-                  <td className="px-4 py-3 text-[#6b6560]">{user.email}</td>
+                  <td className="px-4 py-3 font-medium text-text">{user.name}</td>
+                  <td className="px-4 py-3 text-muted">{user.email}</td>
                   <td className="px-4 py-3">
                     <select
                       defaultValue={user.role}
                       onChange={(e) =>
                         roleMutation.mutate({ id: user.id, role: e.target.value })
                       }
-                      className="rounded border border-[#e8e5e0] bg-white px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-primary/30"
+                      className="rounded-lg border border-border bg-white px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       <option value="admin">管理者</option>
                       <option value="operator">オペレーター</option>
                     </select>
                   </td>
-                  <td className="px-4 py-3 text-[#6b6560] text-xs">
+                  <td className="px-4 py-3 text-muted text-xs">
                     {user.lastLoginAt
                       ? new Date(user.lastLoginAt).toLocaleString("ja-JP")
                       : "未ログイン"}
@@ -667,6 +773,129 @@ function UsersTab() {
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Tab: 音声認識辞書                                                     */
+/* ------------------------------------------------------------------ */
+
+type DictRow = {
+  id: string;
+  word: string;
+  reading: string;
+  category: string;
+};
+
+function DictionaryTab() {
+  const qc = useQueryClient();
+  const [word, setWord] = useState("");
+  const [reading, setReading] = useState("");
+  const [category, setCategory] = useState("general");
+
+  const q = useQuery({
+    queryKey: ["dictionary"],
+    queryFn: async () => {
+      const r = await apiJson<DictRow[]>("/v1/dictionary");
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async () => {
+      const r = await apiJson("/v1/dictionary", {
+        method: "POST",
+        body: JSON.stringify({ word, reading, category }),
+      });
+      if (!r.ok) throw new Error(r.message ?? r.error);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["dictionary"] });
+      setWord("");
+      setReading("");
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await apiJson(`/v1/dictionary/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(r.message ?? r.error);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dictionary"] }),
+  });
+
+  return (
+    <div className="rounded-xl border border-border bg-white p-6 max-w-2xl space-y-6">
+      <h2 className="text-base font-semibold text-text">音声認識辞書</h2>
+      <p className="text-sm text-muted">
+        固有名詞の表記と読みを登録すると、認識精度が上がります。
+      </p>
+      <div className="flex flex-wrap gap-2 items-end">
+        <label className="text-sm">
+          <span className="text-xs text-muted">表記</span>
+          <Input
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+            className="mt-1"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="text-xs text-muted">読み（カタカナ）</span>
+          <Input
+            value={reading}
+            onChange={(e) => setReading(e.target.value)}
+            className="mt-1"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="text-xs text-muted">カテゴリ</span>
+          <select
+            className="mt-1 block rounded-xl border border-border px-4 py-2.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="general">一般</option>
+            <option value="name">氏名</option>
+            <option value="address">住所</option>
+          </select>
+        </label>
+        <Button
+          type="button"
+          onClick={() => add.mutate()}
+          disabled={!word || !reading || add.isPending}
+        >
+          追加
+        </Button>
+      </div>
+      {q.isLoading ? (
+        <Skeleton className="h-24" />
+      ) : (
+        <ul className="divide-y divide-border border border-border rounded-xl">
+          {(q.data ?? []).map((row) => (
+            <li
+              key={row.id}
+              className="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span>
+                <span className="font-medium text-text">{row.word}</span>
+                <span className="text-muted ml-2">{row.reading}</span>
+                <Badge variant="neutral" className="ml-2 text-[10px]">
+                  {row.category}
+                </Badge>
+              </span>
+              <button
+                type="button"
+                className="text-xs text-red-600 hover:underline"
+                onClick={() => del.mutate(row.id)}
+              >
+                削除
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

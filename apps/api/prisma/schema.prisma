@@ -13,10 +13,18 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  users        User[]
-  phoneNumbers PhoneNumber[]
-  scenarios    Scenario[]
-  callLogs     CallLog[]
+  maintenanceMode    Boolean @default(false) @map("maintenance_mode")
+  maintenanceMessage String? @map("maintenance_message") @db.Text
+  billingPlan        String  @default("standard") @map("billing_plan") @db.VarChar(40)
+  voiceEngine        String  @default("flow") @map("voice_engine") @db.VarChar(20)
+
+  users              User[]
+  phoneNumbers       PhoneNumber[]
+  scenarios          Scenario[]
+  callLogs           CallLog[]
+  speechDictionaries SpeechDictionary[]
+  voiceTemplates     VoiceTemplate[]
+  callbackRequests   CallbackRequest[]
 
   @@map("tenants")
 }
@@ -61,35 +69,143 @@ model Scenario {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phoneNumbers PhoneNumber[]
-  callLogs     CallLog[]
+  scenarioType String  @default("inbound") @map("scenario_type") @db.VarChar(20)
+  description  String? @db.Text
+
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneNumbers   PhoneNumber[]
+  callLogs       CallLog[]
+  versions       ScenarioVersion[]
+  geminiScenario GeminiScenario?
 
   @@index([tenantId, status])
+  @@index([tenantId, scenarioType])
   @@map("scenarios")
 }
 
-model CallLog {
-  id                String   @id @db.VarChar(26)
-  tenantId          String   @map("tenant_id") @db.VarChar(26)
-  phoneNumberId     String   @map("phone_number_id") @db.VarChar(26)
-  scenarioId        String   @map("scenario_id") @db.VarChar(26)
-  twilioCallSid     String   @unique @map("twilio_call_sid") @db.VarChar(64)
-  callerNumber      String   @map("caller_number") @db.VarChar(20)
-  durationSeconds   Int?     @map("duration_seconds")
-  status            String   @db.VarChar(20)
-  transcriptText    String?  @map("transcript_text") @db.Text
-  summaryText       String?  @map("summary_text") @db.Text
-  structuredData    Json?    @map("structured_data")
-  audioStoragePath  String?  @map("audio_storage_path") @db.Text
-  operatorNote      String   @default("") @map("operator_note") @db.Text
-  createdAt         DateTime @default(now()) @map("created_at")
+model ScenarioVersion {
+  id          String   @id @db.VarChar(26)
+  scenarioId  String   @map("scenario_id") @db.VarChar(26)
+  version     Int
+  flowJson    Json     @map("flow_json")
+  publishedAt DateTime @default(now()) @map("published_at")
+  publishedBy String?  @map("published_by") @db.VarChar(26)
 
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
-  scenario    Scenario    @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId, version])
+  @@map("scenario_versions")
+}
+
+model CallLog {
+  id               String   @id @db.VarChar(26)
+  tenantId         String   @map("tenant_id") @db.VarChar(26)
+  phoneNumberId    String   @map("phone_number_id") @db.VarChar(26)
+  scenarioId       String   @map("scenario_id") @db.VarChar(26)
+  twilioCallSid    String   @unique @map("twilio_call_sid") @db.VarChar(64)
+  callerNumber     String   @map("caller_number") @db.VarChar(20)
+  durationSeconds  Int?     @map("duration_seconds")
+  status           String   @db.VarChar(20)
+  transcriptText   String?  @map("transcript_text") @db.Text
+  summaryText      String?  @map("summary_text") @db.Text
+  structuredData   Json?    @map("structured_data")
+  transcriptSegments Json?  @map("transcript_segments")
+  audioStoragePath String?  @map("audio_storage_path") @db.Text
+  operatorNote     String   @default("") @map("operator_note") @db.Text
+  callbackDone     Boolean  @default(false) @map("callback_done")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  phoneNumber      PhoneNumber       @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  scenario         Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+  transferHandoffs TransferHandoff[]
 
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([tenantId, status])
   @@map("call_logs")
+}
+
+model SpeechDictionary {
+  id        String   @id @db.VarChar(26)
+  tenantId  String   @map("tenant_id") @db.VarChar(26)
+  word      String   @db.VarChar(100)
+  reading   String   @db.VarChar(100)
+  category  String   @default("general") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("speech_dictionaries")
+}
+
+model VoiceTemplate {
+  id          String   @id @db.VarChar(26)
+  tenantId    String   @map("tenant_id") @db.VarChar(26)
+  name        String   @db.VarChar(255)
+  storagePath String   @map("storage_path") @db.Text
+  durationMs  Int?     @map("duration_ms")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@map("voice_templates")
+}
+
+model CallbackRequest {
+  id            String    @id @db.VarChar(26)
+  tenantId      String    @map("tenant_id") @db.VarChar(26)
+  callLogId     String?   @map("call_log_id") @db.VarChar(26)
+  callerNumber  String    @map("caller_number") @db.VarChar(20)
+  preferredTime String?   @map("preferred_time") @db.VarChar(100)
+  status        String    @default("pending") @db.VarChar(20)
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("callback_requests")
+}
+
+model GeminiScenario {
+  id                String   @id @default(cuid())
+  scenarioId        String   @unique @map("scenario_id") @db.VarChar(26)
+  persona           String   @db.Text
+  conversationRules String   @map("conversation_rules") @db.Text
+  businessKnowledge String   @map("business_knowledge") @db.Text
+  guardRails        String   @map("guard_rails") @db.Text
+  toolDefinitions   Json     @default("[]") @map("tool_definitions")
+  voiceName         String   @default("Aoede") @map("voice_name") @db.VarChar(50)
+  languageCode      String   @default("ja-JP") @map("language_code") @db.VarChar(10)
+  transferEnabled   Boolean  @default(true) @map("transfer_enabled")
+  transferNumber    String?  @map("transfer_number") @db.VarChar(20)
+  transferTimeout   Int      @default(30) @map("transfer_timeout")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@map("gemini_scenarios")
+}
+
+model TransferHandoff {
+  id           String   @id @default(cuid())
+  callLogId    String?  @map("call_log_id") @db.VarChar(26)
+  tenantId     String   @map("tenant_id") @db.VarChar(26)
+  callSid      String   @map("call_sid") @db.VarChar(64)
+  callerNumber String   @map("caller_number") @db.VarChar(20)
+  reason       String   @db.Text
+  collectedInfo Json?   @map("collected_info")
+  transcript   String?  @db.Text
+  priority     String   @default("normal") @db.VarChar(10)
+  department   String   @default("general") @db.VarChar(40)
+  status       String   @default("pending") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  callLog CallLog? @relation(fields: [callLogId], references: [id])
+
+  @@index([tenantId, status])
+  @@map("transfer_handoffs")
 }

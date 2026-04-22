@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import { Phone, CheckCircle, Clock, PhoneForwarded } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { apiJson } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -82,15 +83,15 @@ function PeriodFilter({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex rounded-lg border border-[#e8e5e0] bg-[#faf9f7] p-0.5">
+      <div className="flex rounded-lg border border-border bg-bg p-0.5">
         {(Object.keys(PERIOD_LABELS) as PeriodTab[]).map((t) => (
           <button
             key={t}
             onClick={() => onTabChange(t)}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               tab === t
-                ? "bg-white text-[#1a1715] shadow-sm"
-                : "text-muted hover:text-[#1a1715]"
+                ? "bg-white text-text shadow-sm"
+                : "text-muted hover:text-text"
             }`}
           >
             {PERIOD_LABELS[t]}
@@ -103,14 +104,14 @@ function PeriodFilter({
             type="date"
             value={from}
             onChange={(e) => onFromChange(e.target.value)}
-            className="rounded-lg border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm text-[#1a1715] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
+            className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <span className="text-sm text-muted">〜</span>
           <input
             type="date"
             value={to}
             onChange={(e) => onToChange(e.target.value)}
-            className="rounded-lg border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm text-[#1a1715] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30"
+            className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
       )}
@@ -120,18 +121,18 @@ function PeriodFilter({
 
 function DeltaBadge({ delta }: { delta: number }) {
   if (delta === 0) {
-    return <span className="text-xs text-[#64748B]">±0%</span>;
+    return <span className="text-xs text-muted">±0%</span>;
   }
   const pct = Math.round(Math.abs(delta) * 100);
   if (delta > 0) {
     return (
-      <span className="text-xs font-medium text-green-600">
+      <span className="text-xs font-medium text-success">
         ↑ {pct}%
       </span>
     );
   }
   return (
-    <span className="text-xs font-medium text-red-500">
+    <span className="text-xs font-medium text-danger">
       ↓ {pct}%
     </span>
   );
@@ -141,19 +142,28 @@ function KpiCard({
   title,
   value,
   delta,
+  icon: Icon,
 }: {
   title: string;
   value: string;
   delta?: number;
+  icon?: typeof Phone;
 }) {
   return (
-    <div className="rounded-xl border border-[#e8e5e0] bg-white p-5">
-      <p className="text-xs font-medium tracking-wide text-muted">{title}</p>
-      <p className="mt-3 text-2xl font-semibold text-[#1a1715]">{value}</p>
+    <div className="rounded-xl border border-border bg-white p-5 transition-shadow hover:shadow-md">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium tracking-wide text-muted">{title}</p>
+        {Icon && (
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Icon className="h-4 w-4 text-primary" />
+          </div>
+        )}
+      </div>
+      <p className="mt-3 text-2xl font-semibold text-text">{value}</p>
       {delta !== undefined && (
         <div className="mt-1.5">
           <DeltaBadge delta={delta} />
-          <span className="ml-1 text-xs text-[#64748B]">先月比</span>
+          <span className="ml-1 text-xs text-muted">先月比</span>
         </div>
       )}
     </div>
@@ -162,7 +172,7 @@ function KpiCard({
 
 function KpiCardSkeleton() {
   return (
-    <div className="rounded-xl border border-[#e8e5e0] bg-white p-5">
+    <div className="rounded-xl border border-border bg-white p-5">
       <Skeleton className="h-3 w-24" />
       <Skeleton className="mt-3 h-8 w-20" />
       <Skeleton className="mt-1.5 h-3 w-16" />
@@ -214,6 +224,41 @@ export default function DashboardPage() {
     enabled: isCustomReady,
   });
 
+  const byScenarioQ = useQuery({
+    queryKey: ["dashboard", "by-scenario"],
+    queryFn: async () => {
+      const r = await apiJson<
+        Array<{ scenarioId: string; scenarioName: string; callCount: number }>
+      >("/v1/dashboard/by-scenario");
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+  });
+
+  const byNumberQ = useQuery({
+    queryKey: ["dashboard", "by-number"],
+    queryFn: async () => {
+      const r = await apiJson<
+        Array<{ phoneNumberId: string; number: string; callCount: number }>
+      >("/v1/dashboard/by-number");
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+  });
+
+  const costQ = useQuery({
+    queryKey: ["dashboard", "cost-estimate"],
+    queryFn: async () => {
+      const r = await apiJson<{
+        monthToDateCalls: number;
+        totalMinutes: number;
+        estimatedUsd: number;
+      }>("/v1/dashboard/cost-estimate");
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+  });
+
   const summaryError =
     summaryQ.isError
       ? summaryQ.error instanceof Error
@@ -222,8 +267,8 @@ export default function DashboardPage() {
       : null;
 
   return (
-    <div>
-      <PageHeader title="ダッシュボード" />
+    <div className="animate-fade-in-up">
+      <PageHeader title="ダッシュボード" description="通話状況とパフォーマンスの概要" />
 
       {/* 期間フィルタ */}
       <div className="mb-6">
@@ -254,19 +299,23 @@ export default function DashboardPage() {
               title="受電数"
               value={String(summaryQ.data.totalCalls)}
               delta={summaryQ.data.prevPeriodComparison?.totalCalls}
+              icon={Phone}
             />
             <KpiCard
               title="自動完結率"
               value={`${Math.round(summaryQ.data.completionRate * 100)}%`}
               delta={summaryQ.data.prevPeriodComparison?.completionRate}
+              icon={CheckCircle}
             />
             <KpiCard
               title="平均通話時間"
               value={`${summaryQ.data.avgDuration}秒`}
+              icon={Clock}
             />
             <KpiCard
               title="有人転送件数"
               value={String(summaryQ.data.transferCount)}
+              icon={PhoneForwarded}
             />
           </>
         )}
@@ -275,8 +324,8 @@ export default function DashboardPage() {
       {/* グラフエリア */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* 日別受電数グラフ */}
-        <div className="rounded-xl border border-[#e8e5e0] bg-white p-5 lg:col-span-2">
-          <p className="text-sm font-medium text-[#1a1715]">日別受電数</p>
+        <div className="rounded-xl border border-border bg-white p-5 shadow-sm lg:col-span-2">
+          <p className="text-base font-medium text-text">日別受電数</p>
           {dailyQ.isLoading || !isCustomReady ? (
             <Skeleton className="mt-4 h-48 w-full" />
           ) : dailyQ.isError || !dailyQ.data ? (
@@ -293,20 +342,20 @@ export default function DashboardPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220} className="mt-4">
               <LineChart data={dailyQ.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0ede9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E5E0" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
+                  tick={{ fontSize: 11, fill: "#6B6459" }}
                   tickFormatter={(v: string) => {
                     const d = new Date(v);
                     return `${d.getMonth() + 1}/${d.getDate()}`;
                   }}
                 />
-                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} />
+                <YAxis tick={{ fontSize: 11, fill: "#6B6459" }} />
                 <Tooltip
                   contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid #e8e5e0",
+                    borderRadius: "10px",
+                    border: "1px solid #E8E5E0",
                     fontSize: "12px",
                   }}
                   formatter={(value: number) => [value, "受電数"]}
@@ -318,10 +367,10 @@ export default function DashboardPage() {
                 <Line
                   type="monotone"
                   dataKey="count"
-                  stroke="#2563EB"
+                  stroke="#D97757"
                   strokeWidth={2}
                   dot={false}
-                  activeDot={{ r: 4 }}
+                  activeDot={{ r: 4, fill: "#D97757" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -329,8 +378,8 @@ export default function DashboardPage() {
         </div>
 
         {/* 時間帯別受電分布グラフ */}
-        <div className="rounded-xl border border-[#e8e5e0] bg-white p-5 lg:col-span-1">
-          <p className="text-sm font-medium text-[#1a1715]">時間帯別受電分布</p>
+        <div className="rounded-xl border border-border bg-white p-5 shadow-sm lg:col-span-1">
+          <p className="text-base font-medium text-text">時間帯別受電分布</p>
           {hourlyQ.isLoading || !isCustomReady ? (
             <Skeleton className="mt-4 h-48 w-full" />
           ) : hourlyQ.isError || !hourlyQ.data ? (
@@ -347,26 +396,80 @@ export default function DashboardPage() {
           ) : (
             <ResponsiveContainer width="100%" height={220} className="mt-4">
               <BarChart data={hourlyQ.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0ede9" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#E8E5E0" />
                 <XAxis
                   dataKey="hour"
-                  tick={{ fontSize: 11, fill: "#64748B" }}
+                  tick={{ fontSize: 11, fill: "#6B6459" }}
                   tickFormatter={(v: number) => `${v}時`}
                 />
-                <YAxis tick={{ fontSize: 11, fill: "#64748B" }} />
+                <YAxis tick={{ fontSize: 11, fill: "#6B6459" }} />
                 <Tooltip
                   contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid #e8e5e0",
+                    borderRadius: "10px",
+                    border: "1px solid #E8E5E0",
                     fontSize: "12px",
                   }}
                   formatter={(value: number) => [value, "件数"]}
                   labelFormatter={(label: number) => `${label}時台`}
                 />
-                <Bar dataKey="count" fill="#2563EB" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="count" fill="#D97757" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-border bg-white p-5 shadow-sm lg:col-span-1">
+          <p className="text-base font-medium text-text">シナリオ別受電</p>
+          {byScenarioQ.isLoading ? (
+            <Skeleton className="mt-4 h-32" />
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm text-muted max-h-48 overflow-y-auto">
+              {(byScenarioQ.data ?? []).map((row) => (
+                <li key={row.scenarioId} className="flex justify-between gap-2">
+                  <span className="truncate text-text">{row.scenarioName}</span>
+                  <span className="tabular-nums">{row.callCount}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-xl border border-border bg-white p-5 shadow-sm lg:col-span-1">
+          <p className="text-base font-medium text-text">番号別受電</p>
+          {byNumberQ.isLoading ? (
+            <Skeleton className="mt-4 h-32" />
+          ) : (
+            <ul className="mt-3 space-y-2 text-sm text-muted max-h-48 overflow-y-auto">
+              {(byNumberQ.data ?? []).map((row) => (
+                <li key={row.phoneNumberId} className="flex justify-between gap-2">
+                  <span className="truncate text-text">{row.number}</span>
+                  <span className="tabular-nums">{row.callCount}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="rounded-xl border border-border bg-white p-5 shadow-sm lg:col-span-1">
+          <p className="text-base font-medium text-text">コスト概算（当月）</p>
+          {costQ.isLoading ? (
+            <Skeleton className="mt-4 h-24" />
+          ) : costQ.data ? (
+            <dl className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-muted">通話件数</dt>
+                <dd>{costQ.data.monthToDateCalls}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">合計分数</dt>
+                <dd>{costQ.data.totalMinutes} 分</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-muted">概算 USD</dt>
+                <dd className="font-medium">${costQ.data.estimatedUsd}</dd>
+              </div>
+            </dl>
+          ) : null}
         </div>
       </div>
     </div>

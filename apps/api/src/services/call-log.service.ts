@@ -2,6 +2,7 @@ import type { Result } from "@logivoice/shared";
 import * as repo from "../repositories/call-log.repo.js";
 import { summarizeTranscript } from "../lib/openai.js";
 import { prisma } from "../lib/prisma.js";
+import { getSignedUrlForRecording } from "../lib/storage.js";
 
 export async function listCalls(
   tenantId: string,
@@ -51,10 +52,17 @@ export async function getCall(
   if (!c) return { ok: false, error: "Not found", code: "NOT_FOUND" };
   let audioUrl: string | null = null;
   if (c.audioStoragePath) {
-    audioUrl = c.audioStoragePath.startsWith("http")
-      ? c.audioStoragePath
-      : `gs://${process.env.GCS_BUCKET_NAME ?? "bucket"}/${c.audioStoragePath}`;
+    if (c.audioStoragePath.startsWith("http")) {
+      audioUrl = c.audioStoragePath;
+    } else {
+      audioUrl = await getSignedUrlForRecording(c.audioStoragePath);
+    }
   }
+  const segments = c.transcriptSegments as
+    | Array<{ startMs: number; endMs: number; text: string }>
+    | null
+    | undefined;
+
   return {
     ok: true,
     data: {
@@ -63,11 +71,13 @@ export async function getCall(
       duration: c.durationSeconds,
       status: c.status,
       transcriptText: c.transcriptText,
+      transcriptSegments: segments ?? null,
       summaryText: c.summaryText,
       structuredData: c.structuredData,
       audioUrl,
       scenarioId: c.scenarioId,
       operatorNote: c.operatorNote,
+      callbackDone: c.callbackDone,
       createdAt: c.createdAt.toISOString(),
     },
   };
@@ -76,9 +86,9 @@ export async function getCall(
 export async function updateNote(
   tenantId: string,
   id: string,
-  operatorNote: string,
+  patch: { operatorNote?: string; callbackDone?: boolean },
 ): Promise<Result<unknown>> {
-  const n = await repo.updateCallNote(tenantId, id, operatorNote);
+  const n = await repo.updateCallNote(tenantId, id, patch);
   if (n.count === 0) return { ok: false, error: "Not found", code: "NOT_FOUND" };
   return { ok: true, data: true };
 }

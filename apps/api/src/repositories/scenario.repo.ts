@@ -1,9 +1,15 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 
-export async function findScenariosForTenant(tenantId: string) {
+export async function findScenariosForTenant(
+  tenantId: string,
+  scenarioType?: string,
+) {
   return prisma.scenario.findMany({
-    where: { tenantId },
+    where: {
+      tenantId,
+      ...(scenarioType ? { scenarioType } : {}),
+    },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { phoneNumbers: true } },
@@ -19,7 +25,13 @@ export async function findScenarioById(tenantId: string, id: string) {
 
 export async function createScenario(
   tenantId: string,
-  data: { id: string; name: string; flowJson: Prisma.InputJsonValue },
+  data: {
+    id: string;
+    name: string;
+    flowJson: Prisma.InputJsonValue;
+    scenarioType?: string;
+    description?: string | null;
+  },
 ) {
   return prisma.scenario.create({
     data: {
@@ -28,6 +40,8 @@ export async function createScenario(
       name: data.name,
       flowJson: data.flowJson,
       status: "draft",
+      scenarioType: data.scenarioType ?? "inbound",
+      description: data.description ?? null,
     },
   });
 }
@@ -35,7 +49,12 @@ export async function createScenario(
 export async function updateScenario(
   tenantId: string,
   id: string,
-  data: { name?: string; flowJson?: Prisma.InputJsonValue },
+  data: {
+    name?: string;
+    flowJson?: Prisma.InputJsonValue;
+    scenarioType?: string;
+    description?: string | null;
+  },
 ) {
   return prisma.scenario.updateMany({
     where: { id, tenantId },
@@ -69,5 +88,49 @@ export async function countPhoneNumbersUsingScenario(
 ) {
   return prisma.phoneNumber.count({
     where: { tenantId, scenarioId },
+  });
+}
+
+export async function countScenarioVersions(scenarioId: string) {
+  return prisma.scenarioVersion.count({ where: { scenarioId } });
+}
+
+export async function createScenarioVersion(data: {
+  id: string;
+  scenarioId: string;
+  version: number;
+  flowJson: Prisma.InputJsonValue;
+  publishedBy?: string | null;
+}) {
+  return prisma.scenarioVersion.create({
+    data: {
+      id: data.id,
+      scenarioId: data.scenarioId,
+      version: data.version,
+      flowJson: data.flowJson,
+      publishedBy: data.publishedBy ?? null,
+    },
+  });
+}
+
+export async function listScenarioVersions(scenarioId: string) {
+  return prisma.scenarioVersion.findMany({
+    where: { scenarioId },
+    orderBy: { version: "desc" },
+    select: {
+      id: true,
+      version: true,
+      publishedAt: true,
+      publishedBy: true,
+    },
+  });
+}
+
+export async function findScenarioVersion(
+  scenarioId: string,
+  version: number,
+) {
+  return prisma.scenarioVersion.findFirst({
+    where: { scenarioId, version },
   });
 }

@@ -14,7 +14,7 @@ export function EmptyState({
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
         <span className="text-lg text-primary">◈</span>
       </div>
-      <p className="text-sm font-medium text-[#1a1715]">{title}</p>
+      <p className="text-sm font-medium text-text">{title}</p>
       {description ? (
         <p className="mt-1.5 max-w-md text-sm text-muted">{description}</p>
       ) : null}

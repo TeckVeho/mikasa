@@ -13,22 +13,23 @@ type Row = {
   id: string;
   name: string;
   status: string;
+  scenarioType?: string;
   linkedNumberCount: number;
   updatedAt: string;
 };
 
 export default function ScenariosPage() {
   const q = useQuery({
-    queryKey: ["scenarios"],
+    queryKey: ["scenarios", "inbound"],
     queryFn: async () => {
-      const r = await apiJson<Row[]>("/v1/scenarios");
+      const r = await apiJson<Row[]>("/v1/scenarios?type=inbound");
       if (!r.ok) throw new Error(r.message ?? r.error);
       return r.data;
     },
   });
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <PageHeader
         title="シナリオ"
         action={
@@ -61,14 +62,19 @@ export default function ScenariosPage() {
             <Link
               key={s.id}
               href={`/scenarios/${s.id}/edit`}
-              className="block rounded-xl border border-border bg-surface p-5 shadow-sm transition-shadow hover:shadow-md hover:border-primary/40"
+              className="block rounded-xl border border-border bg-surface p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/40 hover:-translate-y-0.5"
             >
-              <Badge
-                variant={s.status === "published" ? "success" : "neutral"}
-              >
-                {s.status === "published" ? "公開中" : "下書き"}
-              </Badge>
-              <h2 className="mt-3 text-base font-semibold text-[#1a1715]">
+              <div className="flex flex-wrap gap-2">
+                <Badge
+                  variant={s.status === "published" ? "success" : "neutral"}
+                >
+                  {s.status === "published" ? "公開中" : "下書き"}
+                </Badge>
+                {s.scenarioType && (
+                  <Badge variant="neutral">{s.scenarioType}</Badge>
+                )}
+              </div>
+              <h2 className="mt-3 text-base font-semibold text-text">
                 {s.name}
               </h2>
               <p className="mt-1 text-sm text-muted">

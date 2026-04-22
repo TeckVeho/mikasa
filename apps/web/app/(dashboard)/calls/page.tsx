@@ -27,7 +27,7 @@ type CallsResponse = {
 };
 
 const INPUT_CLASS =
-  "rounded-md border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/30";
+  "rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none transition-shadow focus:ring-2 focus:ring-primary/30";
 
 const STATUS_OPTIONS = [
   { value: "", label: "全て" },
@@ -108,7 +108,7 @@ export default function CallsPage() {
   const hasPrev = page > 1;
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <PageHeader title="通話ログ" />
 
       {/* フィルターバー */}
@@ -157,7 +157,7 @@ export default function CallsPage() {
         </div>
         <button
           onClick={handleReset}
-          className="pb-0.5 text-sm text-muted hover:text-[#1a1715] underline-offset-2 hover:underline"
+          className="pb-0.5 text-sm text-muted hover:text-text underline-offset-2 hover:underline transition-colors"
         >
           フィルタをリセット
         </button>
@@ -195,9 +195,9 @@ export default function CallsPage() {
                   <tr
                     key={c.id}
                     onClick={() => router.push(`/calls/${c.id}`)}
-                    className="border-b border-border last:border-0 hover:bg-[#f5f0e8]/60 cursor-pointer"
+                    className="border-b border-border last:border-0 hover:bg-primary/[0.03] cursor-pointer transition-colors"
                   >
-                    <td className="px-4 py-3 text-[#1a1715] whitespace-nowrap">
+                    <td className="px-4 py-3 text-text whitespace-nowrap">
                       {new Date(c.createdAt).toLocaleString("ja-JP")}
                     </td>
                     <td className="px-4 py-3 font-mono">{c.callerNumber}</td>
@@ -226,14 +226,14 @@ export default function CallsPage() {
               <button
                 disabled={!hasPrev}
                 onClick={() => setPage((p) => p - 1)}
-                className="rounded-md border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-[#f5f0e8] disabled:cursor-not-allowed"
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-bg disabled:cursor-not-allowed transition-colors"
               >
                 前へ
               </button>
               <button
                 disabled={!hasNext}
                 onClick={() => setPage((p) => p + 1)}
-                className="rounded-md border border-[#e8e5e0] bg-white px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-[#f5f0e8] disabled:cursor-not-allowed"
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm disabled:opacity-40 hover:bg-bg disabled:cursor-not-allowed transition-colors"
               >
                 次へ
               </button>

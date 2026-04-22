@@ -28,14 +28,18 @@ callsRouter.get("/:id", async (req, res) => {
 
 callsRouter.patch("/:id/note", async (req, res) => {
   const note = req.body?.operatorNote as string | undefined;
-  if (note === undefined) {
+  const callbackDone = req.body?.callbackDone as boolean | undefined;
+  if (note === undefined && callbackDone === undefined) {
     res.status(422).json({
       ok: false,
       error: "VALIDATION_ERROR",
-      message: "operatorNote required",
+      message: "operatorNote or callbackDone required",
     });
     return;
   }
-  const r = await svc.updateNote(req.tenantId!, req.params.id, note);
+  const r = await svc.updateNote(req.tenantId!, req.params.id, {
+    ...(note !== undefined ? { operatorNote: note } : {}),
+    ...(callbackDone !== undefined ? { callbackDone } : {}),
+  });
   sendResult(res, r);
 });

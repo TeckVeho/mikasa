@@ -99,7 +99,7 @@ function ScenarioModal({
               className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                 selectedId === null
                   ? "bg-primary/10 text-primary"
-                  : "hover:bg-[#f5f0e8]/60 text-[#3d3530]"
+                  : "hover:bg-primary/[0.03] text-muted-foreground"
               }`}
             >
               未設定
@@ -113,7 +113,7 @@ function ScenarioModal({
                 className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   selectedId === s.id
                     ? "bg-primary/10 text-primary"
-                    : "hover:bg-[#f5f0e8]/60 text-[#3d3530]"
+                    : "hover:bg-primary/[0.03] text-muted-foreground"
                 }`}
               >
                 {s.name}
@@ -177,14 +177,14 @@ export default function NumberDetailPage() {
   const isActive = data.status === "active";
 
   return (
-    <div>
+    <div className="animate-fade-in-up">
       <PageHeader title="番号詳細" />
       <div className="rounded-xl border border-border bg-surface p-6 space-y-6">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted mb-1">
             電話番号
           </p>
-          <p className="font-mono text-xl text-[#1a1715]">{data.number}</p>
+          <p className="font-mono text-xl text-text">{data.number}</p>
         </div>
 
         <div>
@@ -219,7 +219,7 @@ export default function NumberDetailPage() {
             シナリオ
           </p>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-[#3d3530]">
+            <span className="text-sm text-muted-foreground">
               {data.scenario?.name ?? "未設定"}
             </span>
             <button
@@ -237,7 +237,7 @@ export default function NumberDetailPage() {
           <p className="text-xs font-medium uppercase tracking-wide text-muted mb-1">
             今月の受電数
           </p>
-          <p className="text-2xl font-semibold text-[#1a1715]">
+          <p className="text-2xl font-semibold text-text">
             {data.monthlyCallCount}
             <span className="ml-1 text-sm font-normal text-muted">件</span>
           </p>

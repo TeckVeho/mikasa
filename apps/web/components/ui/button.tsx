@@ -9,11 +9,11 @@ const variants = cva(
     variants: {
       variant: {
         primary: "rounded-lg bg-primary text-white hover:bg-primary-hover",
-        secondary: "rounded-lg bg-[#ede9e3] text-[#1a1715] hover:bg-[#e3ddd6]",
+        secondary: "rounded-lg bg-border/60 text-text hover:bg-border",
         danger: "rounded-lg bg-danger text-white hover:bg-red-700",
-        ghost: "rounded-lg bg-transparent text-[#3d3530] hover:bg-primary/5",
-        outline: "rounded-lg border border-[#e8e5e0] bg-white text-[#3d3530] hover:bg-[#faf9f7]",
-        pill: "rounded-full border border-[#e8e5e0] bg-white text-[#3d3530] hover:bg-[#faf9f7]",
+        ghost: "rounded-lg bg-transparent text-muted-foreground hover:bg-primary/5",
+        outline: "rounded-lg border border-border bg-white text-muted-foreground hover:bg-bg",
+        pill: "rounded-full border border-border bg-white text-muted-foreground hover:bg-bg",
       },
       size: {
         sm: "h-8 px-3 text-xs",

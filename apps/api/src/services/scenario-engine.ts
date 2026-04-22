@@ -1,6 +1,6 @@
 import type { CallSession } from "@logivoice/shared";
 import type { FlowJson } from "@logivoice/shared";
-import { classifyIntent } from "../lib/openai.js";
+import { agentConverse, classifyIntent } from "../lib/openai.js";
 import { expandVariables } from "../utils/expand-variables.js";
 import { sendSms } from "../lib/twilio.js";
 import {
@@ -14,6 +14,12 @@ import { JSONPath } from "jsonpath-plus";
 export type EngineEffect =
   | { type: "speak"; text: string; speed: number }
   | { type: "listen" }
+  | {
+      type: "listen_dtmf";
+      numDigits: number;
+      timeoutSeconds: number;
+      variableName: string;
+    }
   | { type: "transfer"; to: string; timeout: number; onNoAnswerNodeId: string }
   | { type: "sms"; to: string; body: string }
   | { type: "end"; farewell?: string }
@@ -23,6 +29,7 @@ export type EngineEvent =
   | { type: "start" }
   | { type: "tts_done" }
   | { type: "utterance"; text: string }
+  | { type: "dtmf_digit"; digit: string }
   | { type: "transfer_no_answer" };
 
 export type EngineAdvanceResult =
@@ -192,9 +199,145 @@ export async function advanceScenario(
         s = { ...s, status: "ended", currentNodeId: nodeId };
         return { ok: true, session: s, effects: emit };
       }
+      case "dtmf": {
+        const d = node.data;
+        const text = expandVariables(d.promptText, s.variables);
+        const speed = d.speed;
+        emit.push({ type: "speak", text, speed });
+        s = { ...s, currentNodeId: nodeId };
+        return { ok: true, session: s, effects: emit };
+      }
+      case "ai_agent": {
+        const d = node.data;
+        const r = await agentConverse({
+          systemPrompt: d.systemPrompt,
+          slots: d.slots,
+          filledVariables: s.variables,
+          conversationHistory: [],
+          userUtterance: null,
+          turn: 1,
+          maxTurns: d.maxTurns,
+        });
+        if (!r.ok) {
+          const fail = getNextFromEdge(flow, node.id, "failure");
+          if (fail) {
+            s = { ...s, currentNodeId: fail };
+            return processNode(fail);
+          }
+          return { ok: false, error: "ai_agent open failed" };
+        }
+        let vars = { ...s.variables, ...r.data.extractedSlots };
+        if (r.data.allComplete) {
+          const next =
+            getNextFromEdge(flow, node.id) ??
+            getNextFromEdge(flow, node.id, "complete");
+          if (!next) return { ok: false, error: "ai_agent complete no edge" };
+          s = {
+            ...s,
+            variables: vars,
+            currentNodeId: next,
+            aiAgent: undefined,
+          };
+          return processNode(next);
+        }
+        if (r.data.shouldFail) {
+          const fail = getNextFromEdge(flow, node.id, "failure");
+          if (!fail) return { ok: false, error: "ai_agent failure no edge" };
+          s = { ...s, variables: vars, aiAgent: undefined, currentNodeId: fail };
+          return processNode(fail);
+        }
+        const speakText =
+          d.openingLine?.trim() || r.data.assistantText;
+        const now = Date.now();
+        const hist = [
+          ...(s.conversationHistory ?? []),
+          {
+            role: "assistant" as const,
+            content: speakText,
+            timestamp: now,
+          },
+        ];
+        s = {
+          ...s,
+          variables: vars,
+          conversationHistory: hist,
+          aiAgent: { nodeId, turn: 1 },
+          currentNodeId: nodeId,
+        };
+        emit.push({ type: "speak", text: speakText, speed: 1 });
+        return { ok: true, session: s, effects: emit };
+      }
       default:
         return { ok: false, error: "unknown node" };
     }
+  };
+
+  const processAiAgentAfterUtterance = async (
+    userText: string,
+  ): Promise<EngineAdvanceResult> => {
+    const node = findNode(flow, s.currentNodeId);
+    if (!node || node.type !== "ai_agent") {
+      return { ok: false, error: "utterance unexpected" };
+    }
+    const d = node.data;
+    const turn = (s.aiAgent?.turn ?? 1) + 1;
+    const conv = (s.conversationHistory ?? []).map((m) => ({
+      role: m.role as "system" | "assistant" | "user",
+      content: m.content,
+    }));
+    const r = await agentConverse({
+      systemPrompt: d.systemPrompt,
+      slots: d.slots,
+      filledVariables: s.variables,
+      conversationHistory: conv,
+      userUtterance: userText,
+      turn,
+      maxTurns: d.maxTurns,
+    });
+    if (!r.ok) {
+      const fail = getNextFromEdge(flow, node.id, "failure");
+      if (!fail) return { ok: false, error: "ai_agent step failed" };
+      s = { ...s, aiAgent: undefined, currentNodeId: fail };
+      return processNode(fail);
+    }
+    s = { ...s, variables: { ...s.variables, ...r.data.extractedSlots } };
+    if (r.data.allComplete) {
+      const next =
+        getNextFromEdge(flow, node.id) ??
+        getNextFromEdge(flow, node.id, "complete");
+      if (!next) return { ok: false, error: "ai_agent complete no edge" };
+      s = {
+        ...s,
+        aiAgent: undefined,
+        currentNodeId: next,
+      };
+      return processNode(next);
+    }
+    if (r.data.shouldFail) {
+      const fail = getNextFromEdge(flow, node.id, "failure");
+      if (!fail) return { ok: false, error: "ai_agent failure no edge" };
+      s = { ...s, aiAgent: undefined, currentNodeId: fail };
+      return processNode(fail);
+    }
+    const now = Date.now();
+    s = {
+      ...s,
+      conversationHistory: [
+        ...(s.conversationHistory ?? []),
+        { role: "user", content: userText, timestamp: now },
+        {
+          role: "assistant",
+          content: r.data.assistantText,
+          timestamp: now,
+        },
+      ],
+      aiAgent: { nodeId: node.id, turn },
+      currentNodeId: node.id,
+    };
+    const effects: EngineEffect[] = [
+      { type: "speak", text: r.data.assistantText, speed: 1 },
+    ];
+    return { ok: true, session: s, effects };
   };
 
   if (event.type === "start") {
@@ -206,6 +349,24 @@ export async function advanceScenario(
 
   if (event.type === "tts_done") {
     const cur = findNode(flow, s.currentNodeId);
+    if (cur?.type === "dtmf") {
+      const d = cur.data;
+      const effects: EngineEffect[] = [
+        {
+          type: "listen_dtmf",
+          numDigits: d.numDigits,
+          timeoutSeconds: d.timeoutSeconds,
+          variableName: d.variableName,
+        },
+      ];
+      s = { ...s, currentNodeId: cur.id };
+      return { ok: true, session: s, effects };
+    }
+    if (cur?.type === "ai_agent") {
+      const effects: EngineEffect[] = [{ type: "listen" }];
+      s = { ...s, currentNodeId: cur.id };
+      return { ok: true, session: s, effects };
+    }
     if (!cur || cur.type !== "speak") {
       return { ok: false, error: "tts_done unexpected" };
     }
@@ -217,6 +378,9 @@ export async function advanceScenario(
 
   if (event.type === "utterance") {
     const cur = findNode(flow, s.currentNodeId);
+    if (cur?.type === "ai_agent") {
+      return processAiAgentAfterUtterance(event.text);
+    }
     if (!cur || cur.type !== "listen") {
       return { ok: false, error: "utterance unexpected" };
     }
@@ -230,6 +394,35 @@ export async function advanceScenario(
     if (!next) return { ok: false, error: "no edge after listen" };
     s = { ...s, currentNodeId: next };
     return processNode(next);
+  }
+
+  if (event.type === "dtmf_digit") {
+    const cur = findNode(flow, s.currentNodeId);
+    if (!cur || cur.type !== "dtmf") {
+      return { ok: false, error: "dtmf_digit unexpected" };
+    }
+    const d = cur.data;
+    const digit = event.digit;
+    s = {
+      ...s,
+      variables: { ...s.variables, [d.variableName]: digit },
+      currentNodeId: cur.id,
+    };
+    let nextId: string | null = d.defaultNextNodeId;
+    if (digit) {
+      for (const b of d.branches) {
+        if (b.digit === digit) {
+          const t = getBranchEdgeTarget(flow, cur.id, b.id);
+          if (t) {
+            nextId = t;
+            break;
+          }
+        }
+      }
+    }
+    if (!nextId) return { ok: false, error: "dtmf no next" };
+    s = { ...s, currentNodeId: nextId };
+    return processNode(nextId);
   }
 
   if (event.type === "transfer_no_answer") {

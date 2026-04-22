@@ -7,6 +7,14 @@ import { scenariosRouter } from "./routes/scenarios.route.js";
 import { callsRouter } from "./routes/calls.route.js";
 import { dashboardRouter } from "./routes/dashboard.route.js";
 import { twilioWebhookRouter } from "./routes/webhooks/twilio.route.js";
+import { settingsRouter } from "./routes/settings.route.js";
+import { usersRouter } from "./routes/users.route.js";
+import { dictionaryRouter } from "./routes/dictionary.route.js";
+import { voiceTemplatesRouter } from "./routes/voice-templates.route.js";
+import { billingRouter } from "./routes/billing.route.js";
+import { vocRouter } from "./routes/voc.route.js";
+import { callbacksRouter } from "./routes/callbacks.route.js";
+import { formsRouter } from "./routes/forms.route.js";
 
 export function createApp(): express.Express {
   const app = express();
@@ -63,6 +71,14 @@ export function createApp(): express.Express {
   app.use("/v1/scenarios", express.json(), scenariosRouter);
   app.use("/v1/calls", express.json(), callsRouter);
   app.use("/v1/dashboard", express.json(), dashboardRouter);
+  app.use("/v1/settings", express.json(), settingsRouter);
+  app.use("/v1/users", express.json(), usersRouter);
+  app.use("/v1/dictionary", express.json(), dictionaryRouter);
+  app.use("/v1/voice-templates", express.json(), voiceTemplatesRouter);
+  app.use("/v1/billing", express.json(), billingRouter);
+  app.use("/v1/voc", express.json(), vocRouter);
+  app.use("/v1/callbacks", express.json(), callbacksRouter);
+  app.use("/v1/forms", express.json(), formsRouter);
   app.use("/webhooks/twilio", express.urlencoded({ extended: false }), twilioWebhookRouter);
 
   return app;

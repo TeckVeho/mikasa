@@ -3,8 +3,13 @@ import type { CallSession } from "@logivoice/shared";
 import type { FlowJson } from "@logivoice/shared";
 import { advanceScenario } from "../services/scenario-engine.js";
 import { synthesizeSpeech } from "../lib/google-tts.js";
-import { pcm16ToMulawBuffer } from "../utils/audio.js";
-import { mulawBase64ToPcm16Buffer } from "../utils/audio.js";
+import {
+  pcm16ToMulawBuffer,
+  mulawBase64ToPcm16Buffer,
+  mulawBuffersToPcm16Buffer,
+  pcm16ToWavBuffer,
+} from "../utils/audio.js";
+import { uploadCallRecording } from "../lib/storage.js";
 import { AmiVoiceSession } from "../lib/amivoice.js";
 import { setSessionJson, getSessionJson } from "../lib/redis.js";
 import { prisma } from "../lib/prisma.js";
@@ -14,6 +19,8 @@ import { publishCallCompleted } from "../lib/pubsub.js";
 import { logger } from "../lib/logger.js";
 import { flowJsonSchema } from "@logivoice/shared";
 import type { IncomingMessage } from "node:http";
+import { handleGeminiLiveCall } from "./gemini-call.handler.js";
+import * as geminiRepo from "../repositories/gemini-scenario.repo.js";
 
 type TwilioStreamMessage = {
   event: string;
@@ -24,6 +31,7 @@ type TwilioStreamMessage = {
   };
   media?: { payload: string };
   stop?: { callSid: string };
+  dtmf?: { digit?: string; track?: string };
 };
 
 const SESSION_PREFIX = "session:";
@@ -43,6 +51,21 @@ export function attachCallStreamHandler(
   let listening = false;
   let session: CallSession | null = null;
   let flow: FlowJson | null = null;
+  /** Inbound μ-law chunks from Twilio (base64-decoded) for full-call recording */
+  const recordingMulawChunks: Buffer[] = [];
+  let dtmfTimeout: ReturnType<typeof setTimeout> | null = null;
+  let waitingForDtmf = false;
+  let expectedDtmfDigits = 1;
+  let dtmfBuffer = "";
+  /** Wall time when current listen node started (for transcript segment alignment) */
+  let lastListenStartedAt = 0;
+
+  function clearDtmfTimeout(): void {
+    if (dtmfTimeout) {
+      clearTimeout(dtmfTimeout);
+      dtmfTimeout = null;
+    }
+  }
 
   ws.on("message", async (raw: Buffer) => {
     let msg: TwilioStreamMessage;
@@ -53,6 +76,25 @@ export function attachCallStreamHandler(
     }
 
     if (msg.event === "connected") {
+      return;
+    }
+
+    if (
+      msg.event === "dtmf" &&
+      msg.dtmf?.digit &&
+      session &&
+      flow &&
+      waitingForDtmf
+    ) {
+      const digit = msg.dtmf.digit;
+      dtmfBuffer += digit;
+      if (dtmfBuffer.length >= expectedDtmfDigits) {
+        clearDtmfTimeout();
+        waitingForDtmf = false;
+        const combined = dtmfBuffer.slice(0, expectedDtmfDigits);
+        dtmfBuffer = "";
+        await runEngine(ws, { type: "dtmf_digit", digit: combined });
+      }
       return;
     }
 
@@ -70,13 +112,76 @@ export function attachCallStreamHandler(
 
       const phone = await prisma.phoneNumber.findFirst({
         where: { number: called },
-        include: { scenario: true },
+        include: { scenario: true, tenant: true },
       });
-      if (!phone?.scenarioId || !phone.scenario) {
+      if (!phone) {
+        logger.warn({ called }, "No phone record for incoming number");
+        ws.close();
+        return;
+      }
+      if (phone.tenant.maintenanceMode) {
+        const msg =
+          phone.tenant.maintenanceMessage ??
+          "只今メンテナンス中です。しばらくしてからお電話ください。";
+        const tts = await synthesizeSpeech({ text: msg, speed: 1 });
+        if (tts.ok && streamSid) {
+          const mulawBuf = pcm16ToMulawBuffer(tts.data);
+          await sendAudioToTwilio(ws, streamSid, mulawBuf);
+        }
+        ws.close();
+        return;
+      }
+      if (!phone.scenarioId || !phone.scenario) {
         logger.warn({ called }, "No scenario for incoming number");
         ws.close();
         return;
       }
+
+      // Gemini Live mode: delegate to dedicated handler
+      const voiceEngine = (phone.tenant as Record<string, unknown>).voiceEngine as string | undefined;
+      if (voiceEngine === "gemini_live") {
+        const gs = await geminiRepo.getByScenarioId(phone.scenarioId);
+        if (!gs) {
+          logger.warn({ scenarioId: phone.scenarioId }, "No gemini scenario found");
+          ws.close();
+          return;
+        }
+        const geminiSession: CallSession = {
+          callSid: callSid!,
+          streamSid,
+          tenantId: phone.tenantId,
+          scenarioId: phone.scenarioId,
+          phoneNumberId: phone.id,
+          currentNodeId: "",
+          variables: { caller_number: from || "" },
+          retryCount: 0,
+          status: "active",
+          startedAt: Date.now(),
+          transcriptSegments: [],
+          accumulatedTranscript: "",
+        };
+        await handleGeminiLiveCall(
+          ws,
+          streamSid!,
+          callSid!,
+          geminiSession,
+          {
+            persona: gs.persona,
+            conversationRules: gs.conversationRules,
+            businessKnowledge: gs.businessKnowledge,
+            guardRails: gs.guardRails,
+            toolDefinitions: gs.toolDefinitions as unknown[],
+            voiceName: gs.voiceName,
+            languageCode: gs.languageCode,
+            transferEnabled: gs.transferEnabled,
+            transferNumber: gs.transferNumber,
+            transferTimeout: gs.transferTimeout,
+          },
+          phone.tenant.name,
+        );
+        return;
+      }
+
       const rawFlow = phone.scenario.flowJson;
       const parsed = flowJsonSchema.safeParse(rawFlow);
       if (!parsed.success) {
@@ -99,6 +204,8 @@ export function attachCallStreamHandler(
         retryCount: 0,
         status: "active",
         startedAt: Date.now(),
+        transcriptSegments: [],
+        accumulatedTranscript: "",
       };
 
       await runEngine(ws, { type: "start" });
@@ -106,6 +213,7 @@ export function attachCallStreamHandler(
     }
 
     if (msg.event === "media" && msg.media && session && flow) {
+      recordingMulawChunks.push(Buffer.from(msg.media.payload, "base64"));
       if (!listening || !amivoice) {
         return;
       }
@@ -116,8 +224,11 @@ export function attachCallStreamHandler(
     }
 
     if (msg.event === "stop" && session && callSid && flow) {
+      clearDtmfTimeout();
+      waitingForDtmf = false;
       amivoice?.end();
-      await finalizeCall(session, callSid);
+      await finalizeCall(session, callSid, recordingMulawChunks);
+      recordingMulawChunks.length = 0;
       listening = false;
       session = null;
       flow = null;
@@ -157,13 +268,40 @@ export function attachCallStreamHandler(
       }
       if (effect.type === "listen") {
         listening = true;
+        lastListenStartedAt = Date.now();
         amivoice = new AmiVoiceSession(process.env.AMIVOICE_APP_KEY ?? "");
-        const conn = amivoice.connect((text) => {
+        const conn = amivoice.connect((result) => {
           void (async () => {
             listening = false;
             amivoice?.end();
             amivoice = null;
-            await runEngine(socket, { type: "utterance", text });
+            if (session) {
+              const prev = session.transcriptSegments ?? [];
+              const base = lastListenStartedAt - session.startedAt;
+              const shifted = result.segments.map((s) => ({
+                ...s,
+                startMs: base + s.startMs,
+                endMs: base + s.endMs,
+              }));
+              const merged = [...prev, ...shifted];
+              const acc =
+                (session.accumulatedTranscript ?? "").trim() +
+                (session.accumulatedTranscript ? "\n" : "") +
+                result.text;
+              session = {
+                ...session,
+                transcriptSegments: merged,
+                accumulatedTranscript: acc,
+              };
+              if (callSid) {
+                await setSessionJson(
+                  `${SESSION_PREFIX}${callSid}`,
+                  session,
+                  SESSION_TTL,
+                );
+              }
+            }
+            await runEngine(socket, { type: "utterance", text: result.text });
           })();
         });
         if (!conn.ok) {
@@ -172,6 +310,22 @@ export function attachCallStreamHandler(
             text: "",
           });
         }
+        return;
+      }
+      if (effect.type === "listen_dtmf") {
+        waitingForDtmf = true;
+        expectedDtmfDigits = effect.numDigits;
+        dtmfBuffer = "";
+        clearDtmfTimeout();
+        dtmfTimeout = setTimeout(() => {
+          void (async () => {
+            if (!waitingForDtmf) return;
+            waitingForDtmf = false;
+            dtmfBuffer = "";
+            dtmfTimeout = null;
+            await runEngine(socket, { type: "dtmf_digit", digit: "" });
+          })();
+        }, effect.timeoutSeconds * 1000);
         return;
       }
       if (effect.type === "end") {
@@ -186,10 +340,30 @@ export function attachCallStreamHandler(
     }
   }
 
-  async function finalizeCall(s: CallSession, sid: string) {
+  async function finalizeCall(
+    s: CallSession,
+    sid: string,
+    mulawChunks: Buffer[],
+  ) {
     const stored = await getSessionJson<CallSession>(`${SESSION_PREFIX}${sid}`);
     const finalSession = stored ?? s;
     const id = newId();
+    let audioStoragePath: string | null = null;
+    if (mulawChunks.length > 0) {
+      const pcm = mulawBuffersToPcm16Buffer(mulawChunks);
+      const wav = pcm16ToWavBuffer(pcm, 8000);
+      audioStoragePath = await uploadCallRecording(
+        finalSession.tenantId,
+        id,
+        wav,
+      );
+    }
+    const transcriptText =
+      finalSession.accumulatedTranscript?.trim() || null;
+    const transcriptSegments =
+      finalSession.transcriptSegments && finalSession.transcriptSegments.length > 0
+        ? finalSession.transcriptSegments
+        : null;
     await callRepo.upsertCallLogByTwilioSid({
       id,
       tenantId: finalSession.tenantId,
@@ -203,8 +377,10 @@ export function attachCallStreamHandler(
           : finalSession.status === "ended"
             ? "complete"
             : "abandoned",
-      transcriptText: null,
+      transcriptText,
+      transcriptSegments,
       durationSeconds: Math.round((Date.now() - finalSession.startedAt) / 1000),
+      audioStoragePath,
     });
     await publishCallCompleted({ tenantId: finalSession.tenantId, callLogId: id });
   }

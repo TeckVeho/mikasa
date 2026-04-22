@@ -64,17 +64,104 @@ export async function dashboardSummary(
         )
       : 0;
 
+  const periodMs = end.getTime() - start.getTime();
+  const prevEnd = new Date(start.getTime());
+  const prevStart = new Date(start.getTime() - periodMs);
+  const [prevTotal, prevCompleted] = await Promise.all([
+    prisma.callLog.count({
+      where: { tenantId, createdAt: { gte: prevStart, lt: prevEnd } },
+    }),
+    prisma.callLog.count({
+      where: {
+        tenantId,
+        status: "complete",
+        createdAt: { gte: prevStart, lt: prevEnd },
+      },
+    }),
+  ]);
+
+  const currentCr = totalCalls > 0 ? completed / totalCalls : 0;
+  const prevCr = prevTotal > 0 ? prevCompleted / prevTotal : 0;
+
   return {
     ok: true,
     data: {
       totalCalls,
-      completionRate: totalCalls > 0 ? completed / totalCalls : 0,
+      completionRate: currentCr,
       avgDuration,
       transferCount: transferred,
       prevPeriodComparison: {
-        totalCalls: 0,
-        completionRate: 0,
+        totalCalls: prevTotal > 0 ? (totalCalls - prevTotal) / prevTotal : 0,
+        completionRate: currentCr - prevCr,
       },
+    },
+  };
+}
+
+export async function dashboardByScenario(
+  tenantId: string,
+): Promise<Result<unknown>> {
+  const rows = await prisma.callLog.groupBy({
+    by: ["scenarioId"],
+    where: { tenantId },
+    _count: { id: true },
+  });
+  const scenarios = await prisma.scenario.findMany({
+    where: { tenantId },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(scenarios.map((s) => [s.id, s.name]));
+  return {
+    ok: true,
+    data: rows.map((r) => ({
+      scenarioId: r.scenarioId,
+      scenarioName: nameById.get(r.scenarioId) ?? r.scenarioId,
+      callCount: r._count.id,
+    })),
+  };
+}
+
+export async function dashboardByNumber(
+  tenantId: string,
+): Promise<Result<unknown>> {
+  const rows = await prisma.callLog.groupBy({
+    by: ["phoneNumberId"],
+    where: { tenantId },
+    _count: { id: true },
+  });
+  const nums = await prisma.phoneNumber.findMany({
+    where: { tenantId },
+    select: { id: true, number: true },
+  });
+  const numById = new Map(nums.map((n) => [n.id, n.number]));
+  return {
+    ok: true,
+    data: rows.map((r) => ({
+      phoneNumberId: r.phoneNumberId,
+      number: numById.get(r.phoneNumberId) ?? r.phoneNumberId,
+      callCount: r._count.id,
+    })),
+  };
+}
+
+export async function dashboardCostEstimate(
+  tenantId: string,
+): Promise<Result<unknown>> {
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  const logs = await prisma.callLog.findMany({
+    where: { tenantId, createdAt: { gte: start } },
+    select: { durationSeconds: true },
+  });
+  const minutes =
+    logs.reduce((a, l) => a + (l.durationSeconds ?? 0), 0) / 60;
+  return {
+    ok: true,
+    data: {
+      monthToDateCalls: logs.length,
+      totalMinutes: Math.round(minutes * 10) / 10,
+      estimatedUsd: Math.round(minutes * 0.08 * 100) / 100,
     },
   };
 }

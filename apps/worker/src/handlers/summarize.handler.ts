@@ -15,10 +15,16 @@ export async function handleSummarize(payload: {
     logger.warn({ id: payload.callLogId }, "no transcript; skip summarize");
     return;
   }
-  const summary = await summarizeTranscript(log.transcriptText);
+  let summaryText: string;
+  try {
+    summaryText = await summarizeTranscript(log.transcriptText);
+  } catch (e) {
+    logger.warn({ id: log.id, err: e }, "summarize failed");
+    return;
+  }
   await prisma.callLog.update({
     where: { id: log.id },
-    data: { summaryText: summary },
+    data: { summaryText },
   });
   logger.info({ id: log.id }, "summary saved");
 }
