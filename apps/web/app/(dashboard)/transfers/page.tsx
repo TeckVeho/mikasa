@@ -21,6 +21,14 @@ type TransferHandoff = {
   department: string;
   status: string;
   createdAt: string;
+  handledBy: string | null;
+  handledNote: string;
+  handledAt: string | null;
+};
+
+type User = {
+  id: string;
+  name: string;
 };
 
 type TransfersResponse = {
@@ -71,7 +79,20 @@ export default function TransfersPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<TransferHandoff | null>(null);
+  const [noteText, setNoteText] = useState("");
   const queryClient = useQueryClient();
+
+  const { data: users } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const r = await apiJson<User[]>("/v1/users");
+      if (!r.ok) return [];
+      return r.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const userMap = new Map((users ?? []).map((u) => [u.id, u.name]));
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["transfers", statusFilter, page],
@@ -85,16 +106,17 @@ export default function TransfersPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, note }: { id: string; status: string; note?: string }) => {
       const r = await apiJson(`/v1/transfers/${id}/status`, {
         method: "PATCH",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, note }),
       });
       if (!r.ok) throw new Error("ステータス更新に失敗しました");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transfers"] });
       setSelected(null);
+      setNoteText("");
     },
   });
 
@@ -145,6 +167,7 @@ export default function TransfersPage() {
                   <th className="px-5 py-2.5">優先度</th>
                   <th className="px-5 py-2.5">部署</th>
                   <th className="px-5 py-2.5">ステータス</th>
+                  <th className="px-5 py-2.5">担当者</th>
                   <th className="px-5 py-2.5">操作</th>
                 </tr>
               </thead>
@@ -171,6 +194,9 @@ export default function TransfersPage() {
                       </td>
                       <td className="px-5 py-3">
                         <Badge variant={sBadge.variant}>{sBadge.label}</Badge>
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3 text-muted">
+                        {item.handledBy ? (userMap.get(item.handledBy) ?? item.handledBy) : "—"}
                       </td>
                       <td className="px-5 py-3">
                         <Button variant="outline" size="sm" onClick={() => setSelected(item)}>
@@ -212,7 +238,7 @@ export default function TransfersPage() {
 
       <Modal
         isOpen={!!selected}
-        onClose={() => setSelected(null)}
+        onClose={() => { setSelected(null); setNoteText(""); }}
         title="転送詳細"
         size="lg"
         footer={
@@ -222,7 +248,7 @@ export default function TransfersPage() {
                 variant="secondary"
                 size="sm"
                 loading={statusMutation.isPending}
-                onClick={() => statusMutation.mutate({ id: selected.id, status: "handled" })}
+                onClick={() => statusMutation.mutate({ id: selected.id, status: "handled", note: noteText })}
               >
                 対応済みにする
               </Button>
@@ -230,7 +256,7 @@ export default function TransfersPage() {
                 variant="danger"
                 size="sm"
                 loading={statusMutation.isPending}
-                onClick={() => statusMutation.mutate({ id: selected.id, status: "escalated" })}
+                onClick={() => statusMutation.mutate({ id: selected.id, status: "escalated", note: noteText })}
               >
                 エスカレーション
               </Button>
@@ -259,7 +285,42 @@ export default function TransfersPage() {
                   {STATUS_BADGE[selected.status]?.label ?? selected.status}
                 </Badge>
               </dd>
+              {selected.handledBy && (
+                <>
+                  <dt className="font-medium text-muted">対応者</dt>
+                  <dd className="text-text">
+                    {userMap.get(selected.handledBy) ?? selected.handledBy}
+                  </dd>
+                </>
+              )}
+              {selected.handledAt && (
+                <>
+                  <dt className="font-medium text-muted">対応日時</dt>
+                  <dd className="text-text">{formatDatetime(selected.handledAt)}</dd>
+                </>
+              )}
+              {selected.handledNote && (
+                <>
+                  <dt className="font-medium text-muted">対応メモ</dt>
+                  <dd className="whitespace-pre-wrap text-text">{selected.handledNote}</dd>
+                </>
+              )}
             </dl>
+
+            {selected.status === "pending" && (
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted">
+                  対応メモ（任意）
+                </label>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="対応内容を入力..."
+                  rows={3}
+                  className="w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text placeholder:text-muted outline-none transition-shadow focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+            )}
 
             {selected.collectedInfo && Object.keys(selected.collectedInfo).length > 0 && (
               <div>

@@ -35,6 +35,7 @@ export async function listCalls(
         duration: c.durationSeconds,
         status: c.status,
         summaryText: c.summaryText,
+        hasAudio: !!c.audioStoragePath,
         createdAt: c.createdAt.toISOString(),
       })),
       total,

@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { randomBytes } from "node:crypto";
 
 let app: App | null = null;
 
@@ -32,4 +33,29 @@ export async function verifyIdToken(
   if (!fb) return null;
   const decoded = await getAuth(fb).verifyIdToken(token);
   return { uid: decoded.uid };
+}
+
+export async function createFirebaseUser(
+  email: string,
+): Promise<{ uid: string } | null> {
+  const fb = getFirebaseApp();
+  if (!fb) return null;
+  const password = randomBytes(12).toString("base64url");
+  const userRecord = await getAuth(fb).createUser({ email, password });
+  return { uid: userRecord.uid };
+}
+
+export async function deleteFirebaseUser(uid: string): Promise<boolean> {
+  const fb = getFirebaseApp();
+  if (!fb) return false;
+  await getAuth(fb).deleteUser(uid);
+  return true;
+}
+
+export async function generateResetLink(
+  email: string,
+): Promise<string | null> {
+  const fb = getFirebaseApp();
+  if (!fb) return null;
+  return getAuth(fb).generatePasswordResetLink(email);
 }

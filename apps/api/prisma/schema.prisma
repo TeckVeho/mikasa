@@ -145,6 +145,8 @@ model CallbackRequest {
   callerNumber  String    @map("caller_number") @db.VarChar(20)
   preferredTime String?   @map("preferred_time") @db.VarChar(100)
   status        String    @default("pending") @db.VarChar(20)
+  assigneeId    String?   @map("assignee_id") @db.VarChar(26)
+  note          String    @default("") @map("note") @db.Text
   completedAt   DateTime? @map("completed_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
@@ -176,18 +178,21 @@ model GeminiScenario {
 }
 
 model TransferHandoff {
-  id           String   @id @default(cuid())
-  callLogId    String?  @map("call_log_id") @db.VarChar(26)
-  tenantId     String   @map("tenant_id") @db.VarChar(26)
-  callSid      String   @map("call_sid") @db.VarChar(64)
-  callerNumber String   @map("caller_number") @db.VarChar(20)
-  reason       String   @db.Text
-  collectedInfo Json?   @map("collected_info")
-  transcript   String?  @db.Text
-  priority     String   @default("normal") @db.VarChar(10)
-  department   String   @default("general") @db.VarChar(40)
-  status       String   @default("pending") @db.VarChar(20)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id           String    @id @default(cuid())
+  callLogId    String?   @map("call_log_id") @db.VarChar(26)
+  tenantId     String    @map("tenant_id") @db.VarChar(26)
+  callSid      String    @map("call_sid") @db.VarChar(64)
+  callerNumber String    @map("caller_number") @db.VarChar(20)
+  reason       String    @db.Text
+  collectedInfo Json?    @map("collected_info")
+  transcript   String?   @db.Text
+  priority     String    @default("normal") @db.VarChar(10)
+  department   String    @default("general") @db.VarChar(40)
+  status       String    @default("pending") @db.VarChar(20)
+  handledBy    String?   @map("handled_by") @db.VarChar(26)
+  handledNote  String    @default("") @map("handled_note") @db.Text
+  handledAt    DateTime? @map("handled_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
   callLog CallLog? @relation(fields: [callLogId], references: [id])
 

@@ -8,6 +8,7 @@ import { apiJson } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Volume2 } from "lucide-react";
 
 type Item = {
   id: string;
@@ -15,6 +16,7 @@ type Item = {
   receiverNumber?: string;
   duration: number | null;
   status: string;
+  hasAudio: boolean;
   summaryText: string | null;
   createdAt: string;
 };
@@ -180,7 +182,7 @@ export default function CallsPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-border">
                 <tr>
-                  {["日時", "発信番号", "受信番号", "通話時間", "ステータス", "要約"].map((h) => (
+                  {["日時", "発信番号", "受信番号", "通話時間", "ステータス", "録音", "要約"].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted"
@@ -207,6 +209,9 @@ export default function CallsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={c.status} />
+                    </td>
+                    <td className="px-2 py-3 text-center">
+                      {c.hasAudio && <Volume2 className="inline-block h-4 w-4 text-primary" />}
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-muted">
                       {(c.summaryText ?? "—").slice(0, 50)}

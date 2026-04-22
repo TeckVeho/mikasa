@@ -39,13 +39,20 @@ transfersRouter.get("/:id", async (req, res) => {
 
 transfersRouter.patch("/:id/status", async (req, res) => {
   const newStatus = req.body?.status as string;
+  const note = (req.body?.note as string | undefined) ?? "";
   if (!newStatus || !["handled", "escalated", "pending"].includes(newStatus)) {
     res.status(422).json({ ok: false, error: "VALIDATION_ERROR", message: "Invalid status" });
     return;
   }
+
+  const handledFields =
+    newStatus === "handled" || newStatus === "escalated"
+      ? { handledBy: req.userId!, handledNote: note, handledAt: new Date() }
+      : { handledBy: null, handledNote: "", handledAt: null };
+
   const n = await prisma.transferHandoff.updateMany({
     where: { id: req.params.id, tenantId: req.tenantId! },
-    data: { status: newStatus },
+    data: { status: newStatus, ...handledFields },
   });
   if (n.count === 0) {
     res.status(404).json({ ok: false, error: "NOT_FOUND" });
