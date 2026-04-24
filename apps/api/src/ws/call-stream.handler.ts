@@ -45,6 +45,7 @@ export function attachCallStreamHandler(
   const url = new URL(req.url ?? "", "http://localhost");
   const queryCalled = url.searchParams.get("called") ?? "";
   const queryFrom = url.searchParams.get("from") ?? "";
+  const queryScenarioId = url.searchParams.get("scenarioId") ?? "";
 
   let streamSid: string | null = null;
   let callSid: string | null = null;
@@ -111,6 +112,9 @@ export function attachCallStreamHandler(
         msg.start.customParameters?.From ??
         queryFrom;
 
+      const overrideScenarioId =
+        msg.start.customParameters?.scenarioId ?? queryScenarioId;
+
       const phone = await prisma.phoneNumber.findFirst({
         where: { number: called },
         include: { scenario: true, tenant: true },
@@ -132,8 +136,21 @@ export function attachCallStreamHandler(
         ws.close();
         return;
       }
-      if (!phone.scenarioId || !phone.scenario) {
+
+      const effectiveScenarioId = overrideScenarioId || phone.scenarioId;
+      if (!effectiveScenarioId) {
         logger.warn({ called }, "No scenario for incoming number");
+        ws.close();
+        return;
+      }
+
+      const effectiveScenario =
+        overrideScenarioId && overrideScenarioId !== phone.scenarioId
+          ? await prisma.scenario.findFirst({ where: { id: overrideScenarioId } })
+          : phone.scenario;
+
+      if (!effectiveScenario) {
+        logger.warn({ called, effectiveScenarioId }, "Scenario not found");
         ws.close();
         return;
       }
@@ -141,9 +158,9 @@ export function attachCallStreamHandler(
       // Gemini Live mode: delegate to dedicated handler
       const voiceEngine = (phone.tenant as Record<string, unknown>).voiceEngine as string | undefined;
       if (voiceEngine === "gemini_live") {
-        const gs = await geminiRepo.getByScenarioId(phone.scenarioId);
+        const gs = await geminiRepo.getByScenarioId(effectiveScenarioId);
         if (!gs) {
-          logger.warn({ scenarioId: phone.scenarioId }, "No gemini scenario found");
+          logger.warn({ scenarioId: effectiveScenarioId }, "No gemini scenario found");
           ws.close();
           return;
         }
@@ -151,7 +168,7 @@ export function attachCallStreamHandler(
           callSid: callSid!,
           streamSid,
           tenantId: phone.tenantId,
-          scenarioId: phone.scenarioId,
+          scenarioId: effectiveScenarioId,
           phoneNumberId: phone.id,
           currentNodeId: "",
           variables: { caller_number: from || "" },
@@ -165,7 +182,7 @@ export function attachCallStreamHandler(
           callSid: callSid!,
           tenantId: phone.tenantId,
           callerNumber: from || "",
-          scenarioId: phone.scenarioId,
+          scenarioId: effectiveScenarioId,
           startedAt: Date.now(),
           transcript: "",
           status: "active",
@@ -193,7 +210,7 @@ export function attachCallStreamHandler(
         return;
       }
 
-      const rawFlow = phone.scenario.flowJson;
+      const rawFlow = effectiveScenario.flowJson;
       const parsed = flowJsonSchema.safeParse(rawFlow);
       if (!parsed.success) {
         logger.error("Invalid flow json");
@@ -206,7 +223,7 @@ export function attachCallStreamHandler(
         callSid: callSid!,
         streamSid,
         tenantId: phone.tenantId,
-        scenarioId: phone.scenarioId,
+        scenarioId: effectiveScenarioId,
         phoneNumberId: phone.id,
         currentNodeId: "",
         variables: {
@@ -223,7 +240,7 @@ export function attachCallStreamHandler(
         callSid: callSid!,
         tenantId: phone.tenantId,
         callerNumber: from || "",
-        scenarioId: phone.scenarioId,
+        scenarioId: effectiveScenarioId,
         startedAt: Date.now(),
         transcript: "",
         status: "active",

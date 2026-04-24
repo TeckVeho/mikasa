@@ -49,11 +49,14 @@ model PhoneNumber {
   number          String   @db.VarChar(20)
   twilioNumberSid String   @unique @map("twilio_number_sid") @db.VarChar(64)
   status          String   @default("inactive") @db.VarChar(20)
+  ivrEnabled      Boolean  @default(false) @map("ivr_enabled")
+  ivrMessage      String?  @map("ivr_message") @db.Text
   createdAt       DateTime @default(now()) @map("created_at")
 
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   scenario  Scenario?  @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
   callLogs  CallLog[]
+  ivrRoutes IvrRoute[]
 
   @@map("phone_numbers")
 }
@@ -76,6 +79,7 @@ model Scenario {
   callLogs       CallLog[]
   versions       ScenarioVersion[]
   geminiScenario GeminiScenario?
+  ivrRoutes      IvrRoute[]
 
   @@index([tenantId, status])
   @@index([tenantId, scenarioType])
@@ -175,6 +179,23 @@ model GeminiScenario {
   scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
 
   @@map("gemini_scenarios")
+}
+
+model IvrRoute {
+  id            String   @id @default(cuid())
+  phoneNumberId String   @map("phone_number_id") @db.VarChar(26)
+  digit         String   @db.VarChar(1)
+  label         String   @db.VarChar(100)
+  scenarioId    String   @map("scenario_id") @db.VarChar(26)
+  sortOrder     Int      @default(0) @map("sort_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  scenario    Scenario    @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([phoneNumberId, digit])
+  @@index([phoneNumberId])
+  @@map("ivr_routes")
 }
 
 model TransferHandoff {

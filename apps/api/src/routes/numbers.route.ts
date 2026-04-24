@@ -63,3 +63,13 @@ numbersRouter.patch("/:id/status", async (req, res) => {
   const r = await svc.patchStatus(req.tenantId!, req.params.id, status);
   sendResult(res, r);
 });
+
+numbersRouter.get("/:id/ivr", async (req, res) => {
+  const r = await svc.getIvrSettings(req.tenantId!, req.params.id);
+  sendResult(res, r);
+});
+
+numbersRouter.put("/:id/ivr", async (req, res) => {
+  const r = await svc.updateIvrSettings(req.tenantId!, req.params.id, req.body);
+  sendResult(res, r);
+});

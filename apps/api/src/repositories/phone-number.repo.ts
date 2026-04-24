@@ -60,3 +60,44 @@ export async function patchPhoneNumberStatus(
     data: { status },
   });
 }
+
+export async function findPhoneNumberWithIvr(tenantId: string, id: string) {
+  return prisma.phoneNumber.findFirst({
+    where: { id, tenantId },
+    include: {
+      scenario: true,
+      ivrRoutes: {
+        include: { scenario: true },
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+  });
+}
+
+export async function updateIvrSettings(
+  phoneNumberId: string,
+  data: {
+    ivrEnabled: boolean;
+    ivrMessage: string | null;
+    routes: { digit: string; label: string; scenarioId: string; sortOrder: number }[];
+  },
+) {
+  return prisma.$transaction([
+    prisma.ivrRoute.deleteMany({ where: { phoneNumberId } }),
+    prisma.phoneNumber.update({
+      where: { id: phoneNumberId },
+      data: { ivrEnabled: data.ivrEnabled, ivrMessage: data.ivrMessage },
+    }),
+    ...data.routes.map((r) =>
+      prisma.ivrRoute.create({
+        data: {
+          phoneNumberId,
+          digit: r.digit,
+          label: r.label,
+          scenarioId: r.scenarioId,
+          sortOrder: r.sortOrder,
+        },
+      }),
+    ),
+  ]);
+}

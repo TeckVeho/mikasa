@@ -24,6 +24,7 @@ export async function getNumber(
         ? { id: p.scenario.id, name: p.scenario.name }
         : null,
       status: p.status,
+      ivrEnabled: p.ivrEnabled,
     },
   };
 }
@@ -48,6 +49,7 @@ export async function listNumbers(tenantId: string): Promise<Result<unknown[]>> 
         scenarioId: p.scenarioId,
         scenarioName: p.scenario?.name ?? null,
         status: p.status,
+        ivrEnabled: p.ivrEnabled,
         monthlyCallCount,
         createdAt: p.createdAt.toISOString(),
       };
@@ -139,5 +141,88 @@ export async function patchStatus(
 ): Promise<Result<unknown>> {
   const n = await repo.patchPhoneNumberStatus(tenantId, id, status);
   if (n.count === 0) return { ok: false, error: "Not found", code: "NOT_FOUND" };
+  return { ok: true, data: true };
+}
+
+export async function getIvrSettings(
+  tenantId: string,
+  phoneNumberId: string,
+): Promise<Result<unknown>> {
+  const p = await repo.findPhoneNumberWithIvr(tenantId, phoneNumberId);
+  if (!p) return { ok: false, error: "Not found", code: "NOT_FOUND" };
+  return {
+    ok: true,
+    data: {
+      ivrEnabled: p.ivrEnabled,
+      ivrMessage: p.ivrMessage,
+      routes: p.ivrRoutes.map((r) => ({
+        id: r.id,
+        digit: r.digit,
+        label: r.label,
+        scenarioId: r.scenarioId,
+        scenarioName: r.scenario.name,
+        sortOrder: r.sortOrder,
+      })),
+    },
+  };
+}
+
+type IvrSettingsInput = {
+  ivrEnabled: boolean;
+  ivrMessage: string | null;
+  routes: {
+    digit: string;
+    label: string;
+    scenarioId: string;
+  }[];
+};
+
+export async function updateIvrSettings(
+  tenantId: string,
+  phoneNumberId: string,
+  data: IvrSettingsInput,
+): Promise<Result<unknown>> {
+  const p = await repo.findPhoneNumberById(tenantId, phoneNumberId);
+  if (!p) return { ok: false, error: "Not found", code: "NOT_FOUND" };
+
+  if (data.routes.length > 10) {
+    return { ok: false, error: "Maximum 10 routes allowed", code: "VALIDATION_ERROR" };
+  }
+
+  const digitPattern = /^[0-9]$/;
+  for (const r of data.routes) {
+    if (!digitPattern.test(r.digit)) {
+      return {
+        ok: false,
+        error: `Invalid digit: "${r.digit}". Must be 0-9`,
+        code: "VALIDATION_ERROR",
+      };
+    }
+  }
+
+  const digits = data.routes.map((r) => r.digit);
+  if (new Set(digits).size !== digits.length) {
+    return { ok: false, error: "Duplicate digits are not allowed", code: "VALIDATION_ERROR" };
+  }
+
+  if (data.ivrEnabled && data.routes.length === 0) {
+    return {
+      ok: false,
+      error: "At least one route is required when IVR is enabled",
+      code: "VALIDATION_ERROR",
+    };
+  }
+
+  await repo.updateIvrSettings(phoneNumberId, {
+    ivrEnabled: data.ivrEnabled,
+    ivrMessage: data.ivrMessage,
+    routes: data.routes.map((r, i) => ({
+      digit: r.digit,
+      label: r.label,
+      scenarioId: r.scenarioId,
+      sortOrder: i,
+    })),
+  });
+
   return { ok: true, data: true };
 }
