@@ -64,6 +64,20 @@ numbersRouter.patch("/:id/status", async (req, res) => {
   sendResult(res, r);
 });
 
+numbersRouter.post("/byoc", async (req, res) => {
+  const phoneNumber = req.body?.phoneNumber as string | undefined;
+  if (!phoneNumber) {
+    res.status(422).json({
+      ok: false,
+      error: "VALIDATION_ERROR",
+      message: "phoneNumber required",
+    });
+    return;
+  }
+  const r = await svc.addByocNumber(req.tenantId!, phoneNumber);
+  sendResult(res, r);
+});
+
 numbersRouter.get("/:id/ivr", async (req, res) => {
   const r = await svc.getIvrSettings(req.tenantId!, req.params.id);
   sendResult(res, r);

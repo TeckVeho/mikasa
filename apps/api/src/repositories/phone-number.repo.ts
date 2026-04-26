@@ -27,7 +27,9 @@ export async function createPhoneNumber(data: {
   tenantId: string;
   scenarioId: string | null;
   number: string;
-  twilioNumberSid: string;
+  twilioNumberSid?: string | null;
+  byocTrunkSid?: string | null;
+  numberType?: string;
   status: string;
 }) {
   return prisma.phoneNumber.create({ data });

@@ -18,6 +18,10 @@ model Tenant {
   billingPlan        String  @default("standard") @map("billing_plan") @db.VarChar(40)
   voiceEngine        String  @default("flow") @map("voice_engine") @db.VarChar(20)
 
+  notifyCallComplete Boolean @default(false) @map("notify_call_complete")
+  notifyTransfer     Boolean @default(false) @map("notify_transfer")
+  notifyEmail        String? @map("notify_email") @db.VarChar(255)
+
   users              User[]
   phoneNumbers       PhoneNumber[]
   scenarios          Scenario[]
@@ -47,7 +51,9 @@ model PhoneNumber {
   tenantId        String   @map("tenant_id") @db.VarChar(26)
   scenarioId      String?  @map("scenario_id") @db.VarChar(26)
   number          String   @db.VarChar(20)
-  twilioNumberSid String   @unique @map("twilio_number_sid") @db.VarChar(64)
+  twilioNumberSid String?  @unique @map("twilio_number_sid") @db.VarChar(64)
+  byocTrunkSid    String?  @unique @map("byoc_trunk_sid") @db.VarChar(64)
+  numberType      String   @default("twilio") @map("number_type") @db.VarChar(20)
   status          String   @default("inactive") @db.VarChar(20)
   ivrEnabled      Boolean  @default(false) @map("ivr_enabled")
   ivrMessage      String?  @map("ivr_message") @db.Text

@@ -73,18 +73,47 @@ settingsRouter.post("/test-connection", async (req, res) => {
   });
 });
 
-settingsRouter.get("/notifications", async (_req, res) => {
+settingsRouter.get("/notifications", async (req, res) => {
+  const t = await prisma.tenant.findUnique({
+    where: { id: req.tenantId! },
+    select: {
+      notifyCallComplete: true,
+      notifyTransfer: true,
+      notifyEmail: true,
+    },
+  });
+  if (!t) {
+    res.status(404).json({ ok: false, error: "NOT_FOUND" });
+    return;
+  }
   sendResult(res, {
     ok: true,
     data: {
-      callCompleteEmail: false,
-      transferEmail: false,
-      notifyEmail: "",
+      callCompleteEmail: t.notifyCallComplete,
+      transferEmail: t.notifyTransfer,
+      notifyEmail: t.notifyEmail ?? "",
     },
   });
 });
 
-settingsRouter.patch("/notifications", async (_req, res) => {
+settingsRouter.patch("/notifications", async (req, res) => {
+  const callCompleteEmail = req.body?.callCompleteEmail as boolean | undefined;
+  const transferEmail = req.body?.transferEmail as boolean | undefined;
+  const notifyEmail = req.body?.notifyEmail as string | undefined;
+
+  const data: {
+    notifyCallComplete?: boolean;
+    notifyTransfer?: boolean;
+    notifyEmail?: string | null;
+  } = {};
+  if (callCompleteEmail !== undefined) data.notifyCallComplete = callCompleteEmail;
+  if (transferEmail !== undefined) data.notifyTransfer = transferEmail;
+  if (notifyEmail !== undefined) data.notifyEmail = notifyEmail || null;
+
+  await prisma.tenant.update({
+    where: { id: req.tenantId! },
+    data,
+  });
   sendResult(res, { ok: true, data: true });
 });
 

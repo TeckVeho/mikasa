@@ -49,6 +49,33 @@ export async function releaseNumber(twilioNumberSid: string) {
   return { ok: true as const, data: true };
 }
 
+export async function createByocTrunk(
+  friendlyName: string,
+  voiceUrl: string,
+): Promise<Result<{ byocTrunkSid: string }>> {
+  const c = getClient();
+  if (!c) {
+    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+  }
+  const trunk = await c.voice.v1.byocTrunks.create({
+    friendlyName,
+    voiceUrl,
+    voiceMethod: "POST",
+    statusCallbackUrl: voiceUrl.replace(/\/voice$/, "/status"),
+    statusCallbackMethod: "POST",
+  });
+  return { ok: true as const, data: { byocTrunkSid: trunk.sid } };
+}
+
+export async function deleteByocTrunk(byocTrunkSid: string): Promise<Result<true>> {
+  const c = getClient();
+  if (!c) {
+    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+  }
+  await c.voice.v1.byocTrunks(byocTrunkSid).remove();
+  return { ok: true as const, data: true };
+}
+
 export async function sendSms(to: string, body: string): Promise<Result<true>> {
   const c = getClient();
   const from = process.env.TWILIO_SMS_FROM;

@@ -5,6 +5,8 @@ import {
   listAvailableLocalNumbers,
   purchaseNumber,
   releaseNumber,
+  createByocTrunk,
+  deleteByocTrunk,
 } from "../lib/twilio.js";
 import { prisma } from "../lib/prisma.js";
 
@@ -19,6 +21,8 @@ export async function getNumber(
     data: {
       id: p.id,
       number: p.number,
+      numberType: p.numberType,
+      byocTrunkSid: p.byocTrunkSid ?? null,
       scenarioId: p.scenarioId,
       scenario: p.scenario
         ? { id: p.scenario.id, name: p.scenario.name }
@@ -46,6 +50,8 @@ export async function listNumbers(tenantId: string): Promise<Result<unknown[]>> 
       return {
         id: p.id,
         number: p.number,
+        numberType: p.numberType,
+        byocTrunkSid: p.byocTrunkSid ?? null,
         scenarioId: p.scenarioId,
         scenarioName: p.scenario?.name ?? null,
         status: p.status,
@@ -116,12 +122,51 @@ export async function deleteNumber(
 ): Promise<Result<unknown>> {
   const p = await repo.findPhoneNumberById(tenantId, id);
   if (!p) return { ok: false, error: "Not found", code: "NOT_FOUND" };
-  const rel = await releaseNumber(p.twilioNumberSid);
-  if (!rel.ok) {
-    return { ok: false, error: rel.message, code: "TWILIO_ERROR" };
+
+  if (p.numberType === "byoc") {
+    if (p.byocTrunkSid) {
+      const rel = await deleteByocTrunk(p.byocTrunkSid);
+      if (!rel.ok) {
+        return { ok: false, error: rel.message, code: "TWILIO_ERROR" };
+      }
+    }
+  } else {
+    if (p.twilioNumberSid) {
+      const rel = await releaseNumber(p.twilioNumberSid);
+      if (!rel.ok) {
+        return { ok: false, error: rel.message, code: "TWILIO_ERROR" };
+      }
+    }
   }
+
   await repo.deletePhoneNumber(tenantId, id);
   return { ok: true, data: true };
+}
+
+export async function addByocNumber(
+  tenantId: string,
+  phoneNumber: string,
+): Promise<Result<unknown>> {
+  const voiceUrl = `${process.env.API_PUBLIC_URL ?? "http://localhost:8080"}/webhooks/twilio/voice`;
+  const created = await createByocTrunk(`BYOC ${phoneNumber}`, voiceUrl);
+  if (!created.ok) {
+    return { ok: false, error: created.message, code: "TWILIO_ERROR" };
+  }
+  const id = newId();
+  await repo.createPhoneNumber({
+    id,
+    tenantId,
+    scenarioId: null,
+    number: phoneNumber,
+    twilioNumberSid: null,
+    byocTrunkSid: created.data.byocTrunkSid,
+    numberType: "byoc",
+    status: "inactive",
+  });
+  return {
+    ok: true,
+    data: { id, number: phoneNumber, byocTrunkSid: created.data.byocTrunkSid },
+  };
 }
 
 export async function patchScenario(
