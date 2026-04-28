@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 
 export const billingRouter = Router();
 billingRouter.use(requireAuth);
+billingRouter.use(requireAdmin);
 
 billingRouter.get("/summary", async (req, res) => {
   const tenant = await prisma.tenant.findUnique({

@@ -11,7 +11,11 @@ function getClient() {
 export async function listAvailableLocalNumbers(areaCode?: string) {
   const c = getClient();
   if (!c) {
-    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+    return {
+      ok: false as const,
+      error: "Twilio not configured",
+      code: "TWILIO_ERROR",
+    };
   }
   const nums = await c.availablePhoneNumbers("JP").local.list({
     areaCode: areaCode ? Number(areaCode) : undefined,
@@ -29,7 +33,11 @@ export async function listAvailableLocalNumbers(areaCode?: string) {
 export async function purchaseNumber(phoneNumber: string) {
   const c = getClient();
   if (!c) {
-    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+    return {
+      ok: false as const,
+      error: "Twilio not configured",
+      code: "TWILIO_ERROR",
+    };
   }
   const incoming = await c.incomingPhoneNumbers.create({
     phoneNumber,
@@ -43,7 +51,11 @@ export async function purchaseNumber(phoneNumber: string) {
 export async function releaseNumber(twilioNumberSid: string) {
   const c = getClient();
   if (!c) {
-    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+    return {
+      ok: false as const,
+      error: "Twilio not configured",
+      code: "TWILIO_ERROR",
+    };
   }
   await c.incomingPhoneNumbers(twilioNumberSid).remove();
   return { ok: true as const, data: true };
@@ -55,7 +67,11 @@ export async function createByocTrunk(
 ): Promise<Result<{ byocTrunkSid: string }>> {
   const c = getClient();
   if (!c) {
-    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+    return {
+      ok: false as const,
+      error: "Twilio not configured",
+      code: "TWILIO_ERROR",
+    };
   }
   const trunk = await c.voice.v1.byocTrunks.create({
     friendlyName,
@@ -70,7 +86,11 @@ export async function createByocTrunk(
 export async function deleteByocTrunk(byocTrunkSid: string): Promise<Result<true>> {
   const c = getClient();
   if (!c) {
-    return { ok: false as const, error: "TWILIO_ERROR", message: "Twilio not configured" };
+    return {
+      ok: false as const,
+      error: "Twilio not configured",
+      code: "TWILIO_ERROR",
+    };
   }
   await c.voice.v1.byocTrunks(byocTrunkSid).remove();
   return { ok: true as const, data: true };

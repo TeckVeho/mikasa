@@ -13,9 +13,13 @@ export async function verifyAuthToken(
   }
   const user = await prisma.user.findUnique({
     where: { firebaseUid: decoded.uid },
+    include: { tenant: true },
   });
   if (!user) {
     return { ok: false, error: "User not found", code: "UNAUTHORIZED" };
+  }
+  if (user.tenant.deletedAt) {
+    return { ok: false, error: "Tenant disabled", code: "UNAUTHORIZED" };
   }
   return {
     ok: true,

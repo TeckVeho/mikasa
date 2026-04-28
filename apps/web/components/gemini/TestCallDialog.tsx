@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AudioCapture } from "@/lib/audio-worklet";
 import { TestCallClient } from "@/lib/test-call-ws";
-import { DEFAULT_DEV_TENANT_ID } from "@/lib/api";
 
 type Props = {
   scenarioId: string;
@@ -104,10 +103,7 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
     clientRef.current = client;
     playbackCtxRef.current = new AudioContext();
 
-    const tenantId =
-      process.env.NEXT_PUBLIC_DEV_TENANT_ID ?? DEFAULT_DEV_TENANT_ID;
-
-    client.connect(scenarioId, tenantId, {
+    client.connect(scenarioId, {
       onAudio: (base64) => {
         const ctx = playbackCtxRef.current;
         if (!ctx) return;

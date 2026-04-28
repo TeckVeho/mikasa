@@ -7,6 +7,19 @@ export async function getByScenarioId(scenarioId: string) {
   });
 }
 
+/** Gemini 設定を取得。scenario が指定テナントに属することを保証する。 */
+export async function getByScenarioIdForTenant(
+  scenarioId: string,
+  tenantId: string,
+) {
+  return prisma.geminiScenario.findFirst({
+    where: {
+      scenarioId,
+      scenario: { tenantId },
+    },
+  });
+}
+
 export async function upsert(
   scenarioId: string,
   data: {

@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 
 export const dictionaryRouter = Router();
 dictionaryRouter.use(requireAuth);
+dictionaryRouter.use(requireAdmin);
 
 dictionaryRouter.get("/", async (req, res) => {
   const rows = await prisma.speechDictionary.findMany({

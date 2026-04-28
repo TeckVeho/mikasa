@@ -16,6 +16,7 @@ import { callbacksRouter } from "./routes/callbacks.route.js";
 import { monitorRouter } from "./routes/monitor.route.js";
 import { transfersRouter } from "./routes/transfers.route.js";
 import { formsRouter } from "./routes/forms.route.js";
+import { adminRouter } from "./routes/admin.route.js";
 
 export function createApp(): express.Express {
   const app = express();
@@ -81,6 +82,7 @@ export function createApp(): express.Express {
   app.use("/v1/monitor", express.json(), monitorRouter);
   app.use("/v1/transfers", express.json(), transfersRouter);
   app.use("/v1/forms", express.json(), formsRouter);
+  app.use("/v1/admin", express.json(), adminRouter);
   app.use("/webhooks/twilio", express.urlencoded({ extended: false }), twilioWebhookRouter);
 
   return app;

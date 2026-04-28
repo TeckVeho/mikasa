@@ -91,7 +91,7 @@ export async function addNumber(
 export async function availableNumbers(): Promise<Result<unknown>> {
   const r = await listAvailableLocalNumbers();
   if (!r.ok) {
-    return { ok: false, error: r.message, code: "TWILIO_ERROR" };
+    return { ok: false, error: r.error, code: "TWILIO_ERROR" };
   }
   return { ok: true, data: r.data };
 }
@@ -102,7 +102,7 @@ export async function purchaseAndAdd(
 ): Promise<Result<unknown>> {
   const purchased = await purchaseNumber(phoneNumber);
   if (!purchased.ok) {
-    return { ok: false, error: purchased.message, code: "TWILIO_ERROR" };
+      return { ok: false, error: purchased.error, code: "TWILIO_ERROR" };
   }
   const id = newId();
   await repo.createPhoneNumber({
@@ -127,14 +127,14 @@ export async function deleteNumber(
     if (p.byocTrunkSid) {
       const rel = await deleteByocTrunk(p.byocTrunkSid);
       if (!rel.ok) {
-        return { ok: false, error: rel.message, code: "TWILIO_ERROR" };
+        return { ok: false, error: rel.error, code: "TWILIO_ERROR" };
       }
     }
   } else {
     if (p.twilioNumberSid) {
       const rel = await releaseNumber(p.twilioNumberSid);
       if (!rel.ok) {
-        return { ok: false, error: rel.message, code: "TWILIO_ERROR" };
+        return { ok: false, error: rel.error, code: "TWILIO_ERROR" };
       }
     }
   }
@@ -150,7 +150,7 @@ export async function addByocNumber(
   const voiceUrl = `${process.env.API_PUBLIC_URL ?? "http://localhost:8080"}/webhooks/twilio/voice`;
   const created = await createByocTrunk(`BYOC ${phoneNumber}`, voiceUrl);
   if (!created.ok) {
-    return { ok: false, error: created.message, code: "TWILIO_ERROR" };
+    return { ok: false, error: created.error, code: "TWILIO_ERROR" };
   }
   const id = newId();
   await repo.createPhoneNumber({

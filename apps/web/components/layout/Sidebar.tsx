@@ -17,6 +17,7 @@ import {
   Activity,
   ArrowRightLeft,
   LogOut,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
@@ -57,17 +58,18 @@ function SidebarLabelPopup({
 type Item = { href: string; label: string; icon: typeof LayoutDashboard; roles?: string[] };
 
 const items: Item[] = [
-  { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard, roles: ["admin"] },
+  { href: "/admin/tenants", label: "テナント管理", icon: Building2, roles: ["superadmin"] },
+  { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard, roles: ["admin", "superadmin"] },
   { href: "/operator", label: "ダッシュボード", icon: LayoutDashboard, roles: ["operator"] },
-  { href: "/numbers", label: "電話番号", icon: Phone, roles: ["admin"] },
-  { href: "/scenarios", label: "シナリオ", icon: GitBranch, roles: ["admin"] },
+  { href: "/numbers", label: "電話番号", icon: Phone, roles: ["admin", "superadmin"] },
+  { href: "/scenarios", label: "シナリオ", icon: GitBranch, roles: ["admin", "superadmin"] },
   { href: "/monitor", label: "通話モニタリング", icon: Activity },
   { href: "/calls", label: "通話ログ", icon: PhoneCall },
   { href: "/callbacks", label: "折り返し対応", icon: PhoneForwarded },
   { href: "/transfers", label: "転送履歴", icon: ArrowRightLeft },
-  { href: "/analytics", label: "VOC 分析", icon: BarChart3, roles: ["admin"] },
-  { href: "/billing", label: "支払い", icon: CreditCard, roles: ["admin"] },
-  { href: "/settings", label: "設定", icon: Settings, roles: ["admin"] },
+  { href: "/analytics", label: "VOC 分析", icon: BarChart3, roles: ["admin", "superadmin"] },
+  { href: "/billing", label: "支払い", icon: CreditCard, roles: ["admin", "superadmin"] },
+  { href: "/settings", label: "設定", icon: Settings, roles: ["admin", "superadmin"] },
 ];
 
 export function Sidebar() {

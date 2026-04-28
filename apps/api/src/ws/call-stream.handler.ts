@@ -116,7 +116,10 @@ export function attachCallStreamHandler(
         msg.start.customParameters?.scenarioId ?? queryScenarioId;
 
       const phone = await prisma.phoneNumber.findFirst({
-        where: { number: called },
+        where: {
+          number: called,
+          tenant: { deletedAt: null },
+        },
         include: { scenario: true, tenant: true },
       });
       if (!phone) {
@@ -146,7 +149,9 @@ export function attachCallStreamHandler(
 
       const effectiveScenario =
         overrideScenarioId && overrideScenarioId !== phone.scenarioId
-          ? await prisma.scenario.findFirst({ where: { id: overrideScenarioId } })
+          ? await prisma.scenario.findFirst({
+              where: { id: overrideScenarioId, tenantId: phone.tenantId },
+            })
           : phone.scenario;
 
       if (!effectiveScenario) {
@@ -158,7 +163,10 @@ export function attachCallStreamHandler(
       // Gemini Live mode: delegate to dedicated handler
       const voiceEngine = (phone.tenant as Record<string, unknown>).voiceEngine as string | undefined;
       if (voiceEngine === "gemini_live") {
-        const gs = await geminiRepo.getByScenarioId(effectiveScenarioId);
+        const gs = await geminiRepo.getByScenarioIdForTenant(
+          effectiveScenarioId,
+          phone.tenantId,
+        );
         if (!gs) {
           logger.warn({ scenarioId: effectiveScenarioId }, "No gemini scenario found");
           ws.close();

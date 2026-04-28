@@ -13,7 +13,6 @@ const MOCK_FLOW: FlowJson = {
       data: {
         text: "お電話ありがとうございます。ご用件をお話しください。",
         speed: 1,
-        source: "tts",
       },
       position: { x: 0, y: 0 },
     },

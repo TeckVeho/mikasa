@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import * as svc from "../services/scenario.service.js";
 import * as geminiSvc from "../services/gemini-scenario.service.js";
 import * as knowledgeUploadSvc from "../services/knowledge-upload.service.js";
@@ -11,6 +11,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 export const scenariosRouter = Router();
 
 scenariosRouter.use(requireAuth);
+scenariosRouter.use(requireAdmin);
 
 scenariosRouter.get("/", async (req, res) => {
   const r = await svc.listScenarios(

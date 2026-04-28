@@ -3,6 +3,7 @@ import * as repo from "../repositories/call-log.repo.js";
 import { summarizeTranscript } from "../lib/openai.js";
 import { prisma } from "../lib/prisma.js";
 import { getSignedUrlForRecording } from "../lib/storage.js";
+import { signFormAccessToken } from "../utils/form-token.js";
 
 export async function listCalls(
   tenantId: string,
@@ -64,6 +65,13 @@ export async function getCall(
     | null
     | undefined;
 
+  let publicFormToken: string | null = null;
+  try {
+    publicFormToken = signFormAccessToken(c.id, tenantId);
+  } catch {
+    publicFormToken = null;
+  }
+
   return {
     ok: true,
     data: {
@@ -80,6 +88,8 @@ export async function getCall(
       operatorNote: c.operatorNote,
       callbackDone: c.callbackDone,
       createdAt: c.createdAt.toISOString(),
+      /** 公開フォーム URL 用の署名付きトークン（`/forms/[token]` に渡す） */
+      publicFormToken,
     },
   };
 }

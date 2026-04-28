@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 import {
   createFirebaseUser,
@@ -17,6 +17,7 @@ function isValidRole(value: unknown): value is Role {
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
+usersRouter.use(requireAdmin);
 
 usersRouter.get("/", async (req, res) => {
   const rows = await prisma.user.findMany({

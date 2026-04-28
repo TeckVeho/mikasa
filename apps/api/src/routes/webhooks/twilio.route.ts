@@ -26,7 +26,10 @@ twilioWebhookRouter.post("/voice", async (req, res) => {
   const From = (req.body?.From as string) ?? "";
 
   const phone = await prisma.phoneNumber.findFirst({
-    where: { number: To },
+    where: {
+      number: To,
+      tenant: { deletedAt: null },
+    },
     include: { ivrRoutes: { orderBy: { sortOrder: "asc" } } },
   });
 
@@ -76,7 +79,10 @@ twilioWebhookRouter.post("/ivr-route", async (req, res) => {
   const from = (req.query?.from as string) ?? "";
 
   const phone = await prisma.phoneNumber.findFirst({
-    where: { number: called },
+    where: {
+      number: called,
+      tenant: { deletedAt: null },
+    },
     include: { ivrRoutes: true },
   });
 

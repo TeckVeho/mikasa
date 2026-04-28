@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import * as svc from "../services/dashboard.service.js";
 
 export const dashboardRouter = Router();
 
 dashboardRouter.use(requireAuth);
 
-dashboardRouter.get("/summary", async (req, res) => {
+dashboardRouter.get("/summary", requireAdmin, async (req, res) => {
   const period = (req.query.period as string) ?? "month";
   const r = await svc.dashboardSummary(
     req.tenantId!,
@@ -17,28 +17,28 @@ dashboardRouter.get("/summary", async (req, res) => {
   sendResult(res, r);
 });
 
-dashboardRouter.get("/daily-calls", async (req, res) => {
+dashboardRouter.get("/daily-calls", requireAdmin, async (req, res) => {
   const days = Number(req.query.days) || 30;
   const r = await svc.dailyCalls(req.tenantId!, days);
   sendResult(res, r);
 });
 
-dashboardRouter.get("/hourly-distribution", async (req, res) => {
+dashboardRouter.get("/hourly-distribution", requireAdmin, async (req, res) => {
   const r = await svc.hourlyDistribution(req.tenantId!);
   sendResult(res, r);
 });
 
-dashboardRouter.get("/by-scenario", async (req, res) => {
+dashboardRouter.get("/by-scenario", requireAdmin, async (req, res) => {
   const r = await svc.dashboardByScenario(req.tenantId!);
   sendResult(res, r);
 });
 
-dashboardRouter.get("/by-number", async (req, res) => {
+dashboardRouter.get("/by-number", requireAdmin, async (req, res) => {
   const r = await svc.dashboardByNumber(req.tenantId!);
   sendResult(res, r);
 });
 
-dashboardRouter.get("/cost-estimate", async (req, res) => {
+dashboardRouter.get("/cost-estimate", requireAdmin, async (req, res) => {
   const r = await svc.dashboardCostEstimate(req.tenantId!);
   sendResult(res, r);
 });

@@ -8,7 +8,7 @@ import { apiJson } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Link2 } from "lucide-react";
 
 type CallDetail = {
   id: string;
@@ -27,6 +27,8 @@ type CallDetail = {
   operatorNote: string;
   callbackDone?: boolean;
   createdAt: string;
+  /** 公開確認フォーム用の署名付きトークン */
+  publicFormToken?: string | null;
 };
 
 const textareaClass =
@@ -308,6 +310,33 @@ export default function CallDetailPage() {
                 <dt className="text-muted">発信番号</dt>
                 <dd className="text-text">{d.callerNumber}</dd>
               </div>
+              {d.publicFormToken && (
+                <div className="pt-3 border-t border-border mt-3">
+                  <dt className="text-xs text-muted mb-2">公開確認フォーム</dt>
+                  <dd>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => {
+                        const path = `/forms/${encodeURIComponent(d.publicFormToken!)}`;
+                        const absolute =
+                          typeof window !== "undefined"
+                            ? `${window.location.origin}${path}`
+                            : path;
+                        void navigator.clipboard.writeText(absolute);
+                      }}
+                    >
+                      <Link2 size={14} />
+                      リンクをコピー
+                    </Button>
+                  </dd>
+                  <p className="mt-2 text-xs text-muted">
+                    お客様が内容を確認・修正するための署名付き URL です。
+                  </p>
+                </div>
+              )}
             </dl>
           </div>
 

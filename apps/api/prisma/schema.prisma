@@ -12,6 +12,7 @@ model Tenant {
   name      String   @db.VarChar(255)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   maintenanceMode    Boolean @default(false) @map("maintenance_mode")
   maintenanceMessage String? @map("maintenance_message") @db.Text
@@ -64,6 +65,7 @@ model PhoneNumber {
   callLogs  CallLog[]
   ivrRoutes IvrRoute[]
 
+  @@unique([number])
   @@map("phone_numbers")
 }
 

@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 import { vocAnalyze } from "../lib/openai.js";
 
 export const vocRouter = Router();
 vocRouter.use(requireAuth);
+vocRouter.use(requireAdmin);
 
 vocRouter.get("/summary", async (req, res) => {
   const limit = Math.min(50, Number(req.query.limit) || 20);

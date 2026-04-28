@@ -28,7 +28,10 @@ export default function PublicFormPage() {
   const q = useQuery({
     queryKey: ["form", token],
     queryFn: async () => {
-      const res = await fetch(`${base}/v1/forms/${token}`, { cache: "no-store" });
+      const res = await fetch(
+        `${base}/v1/forms/${encodeURIComponent(token)}`,
+        { cache: "no-store" },
+      );
       const body = (await res.json()) as {
         ok: boolean;
         data?: {
@@ -49,7 +52,9 @@ export default function PublicFormPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`${base}/v1/forms/${token}`, {
+      const res = await fetch(
+        `${base}/v1/forms/${encodeURIComponent(token)}`,
+        {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ structuredData: merged }),

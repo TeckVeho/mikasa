@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { requireAuth, sendResult } from "../middleware/auth.js";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import * as svc from "../services/phone-number.service.js";
 
 export const numbersRouter = Router();
 
 numbersRouter.use(requireAuth);
+numbersRouter.use(requireAdmin);
 
 numbersRouter.get("/available", async (_req, res) => {
   const r = await svc.availableNumbers();
