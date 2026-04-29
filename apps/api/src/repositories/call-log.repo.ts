@@ -27,7 +27,7 @@ export async function findCallLogs(
     ...(opts.numberId ? { phoneNumberId: opts.numberId } : {}),
     ...(opts.q
       ? {
-          transcriptText: { contains: opts.q, mode: "insensitive" },
+          transcriptText: { contains: opts.q },
         }
       : {}),
   };
