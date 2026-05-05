@@ -169,6 +169,7 @@ async function main(): Promise<void> {
         status: c.status,
         transcriptText: c.transcriptText,
         summaryText: c.summaryText,
+        operatorNote: "",
       },
       update: {
         callerNumber: c.callerNumber,

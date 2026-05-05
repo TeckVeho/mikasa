@@ -97,7 +97,7 @@ CREATE TABLE `call_logs` (
     `structured_data` JSON NULL,
     `transcript_segments` JSON NULL,
     `audio_storage_path` TEXT NULL,
-    `operator_note` TEXT NOT NULL DEFAULT '',
+    `operator_note` TEXT NOT NULL,
     `callback_done` BOOLEAN NOT NULL DEFAULT false,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
@@ -129,7 +129,7 @@ CREATE TABLE `callback_requests` (
     `preferred_time` VARCHAR(100) NULL,
     `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
     `assignee_id` VARCHAR(26) NULL,
-    `note` TEXT NOT NULL DEFAULT '',
+    `note` TEXT NOT NULL,
     `completed_at` DATETIME(3) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
@@ -187,7 +187,7 @@ CREATE TABLE `transfer_handoffs` (
     `department` VARCHAR(40) NOT NULL DEFAULT 'general',
     `status` VARCHAR(20) NOT NULL DEFAULT 'pending',
     `handled_by` VARCHAR(26) NULL,
-    `handled_note` TEXT NOT NULL DEFAULT '',
+    `handled_note` TEXT NOT NULL,
     `handled_at` DATETIME(3) NULL,
     `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 

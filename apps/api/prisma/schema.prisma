@@ -122,7 +122,7 @@ model CallLog {
   structuredData   Json?    @map("structured_data")
   transcriptSegments Json?  @map("transcript_segments")
   audioStoragePath String?  @map("audio_storage_path") @db.Text
-  operatorNote     String   @default("") @map("operator_note") @db.Text
+  operatorNote     String   @map("operator_note") @db.Text
   callbackDone     Boolean  @default(false) @map("callback_done")
   createdAt        DateTime @default(now()) @map("created_at")
 
@@ -158,7 +158,7 @@ model CallbackRequest {
   preferredTime String?   @map("preferred_time") @db.VarChar(100)
   status        String    @default("pending") @db.VarChar(20)
   assigneeId    String?   @map("assignee_id") @db.VarChar(26)
-  note          String    @default("") @map("note") @db.Text
+  note          String    @map("note") @db.Text
   completedAt   DateTime? @map("completed_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
@@ -219,7 +219,7 @@ model TransferHandoff {
   department   String    @default("general") @db.VarChar(40)
   status       String    @default("pending") @db.VarChar(20)
   handledBy    String?   @map("handled_by") @db.VarChar(26)
-  handledNote  String    @default("") @map("handled_note") @db.Text
+  handledNote  String    @map("handled_note") @db.Text
   handledAt    DateTime? @map("handled_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
