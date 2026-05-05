@@ -121,6 +121,7 @@ Adjust `env_suffix`, `cloud_run_service_name`, `container_image` (tag), and `web
 | `api_secret_env_from_sm` / `web_secret_env_from_sm` | Inject env vars from **existing** Secret Manager secrets; runtime SA gets `secretAccessor` |
 | `cloud_run_api_*` / `cloud_run_web_*` | Scaling, CPU, memory, timeout, concurrency for API / web services |
 | `project_iam_members` | Optional `google_project_iam_member` for groups/SAs (see org wiki) |
+| `grant_cloud_run_sa_firebase_auth_admin` | If **true**, enable `identitytoolkit.googleapis.com` and grant **`roles/firebaseauth.admin`** to the default Cloud Run SA so `firebase-admin` works with ADC without `FIREBASE_PRIVATE_KEY` / `FIREBASE_CLIENT_EMAIL`. Use **false** if you use cert-based Firebase creds or a custom Cloud Run SA (then bind IAM to that SA separately) |
 | `resource_tier` | Tier for wiki / optional GCP label `tier` when labels are managed |
 | `sql_instance_name` | Override Cloud SQL instance id; default **`logivoice-mysql-{env_suffix}`** (wiki). Set to the current instance id when migrating from older names |
 | `manage_gcp_project_labels` | If **true**, manage wiki label `tier` on the GCP project — **import required once** (see above); requires `label_tier` or `resource_tier` |

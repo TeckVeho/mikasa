@@ -241,6 +241,9 @@ web_env_vars = {
 #   # roles/owner — avoid unless strictly needed (broad admin access)
 # ]
 
+# Firebase Admin on Cloud Run via ADC (default compute SA): enable Identity Toolkit + roles/firebaseauth.admin.
+# grant_cloud_run_sa_firebase_auth_admin = false
+
 # --- Dev/stg only: Cloud SQL stop/start schedule (JST; requires enable_cloud_sql) ---
 # enable_sql_night_weekend_schedule = true
 # sql_schedule_timezone   = "Asia/Tokyo"

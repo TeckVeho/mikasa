@@ -247,6 +247,16 @@ variable "project_iam_members" {
   description = "Extra project-level IAM bindings (e.g. group:gcp-dev-developers@example.com → roles/viewer)."
 }
 
+variable "grant_cloud_run_sa_firebase_auth_admin" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    If true: enable identitytoolkit.googleapis.com and grant roles/firebaseauth.admin to local.cloud_run_service_account
+    (default Compute SA). Lets firebase-admin use ADC on Cloud Run without FIREBASE_PRIVATE_KEY / FIREBASE_CLIENT_EMAIL.
+    If Cloud Run uses a custom service_account, extend Terraform to bind that SA instead.
+  EOT
+}
+
 variable "resource_tier" {
   type        = string
   default     = "tier4"
