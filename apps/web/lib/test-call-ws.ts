@@ -20,8 +20,19 @@ export type TestCallCallbacks = {
 };
 
 function resolveWsUrl(): string {
-  const env = process.env.NEXT_PUBLIC_API_WS_URL;
-  if (env) return env;
+  const explicit = process.env.NEXT_PUBLIC_API_WS_URL;
+  if (explicit) return explicit;
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  if (apiBase) {
+    try {
+      const u = new URL(apiBase);
+      if (u.protocol === "https:") return `wss://${u.host}`;
+      if (u.protocol === "http:") return `ws://${u.host}`;
+    } catch {
+      /* ignore invalid NEXT_PUBLIC_API_URL */
+    }
+  }
 
   if (typeof window === "undefined") return "ws://localhost:8080";
 
