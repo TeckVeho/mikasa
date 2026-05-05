@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  /** Cloud Run Docker image (see apps/web/Dockerfile). */
+  output: "standalone",
   transpilePackages: ["@logivoice/shared"],
   outputFileTracingRoot: path.join(__dirname, "../.."),
 };

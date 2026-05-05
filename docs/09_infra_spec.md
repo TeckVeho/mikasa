@@ -12,7 +12,7 @@ Cloud Run
   └── logivoice-worker（非同期処理ワーカー）
 
 Cloud SQL
-  └── PostgreSQL 15（db-g1-small、dev は db-f1-micro）
+  └── MySQL 8（tier_specs / dev は小さいマシン）
 
 Cloud Memorystore
   └── Redis 7.0（Basic Tier 1GB）
@@ -28,7 +28,7 @@ Firebase
   └── Authentication（メール/パスワード認証）
 
 Cloud Scheduler
-  └── call-log-cleanup（毎日0時、90日以上前のログを削除）
+  └── call-log-cleanup（計画値: 毎日0時、90日以上前のログ削除）※現在の Terraform は未作成。API に cron ハンドラを実装後、コンソールまたは IaC で追加する。
 ```
 
 ## 2. Cloud Run 設定

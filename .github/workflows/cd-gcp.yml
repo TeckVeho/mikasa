@@ -1,0 +1,301 @@
+# Submit Cloud Build (WIF): API (+ migrate job), web, worker.
+#
+# GCP setup: cloudbuild/GITHUB_ACTIONS_WIF.md
+#
+# deploy_scope:
+# - Push always uses `auto`: path-filtered submits; touching root/shared/CI/Dockerfiles or all of
+#   api + web + worker triggers one combined cloudbuild.{dev|prod}.yaml (single build VM).
+# - workflow_dispatch `all`: force the full pipeline once.
+# - `api` / `web` / `worker`: force only that YAML (migrate is part of *api.yaml).
+
+name: CD GCP
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_scope:
+        description: >-
+          auto = path-filtered; all = single full pipeline; api|web|worker = only that slice (migrate stays in api).
+        type: choice
+        options:
+          - auto
+          - all
+          - api
+          - web
+          - worker
+        default: auto  push:
+    branches:
+      - develop
+      - staging
+      - production
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: cd-gcp-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.decide.outputs.skip }}
+      submit_full: ${{ steps.decide.outputs.submit_full }}
+      run_api: ${{ steps.decide.outputs.run_api }}
+      run_web: ${{ steps.decide.outputs.run_web }}
+      run_worker: ${{ steps.decide.outputs.run_worker }}
+      cfg_full: ${{ steps.map.outputs.cfg_full }}
+      cfg_api: ${{ steps.map.outputs.cfg_api }}
+      cfg_web: ${{ steps.map.outputs.cfg_web }}
+      cfg_worker: ${{ steps.map.outputs.cfg_worker }}
+      default_tag: ${{ steps.map.outputs.default_tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Map branch → configs
+        id: map
+        run: |
+          case "${GITHUB_REF_NAME}" in
+            develop)
+              echo "cfg_full=cloudbuild.dev.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_api=cloudbuild.dev.api.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_web=cloudbuild.dev.web.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_worker=cloudbuild.dev.worker.yaml" >> "$GITHUB_OUTPUT"
+              echo "default_tag=dev" >> "$GITHUB_OUTPUT"
+              ;;
+            staging)
+              echo "cfg_full=cloudbuild.dev.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_api=cloudbuild.dev.api.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_web=cloudbuild.dev.web.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_worker=cloudbuild.dev.worker.yaml" >> "$GITHUB_OUTPUT"
+              echo "default_tag=stage" >> "$GITHUB_OUTPUT"
+              ;;
+            production)
+              echo "cfg_full=cloudbuild.prod.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_api=cloudbuild.prod.api.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_web=cloudbuild.prod.web.yaml" >> "$GITHUB_OUTPUT"
+              echo "cfg_worker=cloudbuild.prod.worker.yaml" >> "$GITHUB_OUTPUT"
+              echo "default_tag=prod" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unsupported branch ${GITHUB_REF_NAME}"
+              exit 1
+              ;;
+          esac
+
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            root:
+              - 'package.json'
+              - 'package-lock.json'
+              - 'turbo.json'
+              - 'tsconfig.base.json'
+            shared:
+              - 'packages/shared/**'
+            api:
+              - 'apps/api/**'
+            web:
+              - 'apps/web/**'
+            worker:
+              - 'apps/worker/**'
+            ci:
+              - '.github/workflows/**'
+              - 'cloudbuild/**'
+            docker:
+              - 'apps/api/Dockerfile'
+              - 'apps/web/Dockerfile'
+              - 'apps/worker/Dockerfile'
+
+      - id: decide
+        env:
+          ROOT: ${{ steps.changes.outputs.root }}
+          SHARED: ${{ steps.changes.outputs.shared }}
+          API: ${{ steps.changes.outputs.api }}
+          WEB: ${{ steps.changes.outputs.web }}
+          WORKER: ${{ steps.changes.outputs.worker }}
+          CI_META: ${{ steps.changes.outputs.ci }}
+          DOCKER_META: ${{ steps.changes.outputs.docker }}
+          DISPATCH_SCOPE: ${{ github.event.inputs.deploy_scope }}
+        run: |
+          set -euo pipefail
+          EVENT="${GITHUB_EVENT_NAME}"
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            SCOPE="${DISPATCH_SCOPE:-auto}"
+          else
+            SCOPE=auto
+          fi
+
+          submit_full=false
+          run_api=false
+          run_web=false
+          run_worker=false
+          skip=false
+
+          case "${SCOPE}" in
+            all)
+              submit_full=true
+              run_api=true
+              run_web=true
+              run_worker=true
+              ;;
+            api)
+              run_api=true
+              ;;
+            web)
+              run_web=true
+              ;;
+            worker)
+              run_worker=true
+              ;;
+            auto)
+              if [ "$ROOT" = "true" ] || [ "$SHARED" = "true" ] || [ "$CI_META" = "true" ] || [ "$DOCKER_META" = "true" ]; then
+                run_api=true
+                run_web=true
+                run_worker=true
+              else
+                if [ "$API" = "true" ]; then run_api=true; fi
+                if [ "$WEB" = "true" ]; then run_web=true; fi
+                if [ "$WORKER" = "true" ]; then run_worker=true; fi
+              fi
+
+              # Prefer one Cloud Build when all three components trigger in auto mode.
+              if [ "$run_api" = "true" ] && [ "$run_web" = "true" ] && [ "$run_worker" = "true" ]; then
+                submit_full=true
+              fi
+              ;;
+          esac
+
+          if [ "$submit_full" != "true" ] && [ "$run_api" != "true" ] && [ "$run_web" != "true" ] && [ "$run_worker" != "true" ]; then
+            skip=true
+          fi
+
+          echo "skip=${skip}" >> "$GITHUB_OUTPUT"
+          echo "submit_full=${submit_full}" >> "$GITHUB_OUTPUT"
+          echo "run_api=${run_api}" >> "$GITHUB_OUTPUT"
+          echo "run_web=${run_web}" >> "$GITHUB_OUTPUT"
+          echo "run_worker=${run_worker}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip Cloud Build notice
+        if: steps.decide.outputs.skip == 'true'
+        run: echo "::notice::No deploy-scoped paths changed — skipping Cloud Build."
+
+  submit:
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name }}
+
+    env:
+      GCP_AR_PROJECT_ID: ${{ vars.GCP_AR_PROJECT_ID }}
+      GCP_DEPLOY_PROJECT_ID: ${{ vars.GCP_DEPLOY_PROJECT_ID }}
+      GCP_NEXT_PUBLIC_API_URL: ${{ vars.GCP_NEXT_PUBLIC_API_URL }}
+      GCP_NEXT_PUBLIC_BASE_URL: ${{ vars.GCP_NEXT_PUBLIC_BASE_URL }}
+      GCP_IMAGE_TAG: ${{ vars.GCP_IMAGE_TAG }}
+      GCP_WORKER_SERVICE_NAME: ${{ vars.GCP_WORKER_SERVICE_NAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: gcloud builds submit (full pipeline)
+        if: needs.plan.outputs.submit_full == 'true'
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ ! -f cloudbuild/cloudbuild.dev.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.yaml ]; then
+            cd LogiVoice
+          fi
+          TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
+          parts=("_TAG=${TAG}")
+          [ -n "${GCP_AR_PROJECT_ID:-}" ] && parts+=("_AR_PROJECT_ID=${GCP_AR_PROJECT_ID}")
+          [ -n "${GCP_DEPLOY_PROJECT_ID:-}" ] && parts+=("_DEPLOY_PROJECT_ID=${GCP_DEPLOY_PROJECT_ID}")
+          [ -n "${GCP_NEXT_PUBLIC_API_URL:-}" ] && parts+=("_NEXT_PUBLIC_API_URL=${GCP_NEXT_PUBLIC_API_URL}")
+          [ -n "${GCP_NEXT_PUBLIC_BASE_URL:-}" ] && parts+=("_NEXT_PUBLIC_BASE_URL=${GCP_NEXT_PUBLIC_BASE_URL}")
+          [ -n "${GCP_WORKER_SERVICE_NAME:-}" ] && parts+=("_WORKER_SERVICE_NAME=${GCP_WORKER_SERVICE_NAME}")
+          joined=$(IFS=','; echo "${parts[*]}")
+          CFG="${{ needs.plan.outputs.cfg_full }}"
+          gcloud builds submit \
+            --project="${GCP_PROJECT_ID}" \
+            --config="cloudbuild/${CFG}" \
+            --substitutions="${joined}" \
+            .
+
+      - name: gcloud builds submit (API + migrate job)
+        if: needs.plan.outputs.submit_full != 'true' && needs.plan.outputs.run_api == 'true'
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ ! -f cloudbuild/cloudbuild.dev.api.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.api.yaml ]; then
+            cd LogiVoice
+          fi
+          TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
+          parts=("_TAG=${TAG}")
+          [ -n "${GCP_AR_PROJECT_ID:-}" ] && parts+=("_AR_PROJECT_ID=${GCP_AR_PROJECT_ID}")
+          [ -n "${GCP_DEPLOY_PROJECT_ID:-}" ] && parts+=("_DEPLOY_PROJECT_ID=${GCP_DEPLOY_PROJECT_ID}")
+          joined=$(IFS=','; echo "${parts[*]}")
+          CFG="${{ needs.plan.outputs.cfg_api }}"
+          gcloud builds submit \
+            --project="${GCP_PROJECT_ID}" \
+            --config="cloudbuild/${CFG}" \
+            --substitutions="${joined}" \
+            .
+
+      - name: gcloud builds submit (web)
+        if: needs.plan.outputs.submit_full != 'true' && needs.plan.outputs.run_web == 'true'
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ ! -f cloudbuild/cloudbuild.dev.web.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.web.yaml ]; then
+            cd LogiVoice
+          fi
+          TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
+          parts=("_TAG=${TAG}")
+          [ -n "${GCP_AR_PROJECT_ID:-}" ] && parts+=("_AR_PROJECT_ID=${GCP_AR_PROJECT_ID}")
+          [ -n "${GCP_DEPLOY_PROJECT_ID:-}" ] && parts+=("_DEPLOY_PROJECT_ID=${GCP_DEPLOY_PROJECT_ID}")
+          [ -n "${GCP_NEXT_PUBLIC_API_URL:-}" ] && parts+=("_NEXT_PUBLIC_API_URL=${GCP_NEXT_PUBLIC_API_URL}")
+          [ -n "${GCP_NEXT_PUBLIC_BASE_URL:-}" ] && parts+=("_NEXT_PUBLIC_BASE_URL=${GCP_NEXT_PUBLIC_BASE_URL}")
+          joined=$(IFS=','; echo "${parts[*]}")
+          CFG="${{ needs.plan.outputs.cfg_web }}"
+          gcloud builds submit \
+            --project="${GCP_PROJECT_ID}" \
+            --config="cloudbuild/${CFG}" \
+            --substitutions="${joined}" \
+            .
+
+      - name: gcloud builds submit (worker)
+        if: needs.plan.outputs.submit_full != 'true' && needs.plan.outputs.run_worker == 'true'
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ ! -f cloudbuild/cloudbuild.dev.worker.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.worker.yaml ]; then
+            cd LogiVoice
+          fi
+          TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
+          parts=("_TAG=${TAG}")
+          [ -n "${GCP_AR_PROJECT_ID:-}" ] && parts+=("_AR_PROJECT_ID=${GCP_AR_PROJECT_ID}")
+          [ -n "${GCP_DEPLOY_PROJECT_ID:-}" ] && parts+=("_DEPLOY_PROJECT_ID=${GCP_DEPLOY_PROJECT_ID}")
+          [ -n "${GCP_WORKER_SERVICE_NAME:-}" ] && parts+=("_WORKER_SERVICE_NAME=${GCP_WORKER_SERVICE_NAME}")
+          joined=$(IFS=','; echo "${parts[*]}")
+          CFG="${{ needs.plan.outputs.cfg_worker }}"
+          gcloud builds submit \
+            --project="${GCP_PROJECT_ID}" \
+            --config="cloudbuild/${CFG}" \
+            --substitutions="${joined}" \
+            .

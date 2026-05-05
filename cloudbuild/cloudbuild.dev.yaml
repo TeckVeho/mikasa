@@ -1,0 +1,159 @@
+# Cloud Build — API + migrate job + web + worker (single submit = one build VM).
+#
+# Registry vs deploy: push to _AR_PROJECT_ID (common); deploy Cloud Run / Jobs to _DEPLOY_PROJECT_ID.
+#
+# Submit from LogiVoice monorepo root (Docker context is "."):
+#   gcloud builds submit --config=cloudbuild/cloudbuild.dev.yaml \
+#     --substitutions=_AR_PROJECT_ID=your-common-project,_DEPLOY_PROJECT_ID=your-dev-project .
+#
+# Selective CI (fewer Docker layers): GitHub Actions can call dev.api / dev.web / dev.worker YAMLs separately;
+# migrate runs only in configs that rebuild the API image (dev.api.yaml and this full file).
+
+steps:
+  # Pull previous image when present so Docker can reuse layers (--cache-from).
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG} || true
+        docker build -f apps/api/Dockerfile \
+          --cache-from ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG} \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG} \
+          .
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG}'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG} || true
+        docker build -f apps/web/Dockerfile \
+          --build-arg NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL} \
+          --build-arg NEXT_PUBLIC_BASE_URL=${_NEXT_PUBLIC_BASE_URL} \
+          --cache-from ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG} \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG} \
+          .
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG}'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'deploy'
+      - 'logivoice-migrate-dev'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--command'
+      - 'npx'
+      - '--args'
+      - 'prisma,migrate,deploy'
+      - '--max-retries'
+      - '0'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'execute'
+      - 'logivoice-migrate-dev'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--region'
+      - '${_REGION}'
+      - '--wait'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'logivoice-api-dev'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'logivoice-web-dev'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMG="${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}"
+        docker pull "$IMG" || true
+        docker build \
+          --cache-from "$IMG" \
+          -f apps/worker/Dockerfile \
+          -t "$IMG" \
+          .
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_WORKER_SERVICE_NAME}'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: logivoice-docker
+  _TAG: dev
+  _AR_PROJECT_ID: ''
+  _DEPLOY_PROJECT_ID: ''
+  _WORKER_SERVICE_NAME: logivoice-worker-dev
+  _NEXT_PUBLIC_API_URL: 'https://logivoice-api-dev-739321310569.asia-northeast1.run.app/api/v1'
+  _NEXT_PUBLIC_BASE_URL: 'https://logivoice-web-dev-739321310569.asia-northeast1.run.app'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_MEDIUM
