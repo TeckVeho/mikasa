@@ -16,7 +16,7 @@ steps:
       - |
         set -euo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx create --use --name cloudbuilder
+        docker buildx create --use
         docker buildx build -f apps/api/Dockerfile \
           --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:buildcache \
           --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:buildcache,mode=max \
@@ -32,7 +32,7 @@ steps:
       - |
         set -euo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx create --use --name cloudbuilder
+        docker buildx create --use
         docker buildx build -f apps/web/Dockerfile \
           --build-arg NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL} \
           --build-arg NEXT_PUBLIC_BASE_URL=${_NEXT_PUBLIC_BASE_URL} \
@@ -115,7 +115,7 @@ steps:
         set -euo pipefail
         IMG="${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}"
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx create --use --name cloudbuilder
+        docker buildx create --use
         docker buildx build \
           --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:buildcache \
           --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:buildcache,mode=max \
