@@ -9,7 +9,7 @@ Always run `gcloud builds submit` from **`LogiVoice/`** (monorepo root with `pac
 | Image | Dockerfile | Notes |
 |-------|------------|--------|
 | API + migrate job | [`apps/api/Dockerfile`](../apps/api/Dockerfile) | Prisma migrate cwd: **`/app/apps/api`** — must match [`migrate_job.tf`](../infra/terraform/migrate_job.tf). |
-| Web | [`apps/web/Dockerfile`](../apps/web/Dockerfile) | Next.js `standalone` ([`next.config.ts`](../apps/web/next.config.ts)). |
+| Web | [`apps/web/Dockerfile`](../apps/web/Dockerfile) | Next.js `standalone` ([`next.config.ts`](../apps/web/next.config.ts)). Pass **`NEXT_PUBLIC_FIREBASE_*`** as Docker build-args so the client bundle is baked at `next build`. |
 | Worker | [`apps/worker/Dockerfile`](../apps/worker/Dockerfile) | Generates Prisma client from `apps/api/prisma` at build time. |
 
 ## GitHub Actions — selective deploy (`cd-gcp.yml`)
@@ -32,7 +32,7 @@ Create one trigger per branch (or use regex). Set substitutions per environment.
 
 | Branch (example) | Config file | Typical substitutions |
 |------------------|-------------|------------------------|
-| `develop` | `cloudbuild.dev.yaml` | `_AR_PROJECT_ID=<common-project>`, `_DEPLOY_PROJECT_ID=<dev-project>`, `_TAG=dev`, `_NEXT_PUBLIC_*` |
+| `develop` | `cloudbuild.dev.yaml` | `_AR_PROJECT_ID=<common-project>`, `_DEPLOY_PROJECT_ID=<dev-project>`, `_TAG=dev`, `_NEXT_PUBLIC_*` (API/base URLs + **`_NEXT_PUBLIC_FIREBASE_*`** for the web image build) |
 | `staging` | reuse `cloudbuild.dev*.yaml` with `_TAG=stage` | `_DEPLOY_PROJECT_ID` → staging app |
 | `production` | `cloudbuild.prod.yaml` | `_AR_PROJECT_ID`, `_DEPLOY_PROJECT_ID`, `_TAG=prod`, `_NEXT_PUBLIC_*`, optional `_WORKER_SERVICE_NAME` if not default |
 

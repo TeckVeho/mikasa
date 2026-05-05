@@ -288,6 +288,7 @@ The workload identity provider string (**`GCP_WORKLOAD_IDENTITY_PROVIDER`**) com
    - **`GCP_PROJECT_ID`** — your `PROJECT_ID`.
 3. Under **Variables** (not secrets), set:
    - **`GCP_NEXT_PUBLIC_API_URL`** / **`GCP_NEXT_PUBLIC_BASE_URL`** — required for **full** and **frontend** workflow modes (see comments in `cloudbuild.dev.yaml` / `cloudbuild.prod.yaml`).
+   - **`GCP_NEXT_PUBLIC_FIREBASE_API_KEY`**, **`GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`**, **`GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID`** — Firebase Web アプリ設定（Console の「ウェブアプリ」）に合わせる。**full / web-only** で Cloud Build の `_NEXT_PUBLIC_FIREBASE_*` に渡され、Docker build で bake されます（ログインが「Firebase が設定されていません」のときは未設定または古いイメージの可能性）。
    - Optional: **`GCP_IMAGE_TAG`** — overrides default tag per branch (`dev` / `stage` / `prod` for `develop` / `staging` / `production`).
    - Optional: **`GCP_AR_PROJECT_ID`** / **`GCP_DEPLOY_PROJECT_ID`** — map to Cloud Build substitutions `_AR_PROJECT_ID` / `_DEPLOY_PROJECT_ID` (common Artifact Registry project and Cloud Run deploy project; see **Shared Artifact Registry** above). Omit for single-project layout.
    - Optional: **`GCP_WORKER_SERVICE_NAME`** — sets Cloud Build `_WORKER_SERVICE_NAME` if your Cloud Run worker id differs from the YAML defaults (`logivoice-worker-dev` / `logivoice-worker-prod`).

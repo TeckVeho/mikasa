@@ -12,18 +12,16 @@ steps:
       - |
         set -euo pipefail
         IMG="${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}"
-        docker pull "$$IMG" || true
-        docker build \
-          --cache-from "$$IMG" \
+        export DOCKER_CLI_EXPERIMENTAL=enabled
+        docker buildx create --use --name cloudbuilder
+        docker buildx build \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:buildcache \
+          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:buildcache,mode=max \
           -f apps/worker/Dockerfile \
           -t "$$IMG" \
+          --push \
           .
     dir: '.'
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
