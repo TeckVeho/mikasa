@@ -8,7 +8,9 @@
 # - workflow_dispatch `all`: force the full pipeline once.
 # - `api` / `web` / `worker`: force only that YAML (migrate is part of *api.yaml).
 
-name: CD GCP
+name: CD · GCP (Cloud Build)
+
+run-name: CD GCP ${{ github.ref_name }} · ${{ github.event_name == 'workflow_dispatch' && inputs.deploy_scope || github.event_name }}
 
 on:
   workflow_dispatch:
@@ -23,7 +25,8 @@ on:
           - api
           - web
           - worker
-        default: auto  push:
+        default: auto
+  push:
     branches:
       - develop
       - staging
