@@ -63,6 +63,7 @@ async function handleTransfer(
       priority: String(args.priority ?? "normal"),
       department: args.department != null ? String(args.department) : "general",
       status: "pending",
+      handledNote: "",
     },
   });
 
@@ -80,6 +81,7 @@ async function handleRegisterCallback(
       callerNumber: context.callerNumber,
       preferredTime: args.preferred_time != null ? String(args.preferred_time) : undefined,
       status: "pending",
+      note: "",
     },
   });
 

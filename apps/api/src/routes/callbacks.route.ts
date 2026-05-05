@@ -83,6 +83,7 @@ callbacksRouter.post("/", async (req, res) => {
       callerNumber,
       preferredTime: req.body?.preferredTime as string | undefined,
       status: "pending",
+      note: "",
     },
   });
   sendResult(res, { ok: true, data: row });

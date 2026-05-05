@@ -73,6 +73,7 @@ export async function upsertCallLogByTwilioSid(data: {
     where: { twilioCallSid: data.twilioCallSid },
     create: {
       ...data,
+      operatorNote: "",
       structuredData:
         data.structuredData === null || data.structuredData === undefined
           ? undefined
