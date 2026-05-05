@@ -6,7 +6,7 @@
 # (Cloud Run target project) when using shared registry / cross-project deploy.
 # Submit from repo root:
 #   gcloud builds submit --config=cloudbuild/cloudbuild.prod.web.yaml \
-#     --substitutions=_AR_PROJECT_ID=...,_DEPLOY_PROJECT_ID=...,_NEXT_PUBLIC_API_URL=...,_NEXT_PUBLIC_BASE_URL=... .
+#     --substitutions=_AR_PROJECT_ID=...,_DEPLOY_PROJECT_ID=...,_NEXT_PUBLIC_API_URL=...,_NEXT_PUBLIC_BASE_URL=...,_NEXT_PUBLIC_FIREBASE_API_KEY=...,_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...,_NEXT_PUBLIC_FIREBASE_PROJECT_ID=... .
 
 steps:
   - name: 'gcr.io/cloud-builders/docker'
@@ -19,6 +19,9 @@ steps:
         docker build -f apps/web/Dockerfile \
           --build-arg NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL} \
           --build-arg NEXT_PUBLIC_BASE_URL=${_NEXT_PUBLIC_BASE_URL} \
+          --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY} \
+          --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN} \
+          --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID} \
           --cache-from ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG} \
           -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-web:${_TAG} \
           .
@@ -51,6 +54,9 @@ substitutions:
   _DEPLOY_PROJECT_ID: ''
   _NEXT_PUBLIC_API_URL: 'https://api.example.com/api/v1'
   _NEXT_PUBLIC_BASE_URL: 'https://app.example.com'
+  _NEXT_PUBLIC_FIREBASE_API_KEY: ''
+  _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''
+  _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ''
 
 options:
   logging: CLOUD_LOGGING_ONLY

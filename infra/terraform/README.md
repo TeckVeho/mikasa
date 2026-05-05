@@ -60,15 +60,18 @@ From the **repository root**, use `gcloud builds submit` with [`cloudbuild/cloud
    docker push "$IMAGE"
    ```
 
-3. **Web (Next.js)** — `NEXT_PUBLIC_*` values are **baked in at `npm run build`**. Pass your real API and web base URLs (Cloud Run URLs or custom domains):
+3. **Web (Next.js)** — `NEXT_PUBLIC_*` values are **baked in at `npm run build`**. Pass your real API and web base URLs plus **Firebase Web app** config (Cloud Run URLs or custom domains):
 
    ```bash
    export IMAGE="asia-northeast1-docker.pkg.dev/<COMMON_PROJECT_ID>/logivoice-docker/logivoice-web:dev"
    docker build -t "$IMAGE" \
      --build-arg NEXT_PUBLIC_API_URL="https://<api-host>/api/v1" \
      --build-arg NEXT_PUBLIC_BASE_URL="https://<web-host>" \
-     -f frontend/Dockerfile \
-     frontend
+     --build-arg NEXT_PUBLIC_FIREBASE_API_KEY="<Firebase Web API key>" \
+     --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="<project>.firebaseapp.com" \
+     --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID="<Firebase project ID>" \
+     -f apps/web/Dockerfile \
+     .
    docker push "$IMAGE"
    ```
 
