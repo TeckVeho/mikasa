@@ -16,7 +16,7 @@ steps:
       - |
         set -euo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx create --use --name cloudbuilder
+        docker buildx create --use
         docker buildx build -f apps/web/Dockerfile \
           --build-arg NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL} \
           --build-arg NEXT_PUBLIC_BASE_URL=${_NEXT_PUBLIC_BASE_URL} \
