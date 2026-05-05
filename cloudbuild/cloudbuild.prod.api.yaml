@@ -1,0 +1,86 @@
+# Cloud Build — production API only
+#
+# Builds+pushes logivoice-api image, runs prisma migrations via logivoice-migrate-prod job,
+# then deploys logivoice-api-prod Cloud Run service.
+#
+# Always pass _AR_PROJECT_ID (Artifact Registry project) and _DEPLOY_PROJECT_ID
+# (Cloud Run target project) when using shared registry / cross-project deploy.
+#   gcloud builds submit --config=cloudbuild/cloudbuild.prod.api.yaml \
+#     --substitutions=_AR_PROJECT_ID=your-common-project,_DEPLOY_PROJECT_ID=your-prod-project .
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG} || true
+        docker build -f apps/api/Dockerfile \
+          --cache-from ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG} \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG} \
+          .
+    dir: '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG}'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'deploy'
+      - 'logivoice-migrate-prod'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--command'
+      - 'npx'
+      - '--args'
+      - 'prisma,migrate,deploy'
+      - '--max-retries'
+      - '0'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'jobs'
+      - 'execute'
+      - 'logivoice-migrate-prod'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--region'
+      - '${_REGION}'
+      - '--wait'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'logivoice-api-prod'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-api:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: logivoice-docker
+  _TAG: prod
+  _AR_PROJECT_ID: ''
+  _DEPLOY_PROJECT_ID: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_MEDIUM

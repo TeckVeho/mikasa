@@ -1,0 +1,52 @@
+# Cloud Build — worker image + deploy (dev).
+#
+# Dockerfiles: apps/worker/Dockerfile (context = LogiVoice monorepo root).
+#
+# From LogiVoice root:
+#   gcloud builds submit --config=cloudbuild/cloudbuild.dev.worker.yaml \
+#     --substitutions=_AR_PROJECT_ID=YOUR_COMMON,_DEPLOY_PROJECT_ID=YOUR_APP_PROJECT .
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMG="${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}"
+        docker pull "$IMG" || true
+        docker build \
+          --cache-from "$IMG" \
+          -f apps/worker/Dockerfile \
+          -t "$IMG" \
+          .
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_WORKER_SERVICE_NAME}'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_REPO}/logivoice-worker:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPO: logivoice-docker
+  _TAG: dev
+  _AR_PROJECT_ID: ''
+  _DEPLOY_PROJECT_ID: ''
+  _WORKER_SERVICE_NAME: logivoice-worker-dev
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_MEDIUM

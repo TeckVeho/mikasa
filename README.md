@@ -14,14 +14,14 @@
 ## 前提
 
 - Node.js 22+
-- Docker（ローカル Postgres / Redis 用）
+- Docker（ローカル MySQL / Redis 用）
 
 ## セットアップ
 
 ```bash
 npm install
 cp .env.example .env
-# .env の DATABASE_URL を docker-compose の Postgres に合わせる（例: localhost:5433）
+# .env の DATABASE_URL を docker-compose の MySQL に合わせる（例: localhost:3306）
 docker compose up -d
 cd apps/api && npx prisma migrate deploy && cd ../..
 ```

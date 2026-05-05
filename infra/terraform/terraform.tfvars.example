@@ -1,0 +1,248 @@
+# =============================================================================
+# Copy to terraform.tfvars or terraform.tfvars.dev (local files are gitignored).
+# Do not commit secrets — use Secret Manager + api_secret_env_from_sm / web_secret_env_from_sm.
+# =============================================================================
+#
+# Naming (internal wiki — adjust to match your org template):
+#   Cloud Run service : {service}-{component} e.g. logivoice-api (defaults below use logivoice-api-{env_suffix})
+#   Cloud SQL instance: logivoice-mysql-{env_suffix} unless sql_instance_name overrides (legacy instances)
+#   Artifact Registry : logivoice-docker (artifact_repo_id)
+#   GCS uploads bucket : {project_id}-logivoice-uploads-{env_suffix} unless gcs_bucket_name set
+#   VPC (network stack): default logivoice-vpc-{env_suffix} or set network_name → e.g. {project_id}-vpc style
+#
+# =============================================================================
+
+# --- Required ---
+
+project_id = "your-gcp-project-id"
+env_suffix = "dev"
+
+# Image must exist in Artifact Registry before deploy (build via Cloud Build).
+container_image = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/logivoice-docker/logivoice-api:dev"
+
+# --- Artifact Registry: single-project vs multi-project (4-project layout) ---
+#
+# A) Single project: registry lives in project_id (default create_artifact_registry = true).
+# create_artifact_registry = true
+#
+# B) Multi-project: registry in COMMON project; app project only pulls images.
+#    Apply infra/terraform/common/ with reader_project_ids including this project_id.
+# create_artifact_registry = false
+# container_image = "asia-northeast1-docker.pkg.dev/your-project-common/logivoice-docker/logivoice-api:dev"
+
+# --- Cloud Run: port & service names ---
+#
+# container_port must match the process inside the image (backend Dockerfile EXPOSE 8080).
+container_port = 8080
+
+# Wiki uses logivoice-api / logivoice-web; defaults here add env: logivoice-api-dev, logivoice-web-dev (one project, many envs).
+# cloud_run_service_name     = "logivoice-api-dev"
+# web_cloud_run_service_name = "logivoice-web-dev"
+
+# --- Plain Cloud Run env (non-secret; aligns with ../../.env.example at repo root) ---
+#
+# Terraform merges additional keys first — do not duplicate these unless you intentionally override:
+#
+# enable_cloud_sql            → DATABASE_URL via Secret Manager (never set DATABASE_URL here).
+# enable_gcs                  → GCS_BUCKET_NAME, GCP_PROJECT_ID.
+# enable_pubsub_call_pipeline → GOOGLE_CLOUD_PROJECT, PUBSUB_TOPIC_CALL_COMPLETED (Terraform-managed topic ID).
+# enable_memorystore_redis    → REDIS_HOST, REDIS_PORT, REDIS_URL (backend uses REDIS_URL with ioredis).
+#
+# API (apps/api): CORS_ORIGIN is singular (comma-separated allowed). Twilio voice + WebSocket URLs use
+# API_PUBLIC_URL — you must set it to the public HTTPS origin of the API (same host you map for the API).
+# When api_custom_domain is set, Terraform still injects API_URL (HTTPS origin) into Cloud Run, but the
+# application code reads API_PUBLIC_URL, not API_URL — set API_PUBLIC_URL here (or
+# change main.tf locals to inject API_PUBLIC_URL). Optional: TWILIO_WEBHOOK_URL (see .env.example).
+#
+# If api_custom_domain and web_custom_domain are set, Terraform merges API_URL, FRONTEND_URL, and
+# CORS_ORIGIN for you — omit those keys from env_vars to avoid fighting the merge. Without custom
+# domains, you may set CORS_ORIGIN and use API_PUBLIC_URL / NEXT_PUBLIC_* placeholders below.
+#
+env_vars = {
+  NODE_ENV  = "production"
+  LOG_LEVEL = "info"
+
+  API_PUBLIC_URL = "https://REPLACE-WITH-API-CLOUD-RUN-ORIGIN"
+  # TWILIO_WEBHOOK_URL = "https://REPLACE-WITH-API-CLOUD-RUN-ORIGIN/webhooks/twilio/voice"
+
+  FIREBASE_PROJECT_ID = "your-firebase-project-id"
+
+  TWILIO_ACCOUNT_SID = "ACxxxxxxxx"
+
+  RESEND_FROM_EMAIL = "LogiVoice <noreply@your-domain.jp>"
+}
+
+# See apps/web/.env.example. When api_custom_domain / web_custom_domain are set, Terraform merges
+# NEXT_PUBLIC_API_URL and NEXT_PUBLIC_BASE_URL — omit those here or let the later map override.
+web_env_vars = {
+  NODE_ENV = "production"
+
+  NEXT_PUBLIC_API_URL  = "https://REPLACE-WITH-API-CLOUD-RUN-ORIGIN/api/v1"
+  NEXT_PUBLIC_BASE_URL = "https://REPLACE-WITH-WEB-CLOUD-RUN-ORIGIN"
+
+  NEXT_PUBLIC_FIREBASE_API_KEY     = ""
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = ""
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID  = ""
+
+  NEXT_PUBLIC_USE_MOCK     = "false"
+  NEXT_PUBLIC_USE_DEV_AUTH = "false"
+
+  NEXT_PUBLIC_DEV_TENANT_ID = "01HZXEXAMPLE00000000000000"
+}
+
+# --- Custom domains (DNS at your registrar; not Google Domains required) ---
+# Leave both empty to use only the default *.run.app URLs.
+# After terraform apply, run: terraform output api_domain_mapping_status (and web_*) and add TXT + CNAME/ALIAS at your DNS provider as shown (apex may need ALIAS/CNAME flattening).
+# When api_custom_domain and/or web_custom_domain is set, Terraform merges API_URL (HTTPS origin; app code uses API_PUBLIC_URL — see env_vars comment above), CORS_ORIGIN, FRONTEND_URL, NEXT_PUBLIC_* (NEXT_PUBLIC_API_URL includes /api/v1) from those hostnames.
+# If only one service uses a custom domain, keep the other service URLs pointing at *.run.app in env_vars / web_env_vars as needed.
+#
+# api_custom_domain = ""
+# web_custom_domain = ""
+
+# --- GCS uploads (enable_gcs default: true) ---
+# Bucket default: {project_id}-logivoice-uploads-{env_suffix}. Override for wiki-style {project_id}-{purpose}:
+# gcs_bucket_name = "your-gcp-project-id-assets"
+# gcs_force_destroy = false
+
+# --- Cloud SQL (MySQL) + network remote state ---
+#
+# enable_cloud_sql = true
+#
+# Instance name default: logivoice-mysql-{env_suffix}. Override to keep an existing instance id:
+# sql_instance_name = "legacy-instance-id-from-console"
+# sql_tier / sql_disk_* omitted → wiki tier_specs from resource_tier + env_suffix→wiki env (override if needed).
+# sql_database_name        = "logivoice"
+# sql_user_name            = "logivoice"
+# sql_deletion_protection  = false
+#
+# Automated backups (default off). Set sql_backup_enabled = true for stg/prod as needed.
+# sql_backup_enabled                  = false
+# sql_backup_start_time               = "17:00"   # UTC HH:MM when backups enabled
+# sql_point_in_time_recovery_enabled  = false    # PITR; extra cost — often true in prod only
+# cloud_run_migrate_job_name = ""   # default: logivoice-migrate-{env_suffix}
+#
+# Private IP requires network stack applied first:
+# network_remote_state_bucket  = "your-terraform-state-bucket"
+# network_remote_state_prefix  = "network/dev"
+#   Use network/stg, network/prod for other envs.
+
+# --- Next.js on Cloud Run ---
+# enable_web             = true
+# web_container_image    = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/logivoice-docker/logivoice-web:dev"
+# web_container_port     = 3000
+
+# --- Public HTTPS (.run.app) — org policy may block allUsers ---
+# allow_unauthenticated     = true
+# allow_unauthenticated_web = true
+
+# --- Region ---
+# region = "asia-northeast1"
+#
+# Cloud Run API/Web/Worker + Cloud SQL sizing default from terraform-modules tier_specs via resource_tier (Worker uses wiki Web row values).
+# Override only when needed (nullable vars): cloud_run_api_*, cloud_run_web_*, cloud_run_worker_*, sql_tier.
+
+# --- Secret Manager: create secrets in GCP (Console or gcloud); never commit plaintext values ---
+#
+# Suggested secret_id pattern (suffix = env_suffix, e.g. dev): logivoice-<short-name>-dev
+#
+# API — env_name mirrors ../../.env.example (no JWT/SMTP/Stripe in this app).
+# ┌──────────────────────┬──────────────────────────────────────────────────────┐
+# │ env_name             │ Example secret_id (env_suffix = dev)                    │
+# ├──────────────────────┼──────────────────────────────────────────────────────┤
+# │ FIREBASE_PRIVATE_KEY  │ logivoice-firebase-private-key-dev                    │
+# │ FIREBASE_CLIENT_EMAIL │ logivoice-firebase-client-email-dev                   │
+# │ TWILIO_AUTH_TOKEN     │ logivoice-twilio-auth-token-dev                       │
+# │ OPENAI_API_KEY        │ logivoice-openai-dev                                  │
+# │ GEMINI_API_KEY        │ logivoice-gemini-api-key-dev                          │
+# │ AMIVOICE_APP_KEY      │ logivoice-amivoice-dev                                │
+# │ FORM_TOKEN_SECRET     │ logivoice-form-token-dev                              │
+# │ RESEND_API_KEY        │ logivoice-resend-dev                                  │
+# └──────────────────────┴──────────────────────────────────────────────────────┘
+#
+# Quick-create examples (run in target project; repeat with correct ids and payloads):
+#
+# openssl rand -hex 24 \
+#   | gcloud secrets create logivoice-form-token-dev \
+#       --project=YOUR_PROJECT_ID --data-file=- --replication-policy=automatic
+#
+# echo -n "sk-............" \
+#   | gcloud secrets create logivoice-openai-dev \
+#       --project=YOUR_PROJECT_ID --data-file=- --replication-policy=automatic
+#
+# Then uncomment and adjust secret_ids in your private tfvars (do not edit and commit `.example`):
+#
+# api_secret_env_from_sm = [
+#   { env_name = "FIREBASE_PRIVATE_KEY",  secret_id = "logivoice-firebase-private-key-dev",  version = "latest" },
+#   { env_name = "FIREBASE_CLIENT_EMAIL", secret_id = "logivoice-firebase-client-email-dev", version = "latest" },
+#   { env_name = "TWILIO_AUTH_TOKEN",     secret_id = "logivoice-twilio-auth-token-dev",     version = "latest" },
+#   { env_name = "OPENAI_API_KEY",        secret_id = "logivoice-openai-dev",                   version = "latest" },
+#   { env_name = "GEMINI_API_KEY",        secret_id = "logivoice-gemini-api-key-dev",          version = "latest" },
+#   { env_name = "AMIVOICE_APP_KEY",      secret_id = "logivoice-amivoice-dev",                 version = "latest" },
+#   { env_name = "FORM_TOKEN_SECRET",      secret_id = "logivoice-form-token-dev",               version = "latest" },
+#   { env_name = "RESEND_API_KEY",        secret_id = "logivoice-resend-dev",                   version = "latest" },
+# ]
+#
+# web_secret_env_from_sm — typically empty (keep NEXT_PUBLIC_* in web_env_vars as plain strings).
+
+# resource_tier defaults to tier4 in variables.tf; uncomment to override.
+# resource_tier = "tier4"
+
+# --- Memorystore Redis (same VPC as Cloud SQL; apply network first) ---
+# enable_memorystore_redis = true
+# redis_memory_size_gb = 1
+
+# --- Pub/Sub (call-completed → summarize-worker; pull subscription + IAM for runtime SA when worker enabled) ---
+# enable_pubsub_call_pipeline = true
+# pubsub_topic_id             = "call-completed"
+# pubsub_subscription_id      = "summarize-worker"
+
+# --- Worker Cloud Run (image must exist in Artifact Registry before apply when enable_worker = true) ---
+# Worker secrets often reuse the same secret_id values as api_secret_env_from_sm (e.g. OpenAI, Resend).
+# enable_worker                 = true
+# worker_cloud_run_service_name = "logivoice-worker-dev"
+# worker_container_image        = "asia-northeast1-docker.pkg.dev/your-gcp-project-common/logivoice-docker/logivoice-worker:dev"
+# worker_container_port         = 8080
+# allow_unauthenticated_worker  = false
+#
+# worker_env_vars = {
+#   NODE_ENV          = "production"
+#   LOG_LEVEL         = "info"
+#   RESEND_FROM_EMAIL = "LogiVoice <noreply@your-domain.jp>"
+#   DASHBOARD_URL     = "https://REPLACE-WITH-WEB-APP-ORIGIN"
+# }
+#
+# worker_secret_env_from_sm = [
+#   { env_name = "OPENAI_API_KEY", secret_id = "logivoice-openai-dev", version = "latest" },
+#   { env_name = "RESEND_API_KEY", secret_id = "logivoice-resend-dev", version = "latest" },
+# ]
+#
+# Optional sizing overrides (null → tier_worker from resource_tier):
+# cloud_run_worker_min_instances = null
+# cloud_run_worker_max_instances = null
+# cloud_run_worker_concurrency   = null
+# cloud_run_worker_timeout       = null
+
+# --- GCP project label `tier` (wiki) ---
+# manage_gcp_project_labels = false
+# If true: terraform import 'google_project.wiki_labels[0]' YOUR_PROJECT_ID  (once)
+# When true, set label_tier and/or resource_tier (non-empty).
+# label_tier = ""   # empty → resource_tier for label key `tier`
+# project_display_name = ""
+
+# --- Project IAM (e.g. Google Groups — optional) ---
+# Each list item = one project IAM binding (member + role). Add more objects for more groups/users/SAs,
+# or repeat the same member with another role to grant multiple roles to one principal.
+# Member prefixes: group:, user:, serviceAccount: — see GCP IAM principal identifiers.
+# project_iam_members = [
+#   { member = "group:gcp-dev-developers@your-domain.com", role = "roles/editor" },
+#   { member = "group:gcp-dev-readonly@your-domain.com", role = "roles/viewer" },
+#   { member = "group:gcp-dev-developers@your-domain.com", role = "roles/cloudsql.client" },
+#   { member = "user:alice@your-domain.com", role = "roles/storage.objectViewer" },
+#   # roles/owner — avoid unless strictly needed (broad admin access)
+# ]
+
+# --- Dev/stg only: Cloud SQL stop/start schedule (JST; requires enable_cloud_sql) ---
+# enable_sql_night_weekend_schedule = true
+# sql_schedule_timezone   = "Asia/Tokyo"
+# sql_schedule_start_cron = "0 8 * * 1-5"
+# sql_schedule_stop_cron  = "0 22 * * 1-5"

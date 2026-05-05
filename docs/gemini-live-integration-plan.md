@@ -145,7 +145,7 @@ Gemini Live 障害時: 即座にオペレーター転送にフォールバック
 
 | ファイル | 説明 |
 |---|---|
-| `apps/api/prisma/migrations/20260423_gemini_live/migration.sql` | マイグレーション |
+| `apps/api/prisma/migrations/20260422180000_gemini_live/migration.sql` | マイグレーション |
 | `apps/api/src/repositories/gemini-scenario.repo.ts` | リポジトリ |
 | `apps/api/src/services/gemini-scenario.service.ts` | サービス |
 | `apps/api/src/routes/gemini-scenarios.route.ts` | API ルート |

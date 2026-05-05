@@ -1,12 +1,14 @@
 services:
-  postgres:
-    image: postgres:15-alpine
+  mysql:
+    image: mysql:8
     environment:
-      POSTGRES_USER: logivoice
-      POSTGRES_PASSWORD: logivoice
-      POSTGRES_DB: logivoice
+      MYSQL_ROOT_PASSWORD: logivoice_root
+      MYSQL_DATABASE: logivoice
+      MYSQL_USER: logivoice
+      MYSQL_PASSWORD: logivoice
     ports:
-      - "5433:5432"
+      - "3306:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
   redis:
     image: redis:7-alpine
     ports:
