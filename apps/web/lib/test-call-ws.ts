@@ -1,4 +1,4 @@
-import { getActingTenantId } from "./acting-tenant";
+import { getActingTenantIdForRequest } from "./acting-tenant";
 
 /** シードのデフォルトテナント（[apps/api/prisma/seed.ts] と一致） */
 const DEFAULT_DEV_TENANT_ID = "01HZXEXAMPLE00000000000000";
@@ -53,7 +53,7 @@ function shouldUseDevAuth(): boolean {
 }
 
 function appendActingTenantParam(url: string): string {
-  const actingTenantId = getActingTenantId();
+  const actingTenantId = getActingTenantIdForRequest();
   if (!actingTenantId) return url;
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}acting_tenant_id=${encodeURIComponent(actingTenantId)}`;

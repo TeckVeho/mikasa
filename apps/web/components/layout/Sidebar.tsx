@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { isSuperAdminRole } from "@/lib/roles";
 import { TenantSelector } from "./TenantSelector";
 
 /** 折りたたみ時のみ、右側にラベルをポップアップ表示 */
@@ -78,8 +79,11 @@ export function Sidebar() {
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const { data: user } = useCurrentUser();
-  const role = user?.role ?? "admin";
-  const filteredItems = items.filter((item) => !item.roles || item.roles.includes(role));
+  const role = user?.role;
+  const isSuperAdmin = isSuperAdminRole(role);
+  const filteredItems = items.filter(
+    (item) => !item.roles || (role != null && item.roles.includes(role)),
+  );
 
   async function handleLogout() {
     await logout();
@@ -117,7 +121,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <TenantSelector collapsed={collapsed} />
+      {isSuperAdmin && <TenantSelector collapsed={collapsed} />}
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4 scrollbar-hide">
         {filteredItems.map((item) => {

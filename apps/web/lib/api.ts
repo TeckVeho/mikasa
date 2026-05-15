@@ -1,5 +1,5 @@
 import { resolveMockResponse } from "./mock-data";
-import { getActingTenantId } from "./acting-tenant";
+import { getActingTenantIdForRequest } from "./acting-tenant";
 
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -45,7 +45,7 @@ function shouldUseDevAuth(): boolean {
 }
 
 function applyActingTenantHeader(headers: Headers): void {
-  const actingTenantId = getActingTenantId();
+  const actingTenantId = getActingTenantIdForRequest();
   if (actingTenantId) {
     headers.set("X-Acting-Tenant-Id", actingTenantId);
   }
