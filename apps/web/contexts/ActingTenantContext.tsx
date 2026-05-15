@@ -29,8 +29,9 @@ const ActingTenantContext = createContext<ActingTenantContextValue | null>(null)
 
 export function ActingTenantProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const { data: user } = useCurrentUser();
-  const isSuperAdmin = isSuperAdminRole(user?.role);
+  const { data: user, isLoading, isFetched } = useCurrentUser();
+  const isSuperAdmin =
+    isFetched && !isLoading && isSuperAdminRole(user?.role);
   const [actingTenantId, setState] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,19 +40,27 @@ export function ActingTenantProvider({ children }: { children: ReactNode }) {
   }, [isSuperAdmin]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!isFetched) return;
+
+    if (!user) {
+      clearActingTenantId();
+      setState(null);
+      return;
+    }
+
     if (!isSuperAdmin) {
       clearActingTenantId();
       setState(null);
       return;
     }
+
     const stored = getActingTenantId();
     const initial = stored ?? user.tenantId;
     setState(initial);
     if (!stored) {
       persistActingTenantId(initial);
     }
-  }, [user, isSuperAdmin]);
+  }, [user, isSuperAdmin, isFetched]);
 
   const setActingTenantId = useCallback(
     (id: string) => {
