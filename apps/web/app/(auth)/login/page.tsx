@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Phone, ArrowRight, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { loginWithEmailPassword } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     if (process.env.NEXT_PUBLIC_USE_DEV_AUTH === "true") {
+      await queryClient.invalidateQueries({ queryKey: ["current-user"] });
       router.push("/dashboard");
       setLoading(false);
       return;
@@ -29,6 +32,7 @@ export default function LoginPage() {
       setError(r.message);
       return;
     }
+    await queryClient.invalidateQueries({ queryKey: ["current-user"] });
     router.push("/dashboard");
   }
 

@@ -7,17 +7,17 @@ import { isSuperAdminRole } from "@/lib/roles";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { data: user, isLoading, isError } = useCurrentUser();
+  const { data: user, isLoading, isError, isFetched } = useCurrentUser();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!isFetched || isLoading) return;
     if (isError || !isSuperAdminRole(user?.role)) {
       const fallback = user?.role === "operator" ? "/operator" : "/dashboard";
       router.replace(fallback);
     }
-  }, [user?.role, isLoading, isError, router]);
+  }, [user?.role, isLoading, isError, isFetched, router]);
 
-  if (isLoading || !isSuperAdminRole(user?.role)) {
+  if (!isFetched || isLoading || !isSuperAdminRole(user?.role)) {
     return null;
   }
 

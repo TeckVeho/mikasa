@@ -17,9 +17,13 @@ type TenantRow = {
 };
 
 export function TenantSelector({ collapsed }: { collapsed: boolean }) {
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading, isFetched } = useCurrentUser();
   const { actingTenantId, setActingTenantId, isSuperAdmin } = useActingTenant();
-  const canSelectTenant = isSuperAdmin && isSuperAdminRole(user?.role);
+  const canSelectTenant =
+    isSuperAdmin &&
+    isFetched &&
+    !isLoading &&
+    isSuperAdminRole(user?.role);
 
   const q = useQuery({
     queryKey: ["admin", "tenants"],

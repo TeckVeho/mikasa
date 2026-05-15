@@ -1,5 +1,8 @@
 import { resolveMockResponse } from "./mock-data";
 import { getActingTenantIdForRequest } from "./acting-tenant";
+import { shouldUseDevAuth } from "./dev-auth";
+
+export { shouldUseDevAuth };
 
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -33,16 +36,6 @@ function shouldUseMock(): boolean {
 export type ApiEnvelope<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; message?: string };
-
-function shouldUseDevAuth(): boolean {
-  if (typeof window === "undefined") return false;
-  if (process.env.NEXT_PUBLIC_USE_DEV_AUTH === "true") return true;
-  const host = window.location.hostname;
-  return (
-    process.env.NODE_ENV === "development" &&
-    (host === "localhost" || host === "127.0.0.1")
-  );
-}
 
 function applyActingTenantHeader(headers: Headers): void {
   const actingTenantId = getActingTenantIdForRequest();

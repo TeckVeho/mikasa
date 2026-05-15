@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Phone,
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { isSuperAdminRole } from "@/lib/roles";
+import { resetSessionCache } from "@/lib/session";
 import { TenantSelector } from "./TenantSelector";
 
 /** 折りたたみ時のみ、右側にラベルをポップアップ表示 */
@@ -78,15 +80,17 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const { data: user } = useCurrentUser();
-  const role = user?.role;
-  const isSuperAdmin = isSuperAdminRole(role);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading, isFetched } = useCurrentUser();
+  const role = isFetched && !isLoading ? user?.role : undefined;
+  const isSuperAdmin = isFetched && !isLoading && isSuperAdminRole(user?.role);
   const filteredItems = items.filter(
     (item) => !item.roles || (role != null && item.roles.includes(role)),
   );
 
   async function handleLogout() {
     await logout();
+    resetSessionCache(queryClient);
     router.push("/login");
   }
 
