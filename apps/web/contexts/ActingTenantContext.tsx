@@ -13,8 +13,10 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import {
   clearActingTenantId,
   getActingTenantId,
+  setActingTenantHeaderEnabled,
   setActingTenantId as persistActingTenantId,
 } from "@/lib/acting-tenant";
+import { isSuperAdminRole } from "@/lib/roles";
 
 type ActingTenantContextValue = {
   actingTenantId: string | null;
@@ -28,8 +30,13 @@ const ActingTenantContext = createContext<ActingTenantContextValue | null>(null)
 export function ActingTenantProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
-  const isSuperAdmin = user?.role === "superadmin";
+  const isSuperAdmin = isSuperAdminRole(user?.role);
   const [actingTenantId, setState] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActingTenantHeaderEnabled(isSuperAdmin);
+    return () => setActingTenantHeaderEnabled(false);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!user) return;

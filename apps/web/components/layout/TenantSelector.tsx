@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2 } from "lucide-react";
 import { apiJson } from "@/lib/api";
 import { useActingTenant } from "@/contexts/ActingTenantContext";
+import { isSuperAdminRole } from "@/lib/roles";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { cn } from "@/lib/utils";
 
 const SELECT_CLASS =
@@ -15,7 +17,9 @@ type TenantRow = {
 };
 
 export function TenantSelector({ collapsed }: { collapsed: boolean }) {
+  const { data: user } = useCurrentUser();
   const { actingTenantId, setActingTenantId, isSuperAdmin } = useActingTenant();
+  const canSelectTenant = isSuperAdmin && isSuperAdminRole(user?.role);
 
   const q = useQuery({
     queryKey: ["admin", "tenants"],
@@ -24,10 +28,10 @@ export function TenantSelector({ collapsed }: { collapsed: boolean }) {
       if (!r.ok) throw new Error(r.message ?? r.error);
       return r.data;
     },
-    enabled: isSuperAdmin,
+    enabled: canSelectTenant,
   });
 
-  if (!isSuperAdmin) return null;
+  if (!canSelectTenant) return null;
 
   const selectedName =
     q.data?.find((t) => t.id === actingTenantId)?.name ?? "テナント";

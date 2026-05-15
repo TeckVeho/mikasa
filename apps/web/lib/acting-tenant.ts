@@ -1,5 +1,17 @@
 const STORAGE_KEY = "logivoice:acting-tenant-id";
 
+/** Chỉ superadmin mới được gửi header/query acting tenant (set từ ActingTenantContext). */
+let actingTenantHeaderEnabled = false;
+
+export function setActingTenantHeaderEnabled(enabled: boolean): void {
+  actingTenantHeaderEnabled = enabled;
+}
+
+export function getActingTenantIdForRequest(): string | null {
+  if (!actingTenantHeaderEnabled) return null;
+  return getActingTenantId();
+}
+
 export function getActingTenantId(): string | null {
   if (typeof window === "undefined") return null;
   try {
