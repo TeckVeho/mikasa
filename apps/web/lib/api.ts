@@ -1,4 +1,5 @@
 import { resolveMockResponse } from "./mock-data";
+import { getActingTenantId } from "./acting-tenant";
 
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -43,6 +44,13 @@ function shouldUseDevAuth(): boolean {
   );
 }
 
+function applyActingTenantHeader(headers: Headers): void {
+  const actingTenantId = getActingTenantId();
+  if (actingTenantId) {
+    headers.set("X-Acting-Tenant-Id", actingTenantId);
+  }
+}
+
 export async function apiJson<T>(
   path: string,
   init: RequestInit = {},
@@ -73,6 +81,7 @@ export async function apiJson<T>(
         headers.set("Authorization", `Bearer ${token}`);
       }
     }
+    applyActingTenantHeader(headers);
   }
 
   const res = await fetch(`${base}${path}`, {
@@ -127,6 +136,7 @@ export async function apiFormData<T>(
         headers.set("Authorization", `Bearer ${token}`);
       }
     }
+    applyActingTenantHeader(headers);
   }
 
   const res = await fetch(`${base}${path}`, {

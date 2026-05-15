@@ -8,6 +8,7 @@ import {
   type User,
 } from "firebase/auth";
 import { initializeApp, getApps } from "firebase/app";
+import { clearActingTenantId } from "./acting-tenant";
 
 function getFirebaseApp() {
   const config = {
@@ -50,8 +51,12 @@ export async function loginWithEmailPassword(
 }
 
 export async function logout(): Promise<void> {
-  const auth = getFirebaseAuth();
-  if (auth) await signOut(auth);
+  try {
+    const auth = getFirebaseAuth();
+    if (auth) await signOut(auth);
+  } finally {
+    clearActingTenantId();
+  }
 }
 
 export function subscribeAuth(
