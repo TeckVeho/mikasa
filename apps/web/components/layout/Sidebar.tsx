@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { TenantSelector } from "./TenantSelector";
 
 /** 折りたたみ時のみ、右側にラベルをポップアップ表示 */
 function SidebarLabelPopup({
@@ -115,6 +116,8 @@ export function Sidebar() {
           </div>
         )}
       </div>
+
+      <TenantSelector collapsed={collapsed} />
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-4 scrollbar-hide">
         {filteredItems.map((item) => {

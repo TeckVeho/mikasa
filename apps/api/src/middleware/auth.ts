@@ -3,6 +3,31 @@ import { verifyIdToken } from "../lib/firebase-admin.js";
 import { prisma } from "../lib/prisma.js";
 import type { Result } from "@logivoice/shared";
 
+/** superadmin が X-Acting-Tenant-Id で操作対象テナントを切り替え */
+async function applyActingTenant(
+  req: Request,
+  res: Response,
+): Promise<boolean> {
+  if (req.userRole !== "superadmin") return true;
+
+  const actingHeader = req.headers["x-acting-tenant-id"];
+  if (typeof actingHeader !== "string" || !actingHeader) return true;
+
+  const tenant = await prisma.tenant.findFirst({
+    where: { id: actingHeader, deletedAt: null },
+  });
+  if (!tenant) {
+    res.status(403).json({
+      ok: false,
+      error: "FORBIDDEN",
+      message: "指定されたテナントが無効または存在しません",
+    });
+    return false;
+  }
+  req.tenantId = actingHeader;
+  return true;
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
@@ -39,6 +64,7 @@ export async function requireAuth(
     req.tenantId = devUser.tenantId;
     req.userId = devUser.id;
     req.userRole = devUser.role;
+    if (!(await applyActingTenant(req, res))) return;
     next();
     return;
   }
@@ -74,6 +100,7 @@ export async function requireAuth(
   req.tenantId = user.tenantId;
   req.userId = user.id;
   req.userRole = user.role;
+  if (!(await applyActingTenant(req, res))) return;
   next();
 }
 

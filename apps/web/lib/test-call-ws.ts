@@ -1,3 +1,5 @@
+import { getActingTenantId } from "./acting-tenant";
+
 /** シードのデフォルトテナント（[apps/api/prisma/seed.ts] と一致） */
 const DEFAULT_DEV_TENANT_ID = "01HZXEXAMPLE00000000000000";
 
@@ -50,6 +52,13 @@ function shouldUseDevAuth(): boolean {
   );
 }
 
+function appendActingTenantParam(url: string): string {
+  const actingTenantId = getActingTenantId();
+  if (!actingTenantId) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}acting_tenant_id=${encodeURIComponent(actingTenantId)}`;
+}
+
 /**
  * テスト通話 WebSocket。認証は Query（本番: Firebase `token`、開発: `dev_tenant_id`+`dev_user_id`）
  */
@@ -87,6 +96,8 @@ export class TestCallClient {
       }
       url += `?token=${encodeURIComponent(token)}`;
     }
+
+    url = appendActingTenantParam(url);
 
     this.ws = new WebSocket(url);
 

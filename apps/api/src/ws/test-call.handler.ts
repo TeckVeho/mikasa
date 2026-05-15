@@ -34,6 +34,26 @@ type TestSessionState = {
   transcript: string;
 };
 
+async function resolveActingTenantForSuperadmin(
+  role: string,
+  defaultTenantId: string,
+  actingTenantId: string | null,
+): Promise<{ ok: true; tenantId: string } | { ok: false; error: string }> {
+  if (role !== "superadmin" || !actingTenantId) {
+    return { ok: true, tenantId: defaultTenantId };
+  }
+  const tenant = await prisma.tenant.findFirst({
+    where: { id: actingTenantId, deletedAt: null },
+  });
+  if (!tenant) {
+    return {
+      ok: false,
+      error: "指定されたテナントが無効または存在しません",
+    };
+  }
+  return { ok: true, tenantId: actingTenantId };
+}
+
 async function resolveTestCallTenantId(
   req: IncomingMessage,
 ): Promise<{ ok: true; tenantId: string } | { ok: false; error: string }> {
@@ -42,6 +62,7 @@ async function resolveTestCallTenantId(
   const token = url.searchParams.get("token");
   const devTenant = url.searchParams.get("dev_tenant_id");
   const devUserId = url.searchParams.get("dev_user_id") ?? "dev-user";
+  const actingTenantId = url.searchParams.get("acting_tenant_id");
 
   if (process.env.NODE_ENV !== "production" && devTenant) {
     const user = await prisma.user.findUnique({ where: { id: devUserId } });
@@ -51,7 +72,11 @@ async function resolveTestCallTenantId(
         error: "開発用 X-Dev-User-Id とテナントの組み合わせが無効です",
       };
     }
-    return { ok: true, tenantId: user.tenantId };
+    return resolveActingTenantForSuperadmin(
+      user.role,
+      user.tenantId,
+      actingTenantId,
+    );
   }
 
   if (!token) {
@@ -65,7 +90,11 @@ async function resolveTestCallTenantId(
       error: r.error ?? "認証に失敗しました",
     };
   }
-  return { ok: true, tenantId: r.data.tenantId };
+  return resolveActingTenantForSuperadmin(
+    r.data.role,
+    r.data.tenantId,
+    actingTenantId,
+  );
 }
 
 /**
