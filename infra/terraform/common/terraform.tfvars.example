@@ -22,8 +22,8 @@ reader_project_ids = [
 #   "serviceAccount:123456789012@cloudbuild.gserviceaccount.com",
 # ]
 
-# --- Artifact Registry cleanup (optional; defaults in variables.tf) ---
-artifact_cleanup_keep_count                = 10
-artifact_cleanup_policy_dry_run            = true   # set false after Console preview looks correct
-artifact_cleanup_keep_tag_prefixes         = ["prod", "stage"]  # optional KEEP for tags matching these prefixes
-artifact_cleanup_delete_untagged_after_days = 7   # DELETE UNTAGGED older than N days (use 14 for safer)
+# --- Cleanup (optional overrides; defaults in variables.tf; deletion is always active) ---
+# artifact_cleanup_keep_count                 = 10
+# artifact_cleanup_keep_tag_prefixes          = ["prod", "stage"]
+# artifact_cleanup_delete_untagged_after_days = 7
+# cloudbuild_source_retention_days            = 7

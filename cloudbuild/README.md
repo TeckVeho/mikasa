@@ -41,6 +41,8 @@ Create one trigger per branch (or use regex). Set substitutions per environment.
 The execution SA (`…@cloudbuild.gserviceaccount.com` or default compute SA) needs:
 
 - **`roles/storage.objectAdmin`** — read staged source (`gs://…_cloudbuild`).
+
+**Staging bucket cleanup** — Each submit stores a tarball under `gs://PROJECT_ID_cloudbuild/source/`. GCP does not remove them automatically. The **common** Terraform stack ([`infra/terraform/common`](../infra/terraform/common)) sets a GCS lifecycle rule (default: delete `source/` objects after **7 days**). Import the existing bucket once before apply; see [`../infra/terraform/common/README.md`](../infra/terraform/common/README.md).
 - **`roles/artifactregistry.writer`** on the Artifact Registry host project (optional common project; see [`infra/terraform/common`](../infra/terraform/common) `additional_artifact_registry_writer_members`).
 - **`roles/logging.logWriter`** — full step logs.
 - **`roles/run.admin`** + **`roles/iam.serviceAccountUser`** on **`_DEPLOY_PROJECT_ID`** (app project) so `gcloud run jobs deploy` / `gcloud run deploy` succeed.
