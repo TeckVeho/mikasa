@@ -7,7 +7,7 @@ resource "google_artifact_registry_repository" "docker" {
   repository_id          = var.artifact_repo_id
   description            = "LogiVoice Docker images (shared; dev/stg/prod pull from here)"
   format                 = "DOCKER"
-  cleanup_policy_dry_run = var.artifact_cleanup_policy_dry_run
+  cleanup_policy_dry_run = false
 
   dynamic "cleanup_policies" {
     for_each = length(var.artifact_cleanup_keep_tag_prefixes) > 0 ? [1] : []

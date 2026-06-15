@@ -59,15 +59,6 @@ variable "artifact_cleanup_keep_count" {
   }
 }
 
-variable "artifact_cleanup_policy_dry_run" {
-  type        = bool
-  default     = true
-  description = <<-EOT
-    If true, cleanup policies log what would be deleted without deleting. Set false after verifying in
-    GCP Console (Artifact Registry → repository → Cleanup) that rules match expectations.
-  EOT
-}
-
 variable "artifact_cleanup_keep_tag_prefixes" {
   type        = list(string)
   default     = []
@@ -89,4 +80,20 @@ variable "artifact_cleanup_delete_untagged_after_days" {
     condition     = var.artifact_cleanup_delete_untagged_after_days >= 1
     error_message = "artifact_cleanup_delete_untagged_after_days must be >= 1."
   }
+}
+
+variable "cloudbuild_source_retention_days" {
+  type        = number
+  default     = 7
+  description = "Delete objects under source/ in the Cloud Build staging bucket after this many days."
+  validation {
+    condition     = var.cloudbuild_source_retention_days >= 1
+    error_message = "cloudbuild_source_retention_days must be >= 1."
+  }
+}
+
+variable "cloudbuild_staging_location" {
+  type        = string
+  default     = "US"
+  description = "Location of the default _cloudbuild bucket (US multi-region when created by gcloud builds submit)."
 }

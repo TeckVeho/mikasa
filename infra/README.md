@@ -94,7 +94,7 @@ flowchart LR
 ```
 
 1. **Bootstrap** (optional) — create the GCS state bucket.
-2. **`terraform/common/`** — shared Artifact Registry and reader IAM for app projects. Example state prefix: `common/main`. See [terraform/common/README.md](terraform/common/README.md).
+2. **`terraform/common/`** — shared Artifact Registry (with active cleanup policies), Cloud Build staging bucket lifecycle, and reader IAM for app projects. Example state prefix: `common/main`. See [terraform/common/README.md](terraform/common/README.md).
 3. **`terraform/network/`** — once **per** environment that needs VPC / private Cloud SQL / Memorystore Redis. Example prefix: `network/dev`. See [terraform/network/README.md](terraform/network/README.md). Skip if you are not using Cloud SQL / VPC / Redis yet.
 4. **App stack** (`terraform/`) — Cloud Run (`logivoice-api`, optional `logivoice-web`, optional `logivoice-worker`), optional GCS, Cloud SQL MySQL, Memorystore Redis, Pub/Sub, optional **SQL weekend schedule** (`enable_sql_night_weekend_schedule`), etc., **per** environment. Set **`create_artifact_registry = false`** and point image URLs at the common registry when the registry was created in `common/`. If **`enable_cloud_sql`** or **`enable_memorystore_redis`** is **true**, apply **`network/`** first, then set **`network_remote_state_bucket`** and **`network_remote_state_prefix`** in app `tfvars` (see [terraform/README.md](terraform/README.md)).
 

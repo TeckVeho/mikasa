@@ -167,6 +167,8 @@ gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
 
 **Cloud Build staging bucket (`*_cloudbuild`).** `gcloud builds submit` uploads the source code to a GCS bucket (default `gs://[PROJECT_ID]_cloudbuild`) before building it. If this bucket doesn't exist yet, Cloud Build needs permission to create it. To avoid the *forbidden from accessing the bucket* or *serviceusage.services.use* errors, grant **Storage Admin** at the project level:
 
+**Source cleanup** — GCP does not delete objects under `source/` automatically. The common Terraform stack sets a GCS lifecycle rule (default: delete after 7 days). Import the existing bucket once: see [`infra/terraform/common/README.md`](../infra/terraform/common/README.md).
+
 ```bash
 gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
   --member="serviceAccount:${SA_EMAIL}" \
