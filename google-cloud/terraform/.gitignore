@@ -1,0 +1,24 @@
+# Terraform local state and providers
+.build/
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Local variable values (may contain secrets)
+terraform.tfvars
+*.auto.tfvars
+terraform.tfvars.dev
+terraform.tfvars.prod
+terraform.tfvars.old
+
+# Terragrunt cache (copies entire repo on init/plan)
+.terragrunt-cache/

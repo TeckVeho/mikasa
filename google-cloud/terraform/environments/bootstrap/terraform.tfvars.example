@@ -1,0 +1,24 @@
+# Copy to terraform.tfvars (gitignored).
+# Values must match google-cloud/scripts/load-env.sh (GCP_PROJECT_ID, GCP_REGION, GCP_STATE_BUCKET).
+
+project_id = "veho-kumu"
+region     = "asia-northeast1"
+
+# Empty → {project_id}-terraform-state via naming module; set explicitly to match GCP_STATE_BUCKET.
+state_bucket_name = "veho-kumu-terraform-state"
+
+# artifact_repo_id = ""  # default: veho-kumu-docker
+
+# Cloud Build SA that pushes images (project number from: gcloud projects describe veho-kumu --format='value(projectNumber)')
+# --- Add member: Artifact Registry writer (bootstrap stack) ---
+# additional_artifact_registry_writer_members = [
+#   "serviceAccount:PROJECT_NUMBER@cloudbuild.gserviceaccount.com",
+#   "user:colleague@veho-works.com",
+# ]
+#
+# Env custom roles (kumuDevDeployer, kumuProdReadonly, …) → see environments/{dev,stg,prod}/app/terraform.tfvars.example
+#   env_iam_principals = { deployers = [...], readonly = [...] }
+
+artifact_cleanup_keep_count                 = 10
+artifact_cleanup_keep_tag_prefixes          = ["prod", "stg"]
+artifact_cleanup_delete_untagged_after_days = 7
