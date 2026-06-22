@@ -1,3 +1,9 @@
+export type PronunciationEntry = {
+  word: string;
+  reading: string;
+  category?: string;
+};
+
 export type PromptBuildInput = {
   persona: string;
   conversationRules: string;
@@ -9,6 +15,7 @@ export type PromptBuildInput = {
   tenantName: string;
   callerNumber: string;
   recentSummaries?: string[];
+  pronunciationDictionary?: PronunciationEntry[];
 };
 
 const BUILT_IN_TOOLS = [
@@ -43,23 +50,52 @@ const BUILT_IN_TOOLS = [
   {
     name: "register_callback",
     description:
-      "折り返し電話のリクエストを登録します。オペレーターに転送できない場合や、お客様が折り返しを希望した場合に使用してください。",
+      "折り返し電話のリクエストを登録します。ヒアリング完了後、必ずこのツールを呼び出してください。",
     parameters: {
       type: "OBJECT",
       properties: {
         reason: {
           type: "STRING",
-          description: "折り返しが必要な理由",
+          description: "折り返しが必要な理由・用件の概要",
+        },
+        caller_name: {
+          type: "STRING",
+          description: "お客様のお名前",
+        },
+        company_name: {
+          type: "STRING",
+          description: "会社名（法人の場合）",
+        },
+        callback_number: {
+          type: "STRING",
+          description: "折り返し先の電話番号（未指定の場合は発信者番号）",
         },
         preferred_time: {
           type: "STRING",
           description: "お客様の希望時間帯（例: 午後2時頃、本日中 など）",
+        },
+        collected_info: {
+          type: "OBJECT",
+          description: "その他ヒアリングした情報",
         },
       },
       required: ["reason"],
     },
   },
 ];
+
+export function buildPronunciationDictionarySection(
+  entries: PronunciationEntry[],
+): string | null {
+  if (entries.length === 0) return null;
+
+  const lines = entries.map(
+    (entry) => `  - 「${entry.reading}」（「${entry.word}」と書かない）`,
+  );
+
+  return `**読み方辞書（必ず指定の読みで出力する）:**
+${lines.join("\n")}`;
+}
 
 export function buildSystemInstruction(input: PromptBuildInput): string {
   const sections: string[] = [];
@@ -70,27 +106,50 @@ export function buildSystemInstruction(input: PromptBuildInput): string {
   sections.push(`**ガードレール:**\n${input.guardRails}`);
   sections.push(`**利用可能なツール:**
 - **transfer_to_operator**: お客様が人間のオペレーターとの会話を希望した場合、またはAIでは解決できない問題の場合に使用します。
-- **register_callback**: 以下のいずれかに該当する場合に必ず使用してください。
-  - お客様が「折り返し電話がほしい」「後で連絡してほしい」と希望した場合
-  - オペレーターへの転送ができない・不在の場合に、折り返し対応を提案する場合
-  - 営業時間外の問い合わせで、後日の対応が必要な場合
-  折り返しを登録した後は「折り返しのご連絡を手配いたしました」とお客様にお伝えしてください。`);
+- **register_callback**: 折り返し対応が必要な場合に、ヒアリング完了後に必ず使用してください。
+  - お客様のお名前・会社名・折り返し先電話番号・用件概要・希望時間帯を聞き取った後に呼び出す
+  - 転送できない設定の場合も、折り返し対応時は必ずこのツールを使う
+  - ツール呼び出し後は「おりかえしのごれんらくをうけたまわりました。たんとうよりごれんらくいたします」と伝え、クロージングに進む`);
 
   sections.push(`**発話ルール:**
 - すべてにほんごで応答する。
-- あなたは音声で話している。漢字は「読み」ではなく「音」になる。
-- 誤読リスクがある漢字は使わず、ひらがなで話す。
+- あなたは音声で話している。出力テキストはすべてひらがなとカタカナのみで書く（漢字は使わない）。
 - 迷ったらひらがなにする。自然さより正確さを優先する。
-- ていねい語の定型句はひらがなで話す:
-  「うけたまわりました」「かしこまりました」「おっしゃる」
-  「ください」「いたします」「ございます」「なにとぞ」
-  「こちら」「そちら」「おおむね」
+- 以下の言い回しはかならず指定の読みで出力する:
+  - 「たとえば」（「例えば」と書かない）
+  - 「うけたまわりました」（「承りました」と書かない）
+  - 「しょうちしました」（「承知しました」と書かない）
+  - 「かしこまりました」
+  - 「おっしゃる」「ください」「いたします」「ございます」「なにとぞ」
+  - 「こちら」「そちら」「おおむね」
 - 数字・住所・人名はひと文字ずつ区切って話す。
 - 固有名詞は無理に読まず、おきゃくさまに確認を取る。`);
 
-  sections.push("**重要:** 通話が開始されたら、ユーザーの発話を待たずに、あなたから最初にあいさつしてください。例:「おでんわありがとうございます。ごようけんをおうかがいいたします。」のように自然に話し始めてください。");
+  const pronunciationSection = buildPronunciationDictionarySection(
+    input.pronunciationDictionary ?? [],
+  );
+  if (pronunciationSection) {
+    sections.push(pronunciationSection);
+  }
+
+  sections.push(`**重要:**
+- 通話が開始されたら、ユーザーの発話を待たずに、あなたから最初にあいさつしてください。
+- あいさつのあと、必ず「ごようけんをおうかがいいたします」と用件を質問してください。
+- 例:「おでんわありがとうございます。○○でございます。ごようけんをおうかがいいたします。」`);
 
   return sections.join("\n\n");
+}
+
+const TOOL_META_KEYS = ["_endpoint", "_method", "_headers", "_timeout"] as const;
+
+/** Gemini には渡さないカスタムツールのメタデータキー */
+export function stripToolMetadata(tool: unknown): unknown {
+  if (!tool || typeof tool !== "object" || Array.isArray(tool)) return tool;
+  const copy = { ...(tool as Record<string, unknown>) };
+  for (const key of TOOL_META_KEYS) {
+    delete copy[key];
+  }
+  return copy;
 }
 
 const SCHEMA_TYPE_MAP: Record<string, string> = {
@@ -119,7 +178,8 @@ function normalizeSchemaTypes(obj: unknown): unknown {
 }
 
 export function buildToolDeclarations(userTools: unknown[]): unknown[] {
-  const all = [...(userTools as unknown[]), ...BUILT_IN_TOOLS];
+  const userOnly = userTools.map(stripToolMetadata);
+  const all = [...userOnly, ...BUILT_IN_TOOLS];
   return all.map(normalizeSchemaTypes);
 }
 

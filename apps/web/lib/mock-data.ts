@@ -198,14 +198,29 @@ function mockNumberDetail(id: string) {
   };
 }
 
+const mockScenarioOverrides: Record<
+  string,
+  Partial<{
+    name: string;
+    description: string | null;
+    flowJson: unknown;
+  }>
+> = {};
+
 function mockScenarioDetail(id: string) {
-  return {
+  const base = {
     id,
     name: "受付・再配達（サンプル）",
     flowJson: MOCK_FLOW,
     scenarioType: "inbound",
     description: "モック用のシナリオです。保存しても API に届きません。",
     status: "published",
+  };
+  const override = mockScenarioOverrides[id];
+  if (!override) return base;
+  return {
+    ...base,
+    ...override,
   };
 }
 
@@ -241,7 +256,7 @@ const MOCK_DICT = [
   },
 ];
 
-let mockVoiceEngine: "flow" | "gemini_live" = "flow";
+let mockVoiceEngine: "flow" | "gemini_live" = "gemini_live";
 
 type MockEnvelope<T> =
   | { ok: true; data: T }
@@ -463,6 +478,33 @@ export function resolveMockResponse<T>(
       return { ok: true, data: mockScenarioDetail(m[1]) as T };
     }
     if (m && method === "PUT") {
+      try {
+        const body = JSON.parse(init.body as string) as {
+          name?: string;
+          description?: string | null;
+          flowJson?: unknown;
+        };
+        const scenarioId = m[1];
+        mockScenarioOverrides[scenarioId] = {
+          ...mockScenarioOverrides[scenarioId],
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(body.description !== undefined
+            ? { description: body.description }
+            : {}),
+          ...(body.flowJson !== undefined ? { flowJson: body.flowJson } : {}),
+        };
+        const listRow = MOCK_SCENARIOS.find((s) => s.id === scenarioId);
+        if (listRow && body.name) {
+          listRow.name = body.name;
+        }
+        for (const num of MOCK_NUMBERS) {
+          if (num.scenarioId === scenarioId && body.name) {
+            num.scenarioName = body.name;
+          }
+        }
+      } catch {
+        // ignore malformed body
+      }
       return { ok: true, data: {} as T };
     }
   }

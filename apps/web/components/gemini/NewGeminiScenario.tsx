@@ -10,14 +10,16 @@ import { PersonaEditor } from "./PersonaEditor";
 import { RulesEditor } from "./RulesEditor";
 import { KnowledgeEditor } from "./KnowledgeEditor";
 import { ToolDefinitionEditor } from "./ToolDefinitionEditor";
+import { GuardRailsEditor } from "./GuardRailsEditor";
 import { TransferSettings } from "./TransferSettings";
 
-type Tab = "persona" | "rules" | "knowledge" | "tools";
+type Tab = "persona" | "rules" | "knowledge" | "guardRails" | "tools";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "persona", label: "ペルソナ" },
   { id: "rules", label: "対話ルール" },
   { id: "knowledge", label: "業務ナレッジ" },
+  { id: "guardRails", label: "ガードレール" },
   { id: "tools", label: "ツール定義" },
 ];
 
@@ -130,6 +132,25 @@ const DEFAULT_KNOWLEDGE = [
   "- サイズ制限: 3辺合計160cm以内、重量25kg以内（それ以上はヤマト便扱い）",
 ].join("\n");
 
+const DEFAULT_GUARDRAILS = [
+  "## ぜったいに守るルール",
+  "",
+  "### 情報の正確性",
+  "- 料金の具体的な金額は伝えない。「担当部署にてご案内いたします」と案内する",
+  "- 推測や憶測で情報を伝えない",
+  "",
+  "### 個人情報保護",
+  "- お客様の個人情報は復唱確認時以外に繰り返さない",
+  "",
+  "### エスカレーション",
+  "- 判断に迷うお問い合わせは折り返し対応を提案する",
+  "- お客様が明示的に「人間と話したい」と要望された場合は折り返し対応を提案する",
+  "",
+  "### 対応範囲",
+  "- 自社サービス以外の相談には応じない",
+  "- AIであることを聞かれた場合は正直に「自動音声にて対応させていただいております」と答える",
+].join("\n");
+
 export function NewGeminiScenario() {
   const router = useRouter();
 
@@ -138,6 +159,7 @@ export function NewGeminiScenario() {
   const [persona, setPersona] = useState(DEFAULT_PERSONA);
   const [rules, setRules] = useState(DEFAULT_RULES);
   const [knowledge, setKnowledge] = useState(DEFAULT_KNOWLEDGE);
+  const [guardRails, setGuardRails] = useState(DEFAULT_GUARDRAILS);
   const [toolDefinitions, setToolDefinitions] = useState("");
   const [transferEnabled, setTransferEnabled] = useState(true);
   const [transferNumber, setTransferNumber] = useState("");
@@ -167,6 +189,7 @@ export function NewGeminiScenario() {
           persona,
           rules,
           knowledge,
+          guardRails,
           toolDefinitions,
           transferEnabled,
           transferNumber,
@@ -231,6 +254,9 @@ export function NewGeminiScenario() {
         )}
         {activeTab === "knowledge" && (
           <KnowledgeEditor value={knowledge} onChange={setKnowledge} />
+        )}
+        {activeTab === "guardRails" && (
+          <GuardRailsEditor value={guardRails} onChange={setGuardRails} />
         )}
         {activeTab === "tools" && (
           <ToolDefinitionEditor

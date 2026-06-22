@@ -17,7 +17,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "api", label: "API連携" },
   { id: "notifications", label: "通知設定" },
   { id: "users", label: "ユーザー管理" },
-  { id: "dictionary", label: "音声認識辞書" },
+  { id: "dictionary", label: "読み方辞書" },
 ];
 
 export default function SettingsPage() {
@@ -70,7 +70,7 @@ function TenantTab() {
   const [companyName, setCompanyName] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
-  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>("flow");
+  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>("gemini_live");
   const [saved, setSaved] = useState(false);
   const [engineSaved, setEngineSaved] = useState(false);
 
@@ -88,7 +88,7 @@ function TenantTab() {
     setCompanyName(q.data.companyName ?? "");
     setMaintenanceMode(q.data.maintenanceMode ?? false);
     setMaintenanceMessage(q.data.maintenanceMessage ?? "");
-    setVoiceEngine(q.data.voiceEngine ?? "flow");
+    setVoiceEngine(q.data.voiceEngine ?? "gemini_live");
   }, [q.data]);
 
   const mutation = useMutation({
@@ -829,9 +829,9 @@ function DictionaryTab() {
 
   return (
     <div className="rounded-xl border border-border bg-white p-6 max-w-2xl space-y-6">
-      <h2 className="text-base font-semibold text-text">音声認識辞書</h2>
+      <h2 className="text-base font-semibold text-text">読み方辞書</h2>
       <p className="text-sm text-muted">
-        固有名詞の表記と読みを登録すると、認識精度が上がります。
+        固有名詞や誤読しやすい語の表記と読みを登録すると、AI音声の読み上げ精度が上がります。
       </p>
       <div className="flex flex-wrap gap-2 items-end">
         <label className="text-sm">
