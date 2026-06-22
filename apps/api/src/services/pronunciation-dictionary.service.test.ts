@@ -22,11 +22,17 @@ describe("getPronunciationDictionary", () => {
   it("merges built-in entries with tenant-specific overrides", async () => {
     vi.mocked(prisma.speechDictionary.findMany).mockResolvedValue([
       {
+        id: "dict-1",
+        tenantId: "tenant-1",
+        createdAt: new Date("2026-01-01"),
         word: "承りました",
         reading: "カスタムよみ",
         category: "custom",
       },
       {
+        id: "dict-2",
+        tenantId: "tenant-1",
+        createdAt: new Date("2026-01-01"),
         word: "Impliq",
         reading: "いんぷりっく",
         category: "company",
