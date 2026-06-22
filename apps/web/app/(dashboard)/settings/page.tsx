@@ -70,7 +70,7 @@ function TenantTab() {
   const [companyName, setCompanyName] = useState("");
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
-  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>("flow");
+  const [voiceEngine, setVoiceEngine] = useState<VoiceEngine>("gemini_live");
   const [saved, setSaved] = useState(false);
   const [engineSaved, setEngineSaved] = useState(false);
 
@@ -88,7 +88,7 @@ function TenantTab() {
     setCompanyName(q.data.companyName ?? "");
     setMaintenanceMode(q.data.maintenanceMode ?? false);
     setMaintenanceMessage(q.data.maintenanceMessage ?? "");
-    setVoiceEngine(q.data.voiceEngine ?? "flow");
+    setVoiceEngine(q.data.voiceEngine ?? "gemini_live");
   }, [q.data]);
 
   const mutation = useMutation({

@@ -249,6 +249,39 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
         const tools = buildToolDeclarations(toolDefinitions);
 
         gemini = new GeminiLiveSession();
+        let pendingCallbackFinalization = false;
+        let callbackFallbackTimer: NodeJS.Timeout | null = null;
+
+        function scheduleTestCallEndAfterCallback(): void {
+          if (callbackFallbackTimer) {
+            clearTimeout(callbackFallbackTimer);
+            callbackFallbackTimer = null;
+          }
+          callbackFallbackTimer = setTimeout(() => {
+            callbackFallbackTimer = null;
+            gemini?.close();
+            gemini = null;
+            void finalizeTestCall();
+            safeSend(ws, { type: "ended" });
+          }, 4000);
+        }
+
+        function armCallbackFinalizationFallback(): void {
+          setTimeout(() => {
+            if (pendingCallbackFinalization && gemini) {
+              pendingCallbackFinalization = false;
+              if (callbackFallbackTimer) {
+                clearTimeout(callbackFallbackTimer);
+                callbackFallbackTimer = null;
+              }
+              gemini.close();
+              gemini = null;
+              void finalizeTestCall();
+              safeSend(ws, { type: "ended" });
+            }
+          }, 15000);
+        }
+
         gemini.connect(
           {
             apiKey: process.env.GEMINI_API_KEY ?? "",
@@ -299,6 +332,14 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
                     result: result.result,
                   });
                   gemini?.sendToolResult(id, result.result);
+
+                  if (name === "register_callback") {
+                    const payload = result.result as { status?: string };
+                    if (payload.status === "registered") {
+                      pendingCallbackFinalization = true;
+                      armCallbackFinalizationFallback();
+                    }
+                  }
                 } catch (err) {
                   logger.error({ err, tool: name }, "test-call tool error");
                   gemini?.sendToolResult(id, { error: String(err) });
@@ -307,7 +348,10 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             },
 
             onTurnComplete() {
-              /* noop */
+              if (pendingCallbackFinalization) {
+                pendingCallbackFinalization = false;
+                scheduleTestCallEndAfterCallback();
+              }
             },
 
             onError(err) {

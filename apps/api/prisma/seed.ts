@@ -9,8 +9,8 @@ async function main(): Promise<void> {
 
   await prisma.tenant.upsert({
     where: { id: tenantId },
-    create: { id: tenantId, name: "デモ物流株式会社" },
-    update: { name: "デモ物流株式会社" },
+    create: { id: tenantId, name: "デモ物流株式会社", voiceEngine: "gemini_live" },
+    update: { name: "デモ物流株式会社", voiceEngine: "gemini_live" },
   });
 
   await prisma.user.upsert({

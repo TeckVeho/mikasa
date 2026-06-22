@@ -154,7 +154,9 @@ export class GeminiLiveSession {
   }
 
   /** 初期ターンを送信して Gemini に最初の発話を促す */
-  sendInitialTurn(prompt = "通話が接続されました。挨拶してください。"): void {
+  sendInitialTurn(
+    prompt = "通話が接続されました。あいさつして、すぐにご用件をお伺いしてください。",
+  ): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(JSON.stringify({
       realtimeInput: { text: prompt },

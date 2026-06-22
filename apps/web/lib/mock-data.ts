@@ -241,7 +241,7 @@ const MOCK_DICT = [
   },
 ];
 
-let mockVoiceEngine: "flow" | "gemini_live" = "flow";
+let mockVoiceEngine: "flow" | "gemini_live" = "gemini_live";
 
 type MockEnvelope<T> =
   | { ok: true; data: T }

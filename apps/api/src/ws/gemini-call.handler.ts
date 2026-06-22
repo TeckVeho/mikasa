@@ -60,6 +60,42 @@ export async function handleGeminiLiveCall(
 
   const gemini = new GeminiLiveSession();
 
+  let pendingCallbackFinalization = false;
+  let callbackFallbackTimer: NodeJS.Timeout | null = null;
+
+  function scheduleCallEndAfterCallback(): void {
+    if (callbackFallbackTimer) {
+      clearTimeout(callbackFallbackTimer);
+      callbackFallbackTimer = null;
+    }
+    callbackFallbackTimer = setTimeout(() => {
+      callbackFallbackTimer = null;
+      if (!finalized) {
+        pendingCallbackFinalization = false;
+        void finalize("complete");
+        if (ws.readyState === ws.OPEN) {
+          ws.close();
+        }
+      }
+    }, 4000);
+  }
+
+  function armCallbackFinalizationFallback(): void {
+    setTimeout(() => {
+      if (!finalized && pendingCallbackFinalization) {
+        pendingCallbackFinalization = false;
+        if (callbackFallbackTimer) {
+          clearTimeout(callbackFallbackTimer);
+          callbackFallbackTimer = null;
+        }
+        void finalize("complete");
+        if (ws.readyState === ws.OPEN) {
+          ws.close();
+        }
+      }
+    }, 15000);
+  }
+
   const systemInstruction = buildSystemInstruction({
     persona: geminiScenario.persona,
     conversationRules: geminiScenario.conversationRules,
@@ -173,6 +209,14 @@ export async function handleGeminiLiveCall(
             );
             gemini.sendToolResult(id, result.result);
 
+            if (name === "register_callback") {
+              const payload = result.result as { status?: string };
+              if (payload.status === "registered") {
+                pendingCallbackFinalization = true;
+                armCallbackFinalizationFallback();
+              }
+            }
+
             if (name === "transfer_to_operator") {
               if (
                 geminiScenario.transferEnabled &&
@@ -207,7 +251,10 @@ export async function handleGeminiLiveCall(
       },
 
       onTurnComplete() {
-        /* noop – audio stream continues */
+        if (pendingCallbackFinalization) {
+          pendingCallbackFinalization = false;
+          scheduleCallEndAfterCallback();
+        }
       },
 
       onError(err) {

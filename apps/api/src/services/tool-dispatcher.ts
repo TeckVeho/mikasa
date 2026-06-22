@@ -70,18 +70,49 @@ async function handleTransfer(
   return { status: "transferring", reason: args.reason };
 }
 
+function buildCallbackNote(args: Record<string, unknown>): string {
+  const lines: string[] = [];
+  const reason = args.reason != null ? String(args.reason).trim() : "";
+  if (reason) lines.push(`用件: ${reason}`);
+
+  const callerName =
+    args.caller_name != null ? String(args.caller_name).trim() : "";
+  if (callerName) lines.push(`お名前: ${callerName}`);
+
+  const companyName =
+    args.company_name != null ? String(args.company_name).trim() : "";
+  if (companyName) lines.push(`会社名: ${companyName}`);
+
+  const preferredTime =
+    args.preferred_time != null ? String(args.preferred_time).trim() : "";
+  if (preferredTime) lines.push(`希望時間帯: ${preferredTime}`);
+
+  if (args.collected_info != null && typeof args.collected_info === "object") {
+    lines.push(
+      `その他: ${JSON.stringify(args.collected_info, null, 0)}`,
+    );
+  }
+
+  return lines.join("\n");
+}
+
 async function handleRegisterCallback(
   args: Record<string, unknown>,
   context: ToolDispatchContext,
 ): Promise<unknown> {
+  const callbackNumber =
+    args.callback_number != null && String(args.callback_number).trim()
+      ? String(args.callback_number).trim()
+      : context.callerNumber;
+
   await prisma.callbackRequest.create({
     data: {
       id: newId(),
       tenantId: context.tenantId,
-      callerNumber: context.callerNumber,
+      callerNumber: callbackNumber,
       preferredTime: args.preferred_time != null ? String(args.preferred_time) : undefined,
       status: "pending",
-      note: "",
+      note: buildCallbackNote(args),
     },
   });
 

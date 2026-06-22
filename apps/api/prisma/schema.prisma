@@ -17,7 +17,7 @@ model Tenant {
   maintenanceMode    Boolean @default(false) @map("maintenance_mode")
   maintenanceMessage String? @map("maintenance_message") @db.Text
   billingPlan        String  @default("standard") @map("billing_plan") @db.VarChar(40)
-  voiceEngine        String  @default("flow") @map("voice_engine") @db.VarChar(20)
+  voiceEngine        String  @default("gemini_live") @map("voice_engine") @db.VarChar(20)
 
   notifyCallComplete Boolean @default(false) @map("notify_call_complete")
   notifyTransfer     Boolean @default(false) @map("notify_transfer")

@@ -13,9 +13,10 @@ import { PersonaEditor } from "@/components/gemini/PersonaEditor";
 import { RulesEditor } from "@/components/gemini/RulesEditor";
 import { KnowledgeEditor } from "@/components/gemini/KnowledgeEditor";
 import { ToolDefinitionEditor } from "@/components/gemini/ToolDefinitionEditor";
+import { GuardRailsEditor } from "@/components/gemini/GuardRailsEditor";
 import { PromptPreview } from "@/components/gemini/PromptPreview";
-import { TransferSettings } from "@/components/gemini/TransferSettings";
 import { TestCallDialog } from "@/components/gemini/TestCallDialog";
+import { TransferSettings } from "@/components/gemini/TransferSettings";
 
 type GeminiScenario = {
   id: string;
@@ -23,18 +24,20 @@ type GeminiScenario = {
   persona: string;
   rules: string;
   knowledge: string;
+  guardRails: string;
   toolDefinitions: string;
   transferEnabled: boolean;
   transferNumber: string;
   transferTimeout: number;
 };
 
-type Tab = "persona" | "rules" | "knowledge" | "tools";
+type Tab = "persona" | "rules" | "knowledge" | "guardRails" | "tools";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "persona", label: "ペルソナ" },
   { id: "rules", label: "対話ルール" },
   { id: "knowledge", label: "業務ナレッジ" },
+  { id: "guardRails", label: "ガードレール" },
   { id: "tools", label: "ツール定義" },
 ];
 
@@ -47,6 +50,7 @@ export default function GeminiSettingsPage() {
   const [persona, setPersona] = useState("");
   const [rules, setRules] = useState("");
   const [knowledge, setKnowledge] = useState("");
+  const [guardRails, setGuardRails] = useState("");
   const [toolDefinitions, setToolDefinitions] = useState("");
   const [transferEnabled, setTransferEnabled] = useState(false);
   const [transferNumber, setTransferNumber] = useState("");
@@ -72,6 +76,7 @@ export default function GeminiSettingsPage() {
     setPersona(q.data.persona ?? "");
     setRules(q.data.rules ?? "");
     setKnowledge(q.data.knowledge ?? "");
+    setGuardRails(q.data.guardRails ?? "");
     setToolDefinitions(q.data.toolDefinitions ?? "");
     setTransferEnabled(q.data.transferEnabled ?? false);
     setTransferNumber(q.data.transferNumber ?? "");
@@ -86,6 +91,7 @@ export default function GeminiSettingsPage() {
           persona,
           rules,
           knowledge,
+          guardRails,
           toolDefinitions,
           transferEnabled,
           transferNumber,
@@ -116,6 +122,7 @@ export default function GeminiSettingsPage() {
             persona,
             rules,
             knowledge,
+            guardRails,
             toolDefinitions,
           }),
         },
@@ -205,6 +212,9 @@ export default function GeminiSettingsPage() {
         )}
         {activeTab === "knowledge" && (
           <KnowledgeEditor value={knowledge} onChange={setKnowledge} scenarioId={id} />
+        )}
+        {activeTab === "guardRails" && (
+          <GuardRailsEditor value={guardRails} onChange={setGuardRails} />
         )}
         {activeTab === "tools" && (
           <ToolDefinitionEditor
