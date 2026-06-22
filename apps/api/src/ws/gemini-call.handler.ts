@@ -6,6 +6,7 @@ import {
   buildSystemInstruction,
   buildToolDeclarations,
 } from "../services/prompt-builder.js";
+import { getPronunciationDictionary } from "../services/pronunciation-dictionary.service.js";
 import {
   dispatchToolCall,
   type ToolDispatchContext,
@@ -96,6 +97,10 @@ export async function handleGeminiLiveCall(
     }, 15000);
   }
 
+  const pronunciationDictionary = await getPronunciationDictionary(
+    session.tenantId,
+  );
+
   const systemInstruction = buildSystemInstruction({
     persona: geminiScenario.persona,
     conversationRules: geminiScenario.conversationRules,
@@ -106,6 +111,7 @@ export async function handleGeminiLiveCall(
     languageCode: geminiScenario.languageCode,
     tenantName,
     callerNumber: session.variables.caller_number ?? "",
+    pronunciationDictionary,
   });
 
   const tools = buildToolDeclarations(geminiScenario.toolDefinitions);
@@ -116,6 +122,7 @@ export async function handleGeminiLiveCall(
     callerNumber: session.variables.caller_number ?? "",
     transferNumber: geminiScenario.transferNumber,
     transferTimeout: geminiScenario.transferTimeout,
+    toolDefinitions: geminiScenario.toolDefinitions,
   };
 
   async function finalize(status: string): Promise<void> {

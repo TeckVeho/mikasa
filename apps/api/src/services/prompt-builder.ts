@@ -1,3 +1,9 @@
+export type PronunciationEntry = {
+  word: string;
+  reading: string;
+  category?: string;
+};
+
 export type PromptBuildInput = {
   persona: string;
   conversationRules: string;
@@ -9,6 +15,7 @@ export type PromptBuildInput = {
   tenantName: string;
   callerNumber: string;
   recentSummaries?: string[];
+  pronunciationDictionary?: PronunciationEntry[];
 };
 
 const BUILT_IN_TOOLS = [
@@ -77,6 +84,19 @@ const BUILT_IN_TOOLS = [
   },
 ];
 
+export function buildPronunciationDictionarySection(
+  entries: PronunciationEntry[],
+): string | null {
+  if (entries.length === 0) return null;
+
+  const lines = entries.map(
+    (entry) => `  - 「${entry.reading}」（「${entry.word}」と書かない）`,
+  );
+
+  return `**読み方辞書（必ず指定の読みで出力する）:**
+${lines.join("\n")}`;
+}
+
 export function buildSystemInstruction(input: PromptBuildInput): string {
   const sections: string[] = [];
 
@@ -105,12 +125,31 @@ export function buildSystemInstruction(input: PromptBuildInput): string {
 - 数字・住所・人名はひと文字ずつ区切って話す。
 - 固有名詞は無理に読まず、おきゃくさまに確認を取る。`);
 
+  const pronunciationSection = buildPronunciationDictionarySection(
+    input.pronunciationDictionary ?? [],
+  );
+  if (pronunciationSection) {
+    sections.push(pronunciationSection);
+  }
+
   sections.push(`**重要:**
 - 通話が開始されたら、ユーザーの発話を待たずに、あなたから最初にあいさつしてください。
 - あいさつのあと、必ず「ごようけんをおうかがいいたします」と用件を質問してください。
 - 例:「おでんわありがとうございます。○○でございます。ごようけんをおうかがいいたします。」`);
 
   return sections.join("\n\n");
+}
+
+const TOOL_META_KEYS = ["_endpoint", "_method", "_headers", "_timeout"] as const;
+
+/** Gemini には渡さないカスタムツールのメタデータキー */
+export function stripToolMetadata(tool: unknown): unknown {
+  if (!tool || typeof tool !== "object" || Array.isArray(tool)) return tool;
+  const copy = { ...(tool as Record<string, unknown>) };
+  for (const key of TOOL_META_KEYS) {
+    delete copy[key];
+  }
+  return copy;
 }
 
 const SCHEMA_TYPE_MAP: Record<string, string> = {
@@ -139,7 +178,8 @@ function normalizeSchemaTypes(obj: unknown): unknown {
 }
 
 export function buildToolDeclarations(userTools: unknown[]): unknown[] {
-  const all = [...(userTools as unknown[]), ...BUILT_IN_TOOLS];
+  const userOnly = userTools.map(stripToolMetadata);
+  const all = [...userOnly, ...BUILT_IN_TOOLS];
   return all.map(normalizeSchemaTypes);
 }
 

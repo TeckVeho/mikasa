@@ -5,6 +5,7 @@ import {
   buildSystemInstruction,
   buildToolDeclarations,
 } from "../services/prompt-builder.js";
+import { getPronunciationDictionary } from "../services/pronunciation-dictionary.service.js";
 import { dispatchToolCall } from "../services/tool-dispatcher.js";
 import * as geminiRepo from "../repositories/gemini-scenario.repo.js";
 import * as callRepo from "../repositories/call-log.repo.js";
@@ -234,6 +235,9 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
           transcript: "",
         };
 
+        const pronunciationDictionary =
+          await getPronunciationDictionary(tenantId);
+
         const systemInstruction = buildSystemInstruction({
           persona,
           conversationRules,
@@ -244,6 +248,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
           languageCode,
           tenantName: tenant?.name ?? "",
           callerNumber: "test-call",
+          pronunciationDictionary,
         });
 
         const tools = buildToolDeclarations(toolDefinitions);
@@ -324,6 +329,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
                       callerNumber: "test-call",
                       transferNumber,
                       transferTimeout,
+                      toolDefinitions,
                     },
                   );
                   safeSend(ws, {
