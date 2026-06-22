@@ -72,8 +72,18 @@ export class GeminiLiveSession {
   connect(config: GeminiLiveConfig, callbacks: GeminiLiveCallbacks): void {
     this.callbacks = callbacks;
 
+    const apiKey = config.apiKey.trim();
+    if (!apiKey) {
+      const err = new Error(
+        "GEMINI_API_KEY が未設定です。apps/api/.env またはルート .env に GEMINI_API_KEY を設定してください。",
+      );
+      logger.error("Gemini Live: missing API key");
+      callbacks.onError(err);
+      return;
+    }
+
     const url =
-      `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${config.apiKey}`;
+      `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
 
     this.ws = new WebSocket(url);
 

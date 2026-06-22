@@ -20,6 +20,7 @@ export type ToolDispatchContext = {
   callerNumber: string;
   transferNumber: string | null;
   transferTimeout: number;
+  toolDefinitions?: unknown[];
 };
 
 const CUSTOM_TOOL_TIMEOUT_MS = 5_000;
@@ -41,7 +42,13 @@ export async function dispatchToolCall(
       case "register_callback":
         return wrap(await handleRegisterCallback(request.args, context));
       default:
-        return wrap(await handleCustomTool(request.args, request.name));
+        return wrap(
+          await handleCustomTool(
+            request.args,
+            request.name,
+            context.toolDefinitions ?? [],
+          ),
+        );
     }
   } catch (err) {
     logger.error({ err, tool: request.name }, "tool dispatch error");
@@ -122,29 +129,62 @@ async function handleRegisterCallback(
   };
 }
 
+function findToolDefinition(
+  toolDefinitions: unknown[],
+  toolName: string,
+): Record<string, unknown> | undefined {
+  const found = toolDefinitions.find(
+    (tool) =>
+      tool != null &&
+      typeof tool === "object" &&
+      (tool as { name?: string }).name === toolName,
+  );
+  return found != null && typeof found === "object"
+    ? (found as Record<string, unknown>)
+    : undefined;
+}
+
 async function handleCustomTool(
   args: Record<string, unknown>,
   toolName: string,
+  toolDefinitions: unknown[],
 ): Promise<unknown> {
-  const endpoint = args._endpoint;
-  if (typeof endpoint !== "string" || !endpoint) {
+  const toolDef = findToolDefinition(toolDefinitions, toolName);
+
+  const endpoint =
+    typeof toolDef?._endpoint === "string"
+      ? toolDef._endpoint
+      : typeof args._endpoint === "string"
+        ? args._endpoint
+        : undefined;
+  if (!endpoint) {
     return { error: "no endpoint configured" };
   }
 
   const method =
-    typeof args._method === "string" ? args._method.toUpperCase() : "POST";
+    typeof toolDef?._method === "string"
+      ? toolDef._method.toUpperCase()
+      : typeof args._method === "string"
+        ? args._method.toUpperCase()
+        : "POST";
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (args._headers && typeof args._headers === "object") {
-    Object.assign(headers, args._headers);
+  const toolHeaders = toolDef?._headers ?? args._headers;
+  if (toolHeaders && typeof toolHeaders === "object") {
+    Object.assign(headers, toolHeaders as Record<string, string>);
   }
 
-  const { _endpoint: _, _method: __, _headers: ___, ...payload } = args;
+  const timeoutMs =
+    typeof toolDef?._timeout === "number"
+      ? toolDef._timeout
+      : CUSTOM_TOOL_TIMEOUT_MS;
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CUSTOM_TOOL_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  const { _endpoint: _e, _method: _m, _headers: _h, ...payload } = args;
 
   try {
     const fetchOptions: RequestInit = {

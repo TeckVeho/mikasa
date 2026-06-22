@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "prisma generate --schema=../api/prisma/schema.prisma && tsc -p tsconfig.json",
-    "dev": "tsx watch src/index.ts",
+    "dev": "PORT=8081 tsx watch src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"
