@@ -31,6 +31,14 @@ type GeminiScenario = {
   transferTimeout: number;
 };
 
+type ScenarioDetail = {
+  id: string;
+  name: string;
+  flowJson: unknown;
+  scenarioType: string;
+  description: string | null;
+};
+
 type Tab = "persona" | "rules" | "knowledge" | "guardRails" | "tools";
 
 const TABS: { id: Tab; label: string }[] = [
@@ -47,6 +55,7 @@ export default function GeminiSettingsPage() {
   const qc = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<Tab>("persona");
+  const [name, setName] = useState("");
   const [persona, setPersona] = useState("");
   const [rules, setRules] = useState("");
   const [knowledge, setKnowledge] = useState("");
@@ -62,6 +71,15 @@ export default function GeminiSettingsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [testCallOpen, setTestCallOpen] = useState(false);
 
+  const scenarioQ = useQuery({
+    queryKey: ["scenario", id],
+    queryFn: async () => {
+      const r = await apiJson<ScenarioDetail>(`/v1/scenarios/${id}`);
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+  });
+
   const q = useQuery({
     queryKey: ["gemini-scenario", id],
     queryFn: async () => {
@@ -70,6 +88,10 @@ export default function GeminiSettingsPage() {
       return r.data;
     },
   });
+
+  useEffect(() => {
+    if (scenarioQ.data) setName(scenarioQ.data.name);
+  }, [scenarioQ.data]);
 
   useEffect(() => {
     if (!q.data) return;
@@ -85,6 +107,26 @@ export default function GeminiSettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const trimmedName = name.trim();
+      if (!trimmedName) {
+        throw new Error("シナリオ名を入力してください");
+      }
+
+      if (scenarioQ.data) {
+        const scenarioRes = await apiJson(`/v1/scenarios/${id}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            name: trimmedName,
+            flowJson: scenarioQ.data.flowJson,
+            scenarioType: scenarioQ.data.scenarioType,
+            description: scenarioQ.data.description,
+          }),
+        });
+        if (!scenarioRes.ok) {
+          throw new Error(scenarioRes.message ?? scenarioRes.error);
+        }
+      }
+
       const r = await apiJson(`/v1/scenarios/${id}/gemini`, {
         method: "PUT",
         body: JSON.stringify({
@@ -102,6 +144,8 @@ export default function GeminiSettingsPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["gemini-scenario", id] });
+      qc.invalidateQueries({ queryKey: ["scenario", id] });
+      qc.invalidateQueries({ queryKey: ["scenarios"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     },
@@ -141,7 +185,7 @@ export default function GeminiSettingsPage() {
     }
   }
 
-  if (q.isLoading) {
+  if (scenarioQ.isLoading || q.isLoading) {
     return (
       <div className="animate-fade-in-up">
         <PageHeader title="Gemini Live 設定" />
@@ -153,7 +197,7 @@ export default function GeminiSettingsPage() {
     );
   }
 
-  if (q.isError) {
+  if (scenarioQ.isError || q.isError) {
     return (
       <div className="animate-fade-in-up">
         <PageHeader title="Gemini Live 設定" />
@@ -184,6 +228,18 @@ export default function GeminiSettingsPage() {
           </div>
         }
       />
+
+      <div className="mb-6 rounded-xl border border-border bg-surface p-5">
+        <label className="mb-1.5 block text-sm font-medium text-text">
+          シナリオ名
+        </label>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full max-w-md rounded-lg border border-border bg-white px-3 py-2 text-sm text-text outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+          placeholder="シナリオ名を入力"
+        />
+      </div>
 
       {/* Tab navigation */}
       <div className="mb-4 flex gap-2">
