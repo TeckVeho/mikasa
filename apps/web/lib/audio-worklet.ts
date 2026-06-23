@@ -61,6 +61,9 @@ export class AudioCapture {
 
     try {
       this.context = new AudioContext();
+      if (this.context.state === "suspended") {
+        await this.context.resume();
+      }
       this.sourceNode = this.context.createMediaStreamSource(this.stream);
       this.processorNode = this.context.createScriptProcessor(BUFFER_SIZE, 1, 1);
 

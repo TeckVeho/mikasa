@@ -157,7 +157,7 @@ variable "cloud_run_api_timeout" {
   type        = string
   nullable    = true
   default     = null
-  description = "Override API timeout; if null, use module.tier_specs from resource_tier."
+  description = "Override API request timeout; if null, defaults to 3600s (WebSocket long-lived connections)."
 }
 
 variable "cloud_run_api_concurrency" {

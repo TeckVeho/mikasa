@@ -18,7 +18,10 @@ import { verifyAuthToken } from "../services/auth.service.js";
 type ClientMessage =
   | { type: "start"; scenarioId: string }
   | { type: "audio"; data: string }
-  | { type: "stop" };
+  | { type: "stop" }
+  | { type: "pong" };
+
+const HEARTBEAT_INTERVAL_MS = 25_000;
 
 function safeSend(ws: WebSocket, data: unknown): void {
   if (ws.readyState === ws.OPEN) {
@@ -118,6 +121,23 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
     let gemini: GeminiLiveSession | null = null;
     let testSession: TestSessionState | null = null;
     let finalized = false;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+
+    function startHeartbeat(): void {
+      stopHeartbeat();
+      heartbeatTimer = setInterval(() => {
+        safeSend(ws, { type: "ping" });
+      }, HEARTBEAT_INTERVAL_MS);
+    }
+
+    function stopHeartbeat(): void {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    }
+
+    startHeartbeat();
 
     async function finalizeTestCall(): Promise<void> {
       if (finalized || !testSession) return;
@@ -298,8 +318,10 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             languageCode,
           },
           {
-            onSetupComplete() {
-              gemini?.sendInitialTurn();
+            onSetupComplete(resumed) {
+              if (!resumed) {
+                gemini?.sendInitialTurn();
+              }
             },
 
             onAudio(pcm24kChunk) {
@@ -410,9 +432,14 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
         return;
       }
 
+      if (msg.type === "pong") {
+        return;
+      }
+
       if (msg.type === "stop") {
-        gemini?.close();
+        const session = gemini;
         gemini = null;
+        session?.close();
         void finalizeTestCall();
         safeSend(ws, { type: "ended" });
         return;
@@ -420,6 +447,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
     });
 
     ws.on("close", () => {
+      stopHeartbeat();
       gemini?.close();
       gemini = null;
       void finalizeTestCall();
