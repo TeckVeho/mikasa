@@ -5,6 +5,7 @@ const DEFAULT_DEV_TENANT_ID = "01HZXEXAMPLE00000000000000";
 
 export type TestCallMessage =
   | { type: "ready" }
+  | { type: "ping" }
   | { type: "audio"; data: string }
   | { type: "transcript"; role: "user" | "model"; text: string }
   | { type: "tool_call"; name: string; args: unknown }
@@ -67,11 +68,15 @@ export class TestCallClient {
   private pendingScenarioId: string | null = null;
   private callbacks: TestCallCallbacks | null = null;
   private started = false;
+  private userStopped = false;
+  private endedNotified = false;
 
   connect(scenarioId: string, callbacks: TestCallCallbacks): void {
     this.pendingScenarioId = scenarioId;
     this.callbacks = callbacks;
     this.started = false;
+    this.userStopped = false;
+    this.endedNotified = false;
 
     void this.openAndAuth();
   }
@@ -112,6 +117,13 @@ export class TestCallClient {
       const cb = this.callbacks;
       if (!cb) return;
 
+      if (msg.type === "ping") {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({ type: "pong" }));
+        }
+        return;
+      }
+
       if (msg.type === "ready") {
         if (
           this.started ||
@@ -145,20 +157,27 @@ export class TestCallClient {
           cb.onToolResult(msg.name, msg.result);
           break;
         case "error":
+          this.endedNotified = true;
           cb.onError(msg.message);
           break;
         case "ended":
+          this.endedNotified = true;
           cb.onEnded();
           break;
       }
     };
 
     this.ws.onerror = () => {
+      if (this.userStopped || this.endedNotified) return;
+      this.endedNotified = true;
       this.callbacks?.onError("WebSocket 接続エラーが発生しました");
     };
 
     this.ws.onclose = () => {
       this.ws = null;
+      if (this.userStopped || this.endedNotified) return;
+      this.endedNotified = true;
+      this.callbacks?.onError("接続が切断されました。テスト通話を終了してください。");
     };
   }
 
@@ -168,6 +187,7 @@ export class TestCallClient {
   }
 
   stop(): void {
+    this.userStopped = true;
     if (!this.ws) return;
     if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type: "stop" }));

@@ -31,7 +31,8 @@ locals {
   cloud_run_api_max_instances_effective = coalesce(var.cloud_run_api_max_instances, local.tier_api.max_instances)
   cloud_run_api_cpu_effective           = coalesce(var.cloud_run_api_cpu, local.tier_api.cpu)
   cloud_run_api_memory_effective        = coalesce(var.cloud_run_api_memory, local.tier_api.memory)
-  cloud_run_api_timeout_effective       = coalesce(var.cloud_run_api_timeout, local.tier_api.timeout)
+  # WebSocket (test-call / call-stream) needs long-lived connections; tier wiki defaults (60–300s) are too short.
+  cloud_run_api_timeout_effective       = coalesce(var.cloud_run_api_timeout, "3600s")
   cloud_run_api_concurrency_effective   = coalesce(var.cloud_run_api_concurrency, local.tier_api.concurrency)
   cloud_run_web_min_instances_effective = coalesce(var.cloud_run_web_min_instances, local.tier_web.min_instances)
   cloud_run_web_max_instances_effective = coalesce(var.cloud_run_web_max_instances, local.tier_web.max_instances)

@@ -139,6 +139,7 @@ web_env_vars = {
 # region = "asia-northeast1"
 #
 # Cloud Run API/Web/Worker + Cloud SQL sizing default from terraform-modules tier_specs via resource_tier (Worker uses wiki Web row values).
+# API timeout defaults to 3600s when cloud_run_api_timeout is omitted (WebSocket test-call / call-stream).
 # Override only when needed (nullable vars): cloud_run_api_*, cloud_run_web_*, cloud_run_worker_*, sql_tier.
 
 # --- Secret Manager: create secrets in GCP (Console or gcloud); never commit plaintext values ---

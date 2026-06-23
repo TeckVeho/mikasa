@@ -189,8 +189,10 @@ export async function handleGeminiLiveCall(
       languageCode: geminiScenario.languageCode,
     },
     {
-      onSetupComplete() {
-        gemini.sendInitialTurn();
+      onSetupComplete(resumed) {
+        if (!resumed) {
+          gemini.sendInitialTurn();
+        }
       },
 
       onAudio(pcm24kChunk) {
