@@ -540,11 +540,11 @@ export function resolveMockResponse<T>(
   // ─── その他 GET ───
   if (method === "GET" && pathname.startsWith("/v1/callbacks")) {
     const allCallbacks = [
-      { id: "cb_1", callerNumber: "090-1234-5678", preferredTime: "本日 14:00", status: "pending", createdAt: new Date(Date.now() - 1800000).toISOString(), completedAt: null },
-      { id: "cb_2", callerNumber: "080-9876-5432", preferredTime: "明日 午前中", status: "pending", createdAt: new Date(Date.now() - 3600000).toISOString(), completedAt: null },
-      { id: "cb_3", callerNumber: "070-5555-1234", preferredTime: null, status: "pending", createdAt: new Date(Date.now() - 7200000).toISOString(), completedAt: null },
-      { id: "cb_4", callerNumber: "090-3333-7777", preferredTime: "昨日 16:00", status: "completed", createdAt: new Date(Date.now() - 86400000).toISOString(), completedAt: new Date(Date.now() - 82800000).toISOString() },
-      { id: "cb_5", callerNumber: "080-2222-8888", preferredTime: "本日 10:00", status: "no_answer", createdAt: new Date(Date.now() - 14400000).toISOString(), completedAt: null },
+      { id: "cb_1", callLogId: "cl_1", callerNumber: "090-1234-5678", preferredTime: "本日 14:00", status: "pending", createdAt: new Date(Date.now() - 1800000).toISOString(), completedAt: null, assigneeId: null, note: "" },
+      { id: "cb_2", callLogId: "cl_2", callerNumber: "080-9876-5432", preferredTime: "明日 午前中", status: "pending", createdAt: new Date(Date.now() - 3600000).toISOString(), completedAt: null, assigneeId: null, note: "" },
+      { id: "cb_3", callLogId: null, callerNumber: "070-5555-1234", preferredTime: null, status: "pending", createdAt: new Date(Date.now() - 7200000).toISOString(), completedAt: null, assigneeId: null, note: "" },
+      { id: "cb_4", callLogId: "cl_4", callerNumber: "090-3333-7777", preferredTime: "昨日 16:00", status: "completed", createdAt: new Date(Date.now() - 86400000).toISOString(), completedAt: new Date(Date.now() - 82800000).toISOString(), assigneeId: null, note: "" },
+      { id: "cb_5", callLogId: "cl_5", callerNumber: "080-2222-8888", preferredTime: "本日 10:00", status: "no_answer", createdAt: new Date(Date.now() - 14400000).toISOString(), completedAt: null, assigneeId: null, note: "" },
     ];
     const statusFilter = url.searchParams.get("status");
     const filtered = statusFilter && statusFilter !== "all"

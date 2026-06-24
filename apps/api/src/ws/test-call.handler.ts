@@ -37,6 +37,7 @@ type TestSessionState = {
   scenarioId: string;
   phoneNumberId: string;
   twilioCallSid: string;
+  callLogId: string;
   transcript: string;
 };
 
@@ -150,7 +151,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
       finalized = true;
       const s = testSession;
       testSession = null;
-      const id = newId();
+      const id = s.callLogId;
       const transcriptText = s.transcript.trim() || null;
       try {
         await callRepo.upsertCallLogByTwilioSid({
@@ -270,12 +271,14 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
         }
 
         const twilioCallSid = `tctest${newId()}`;
+        const callLogId = newId();
         testSession = {
           startedAt: Date.now(),
           tenantId,
           scenarioId,
           phoneNumberId,
           twilioCallSid,
+          callLogId,
           transcript: "",
         };
 
@@ -355,6 +358,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
                       tenantId,
                       callSid: twilioCallSid,
                       callerNumber: "音声テスト",
+                      callLogId,
                       transferNumber,
                       transferTimeout,
                       toolDefinitions,

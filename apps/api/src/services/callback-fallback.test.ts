@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildFallbackCallbackNote,
   extractCallbackInfoFromTranscript,
+  hasCallbackProgressSignal,
   isCallbackClosingSpoken,
+  mentionsCallbackFlow,
   shouldCreateFallbackCallback,
+  stripSpeakerPrefixes,
 } from "./callback-fallback.js";
 
 const sampleTranscript = `
@@ -22,15 +25,59 @@ AI: 4982ですね。
 AI: かしこまりました。おりかえしのごれんらくをうけたまわりました。おりかえしはよくえいぎょうびになりますので、あらかじめご了承ください。おでんわありがとうございました。
 `.trim();
 
+const chunkedClosingTranscript = `
+お客様: はい。大丈夫です。
+AI: かしこまりました。おりかえしのご
+AI: れんらくをうけたまわりました。おりかえしはよくえいぎょうびになりますので、あらかじめご了承ください。
+`.trim();
+
+const hearingOnlyTranscript =
+  "AI: たんとうのものよりおりかえしごれんらくいたします。";
+
+const hearingWithPhoneTranscript = `
+AI: たんとうのものよりおりかえしごれんらくいたします。
+お客様: 09094337901
+`.trim();
+
+describe("stripSpeakerPrefixes", () => {
+  it("removes speaker labels and joins chunks", () => {
+    expect(stripSpeakerPrefixes(chunkedClosingTranscript)).toBe(
+      "はい。大丈夫です。かしこまりました。おりかえしのごれんらくをうけたまわりました。おりかえしはよくえいぎょうびになりますので、あらかじめご了承ください。",
+    );
+  });
+});
+
 describe("isCallbackClosingSpoken", () => {
   it("detects callback closing utterance", () => {
     expect(isCallbackClosingSpoken(sampleTranscript)).toBe(true);
   });
 
+  it("detects closing even when split across AI chunks", () => {
+    expect(isCallbackClosingSpoken(chunkedClosingTranscript)).toBe(true);
+  });
+
   it("returns false for hearing-only transcript", () => {
-    expect(
-      isCallbackClosingSpoken("AI: たんとうのものよりおりかえしごれんらくいたします。"),
-    ).toBe(false);
+    expect(isCallbackClosingSpoken(hearingOnlyTranscript)).toBe(false);
+  });
+});
+
+describe("mentionsCallbackFlow", () => {
+  it("detects おりかえし in hearing phase", () => {
+    expect(mentionsCallbackFlow(hearingOnlyTranscript)).toBe(true);
+  });
+});
+
+describe("hasCallbackProgressSignal", () => {
+  it("detects phone number in user lines", () => {
+    expect(hasCallbackProgressSignal(hearingWithPhoneTranscript)).toBe(true);
+  });
+
+  it("returns false for hearing-only opening", () => {
+    expect(hasCallbackProgressSignal(hearingOnlyTranscript)).toBe(false);
+  });
+
+  it("detects final confirmation agreement", () => {
+    expect(hasCallbackProgressSignal(sampleTranscript)).toBe(true);
   });
 });
 
@@ -42,6 +89,33 @@ describe("shouldCreateFallbackCallback", () => {
         wasRegistered: false,
       }),
     ).toBe(true);
+  });
+
+  it("returns true for chunked closing transcript", () => {
+    expect(
+      shouldCreateFallbackCallback({
+        transcript: chunkedClosingTranscript,
+        wasRegistered: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns true when hearing progressed with phone number", () => {
+    expect(
+      shouldCreateFallbackCallback({
+        transcript: hearingWithPhoneTranscript,
+        wasRegistered: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for hearing-only opening", () => {
+    expect(
+      shouldCreateFallbackCallback({
+        transcript: hearingOnlyTranscript,
+        wasRegistered: false,
+      }),
+    ).toBe(false);
   });
 
   it("returns false when tool was already registered", () => {

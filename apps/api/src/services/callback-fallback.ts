@@ -21,25 +21,72 @@ const CALLBACK_CLOSING_MARKERS = [
   "おりかえしごれんらくをうけたまわりました",
 ];
 
+/** 話者プレフィックスを除去して本文のみ連結（チャンク分割対策） */
+export function stripSpeakerPrefixes(transcript: string): string {
+  return getLines(transcript)
+    .map((line) => line.replace(/^(AI|お客様):\s*/, ""))
+    .join("");
+}
+
+function normalizeForMatch(text: string): string {
+  return text.replace(/\s+/g, "").toLowerCase();
+}
+
+function transcriptBodyForMatch(transcript: string): string {
+  return normalizeForMatch(stripSpeakerPrefixes(transcript));
+}
+
+/** 折り返しフローに入った会話か（「おりかえし」の言及） */
+export function mentionsCallbackFlow(transcript: string): boolean {
+  return transcriptBodyForMatch(transcript).includes("おりかえし");
+}
+
+/** ヒアリングが一定進んだ / クロージングに至ったシグナル */
+export function hasCallbackProgressSignal(transcript: string): boolean {
+  const body = transcriptBodyForMatch(transcript);
+  const userLines = getSpeakerLines(transcript, "user");
+  const userText = userLines.join(" ");
+
+  if (body.includes("うけたまわりました")) {
+    return true;
+  }
+
+  if (/0\d[\d\s、\-]{8,14}\d/.test(userText)) {
+    return true;
+  }
+
+  const normalizedUser = normalizeForMatch(userText);
+  if (
+    /よろしいでしょうか|こちらでよろしいでしょうか/.test(body) &&
+    /はい|大丈夫|ええ/.test(normalizedUser)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /** AI が折り返しクロージング文言を発話したか */
 export function isCallbackClosingSpoken(transcript: string): boolean {
-  const normalized = normalizeForMatch(transcript);
+  const body = transcriptBodyForMatch(transcript);
   return CALLBACK_CLOSING_MARKERS.some((marker) =>
-    normalized.includes(normalizeForMatch(marker)),
+    body.includes(normalizeForMatch(marker)),
   );
 }
 
-/** ツール未発火のまま折り返しクロージングが行われたか */
+/** ツール未発火のまま折り返し登録が必要と判断できるか */
 export function shouldCreateFallbackCallback(input: {
   transcript: string;
   wasRegistered: boolean;
 }): boolean {
   if (input.wasRegistered) return false;
-  return isCallbackClosingSpoken(input.transcript);
-}
+  if (!mentionsCallbackFlow(input.transcript)) return false;
 
-function normalizeForMatch(text: string): string {
-  return text.replace(/\s+/g, "").toLowerCase();
+  if (isCallbackClosingSpoken(input.transcript)) {
+    return true;
+  }
+
+  return hasCallbackProgressSignal(input.transcript);
 }
 
 function getLines(transcript: string): string[] {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   PhoneForwarded,
@@ -9,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +21,7 @@ import { apiJson } from "@/lib/api";
 
 type CallbackRow = {
   id: string;
+  callLogId: string | null;
   callerNumber: string;
   preferredTime: string | null;
   status: string;
@@ -226,6 +229,15 @@ export default function CallbacksPage() {
                           <MessageSquare className="mt-0.5 h-3 w-3 shrink-0" />
                           {r.note}
                         </p>
+                      )}
+                      {r.callLogId && (
+                        <Link
+                          href={`/calls/${r.callLogId}`}
+                          className="mt-1.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          <FileText className="h-3 w-3" />
+                          通話ログを見る
+                        </Link>
                       )}
                     </td>
                     <td className="px-4 py-3">

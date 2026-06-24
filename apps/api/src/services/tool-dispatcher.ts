@@ -18,6 +18,8 @@ export type ToolDispatchContext = {
   tenantId: string;
   callSid: string;
   callerNumber: string;
+  /** 通話開始時に確定した通話ログ ID（register_callback の紐付け用） */
+  callLogId: string;
   transferNumber: string | null;
   transferTimeout: number;
   toolDefinitions?: unknown[];
@@ -116,6 +118,7 @@ async function handleRegisterCallback(
     data: {
       id: newId(),
       tenantId: context.tenantId,
+      callLogId: context.callLogId,
       callerNumber: callbackNumber,
       preferredTime: args.preferred_time != null ? String(args.preferred_time) : undefined,
       status: "pending",
@@ -127,6 +130,7 @@ async function handleRegisterCallback(
     {
       tenantId: context.tenantId,
       callSid: context.callSid,
+      callLogId: context.callLogId,
       callbackNumber,
       reason: args.reason,
     },
