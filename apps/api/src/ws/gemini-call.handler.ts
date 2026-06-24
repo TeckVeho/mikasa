@@ -24,6 +24,7 @@ import { newId } from "../utils/id.js";
 import * as callRepo from "../repositories/call-log.repo.js";
 import { publishCallCompleted } from "../lib/pubsub.js";
 import { createCallbackFinalizationCoordinator } from "./callback-finalization.js";
+import { maybeCreateFallbackCallbackRequest } from "../services/callback-fallback.js";
 import { logger } from "../lib/logger.js";
 import { activeCallsStore } from "../services/active-calls.service.js";
 
@@ -59,6 +60,7 @@ export async function handleGeminiLiveCall(
   const recordingMulawChunks: Buffer[] = [];
   let accumulatedTranscript = "";
   let finalized = false;
+  const callLogId = newId();
 
   const gemini = new GeminiLiveSession();
 
@@ -101,6 +103,7 @@ export async function handleGeminiLiveCall(
     tenantId: session.tenantId,
     callSid,
     callerNumber: session.variables.caller_number ?? "",
+    callLogId,
     transferNumber: geminiScenario.transferNumber,
     transferTimeout: geminiScenario.transferTimeout,
     toolDefinitions: geminiScenario.toolDefinitions,
@@ -114,21 +117,20 @@ export async function handleGeminiLiveCall(
     gemini.close();
     activeCallsStore.end(callSid);
 
-    const id = newId();
     let audioStoragePath: string | null = null;
     if (recordingMulawChunks.length > 0) {
       const pcm = mulawBuffersToPcm16Buffer(recordingMulawChunks);
       const wav = pcm16ToWavBuffer(pcm, 8000);
       audioStoragePath = await uploadCallRecording(
         session.tenantId,
-        id,
+        callLogId,
         wav,
       );
     }
 
     const transcriptText = accumulatedTranscript.trim() || null;
     await callRepo.upsertCallLogByTwilioSid({
-      id,
+      id: callLogId,
       tenantId: session.tenantId,
       phoneNumberId: session.phoneNumberId,
       scenarioId: session.scenarioId,
@@ -140,9 +142,22 @@ export async function handleGeminiLiveCall(
       audioStoragePath,
     });
 
+    try {
+      await maybeCreateFallbackCallbackRequest({
+        tenantId: session.tenantId,
+        callSid,
+        callerNumber: session.variables.caller_number ?? "unknown",
+        transcript: accumulatedTranscript,
+        wasRegistered: callbackFinalization.wasRegisteredSuccessfully(),
+        callLogId,
+      });
+    } catch (err) {
+      logger.error({ err, callSid }, "register_callback fallback failed");
+    }
+
     await publishCallCompleted({
       tenantId: session.tenantId,
-      callLogId: id,
+      callLogId,
     });
   }
 

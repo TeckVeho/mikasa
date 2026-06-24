@@ -28,6 +28,7 @@ export function createCallbackFinalizationCoordinator(
   let postCloseTimer: ReturnType<typeof setTimeout> | null = null;
   let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
   let inFlightRegister: Promise<boolean> | null = null;
+  let registeredSuccessfully = false;
 
   function clearPostCloseTimer(): void {
     if (postCloseTimer) {
@@ -84,7 +85,10 @@ export function createCallbackFinalizationCoordinator(
     promise: Promise<{ status?: string; error?: string }>,
   ): void {
     const tracked = promise.then((result) => {
-      if (result.status === "registered") return true;
+      if (result.status === "registered") {
+        registeredSuccessfully = true;
+        return true;
+      }
       if (result.error) {
         logger.error(
           { error: result.error },
@@ -103,6 +107,7 @@ export function createCallbackFinalizationCoordinator(
   }
 
   function onRegisterCallbackSucceeded(): void {
+    registeredSuccessfully = true;
     pendingClose = true;
     armFallback();
     if (turnCompleteAwaitingDispatch) {
@@ -153,6 +158,10 @@ export function createCallbackFinalizationCoordinator(
     }
   }
 
+  function wasRegisteredSuccessfully(): boolean {
+    return registeredSuccessfully;
+  }
+
   function reset(): void {
     clearPostCloseTimer();
     clearFallbackTimer();
@@ -160,6 +169,7 @@ export function createCallbackFinalizationCoordinator(
     closing = false;
     turnCompleteAwaitingDispatch = false;
     inFlightRegister = null;
+    registeredSuccessfully = false;
   }
 
   return {
@@ -168,6 +178,7 @@ export function createCallbackFinalizationCoordinator(
     onTurnComplete,
     shouldSkipOnClose,
     warnIfInterrupted,
+    wasRegisteredSuccessfully,
     reset,
   };
 }
