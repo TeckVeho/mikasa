@@ -123,6 +123,16 @@ async function handleRegisterCallback(
     },
   });
 
+  logger.info(
+    {
+      tenantId: context.tenantId,
+      callSid: context.callSid,
+      callbackNumber,
+      reason: args.reason,
+    },
+    "register_callback saved",
+  );
+
   return {
     status: "registered",
     message: "折り返しリクエストを登録しました",

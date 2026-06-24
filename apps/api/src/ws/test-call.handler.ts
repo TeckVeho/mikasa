@@ -14,6 +14,7 @@ import { prisma } from "../lib/prisma.js";
 import { logger } from "../lib/logger.js";
 import { newId } from "../utils/id.js";
 import { verifyAuthToken } from "../services/auth.service.js";
+import { createCallbackFinalizationCoordinator } from "./callback-finalization.js";
 
 type ClientMessage =
   | { type: "start"; scenarioId: string }
@@ -122,6 +123,9 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
     let testSession: TestSessionState | null = null;
     let finalized = false;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let callbackFinalization: ReturnType<
+      typeof createCallbackFinalizationCoordinator
+    > | null = null;
 
     function startHeartbeat(): void {
       stopHeartbeat();
@@ -141,6 +145,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
 
     async function finalizeTestCall(): Promise<void> {
       if (finalized || !testSession) return;
+      callbackFinalization?.warnIfInterrupted("finalizeTestCall");
       finalized = true;
       const s = testSession;
       testSession = null;
@@ -274,38 +279,20 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
         const tools = buildToolDeclarations(toolDefinitions);
 
         gemini = new GeminiLiveSession();
-        let pendingCallbackFinalization = false;
-        let callbackFallbackTimer: NodeJS.Timeout | null = null;
+        const CALLBACK_POST_CLOSE_MS = 2500;
 
-        function scheduleTestCallEndAfterCallback(): void {
-          if (callbackFallbackTimer) {
-            clearTimeout(callbackFallbackTimer);
-            callbackFallbackTimer = null;
-          }
-          callbackFallbackTimer = setTimeout(() => {
-            callbackFallbackTimer = null;
+        callbackFinalization = createCallbackFinalizationCoordinator({
+          onBeginClosing: () => {
+            gemini?.close();
+          },
+          onEndCall: () => {
             gemini?.close();
             gemini = null;
             void finalizeTestCall();
             safeSend(ws, { type: "ended" });
-          }, 4000);
-        }
-
-        function armCallbackFinalizationFallback(): void {
-          setTimeout(() => {
-            if (pendingCallbackFinalization && gemini) {
-              pendingCallbackFinalization = false;
-              if (callbackFallbackTimer) {
-                clearTimeout(callbackFallbackTimer);
-                callbackFallbackTimer = null;
-              }
-              gemini.close();
-              gemini = null;
-              void finalizeTestCall();
-              safeSend(ws, { type: "ended" });
-            }
-          }, 15000);
-        }
+          },
+          postCloseMs: CALLBACK_POST_CLOSE_MS,
+        });
 
         gemini.connect(
           {
@@ -343,17 +330,28 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
               safeSend(ws, { type: "tool_call", name, args });
               void (async () => {
                 try {
-                  const result = await dispatchToolCall(
+                  const dispatchPromise = dispatchToolCall(
                     { id, name, args },
                     {
                       tenantId,
-                      callSid: "test-call",
-                      callerNumber: "test-call",
+                      callSid: twilioCallSid,
+                      callerNumber: "音声テスト",
                       transferNumber,
                       transferTimeout,
                       toolDefinitions,
                     },
                   );
+
+                  if (name === "register_callback") {
+                    callbackFinalization?.trackRegisterCallbackDispatch(
+                      dispatchPromise.then((r) => ({
+                        status: (r.result as { status?: string }).status,
+                        error: (r.result as { error?: string }).error,
+                      })),
+                    );
+                  }
+
+                  const result = await dispatchPromise;
                   safeSend(ws, {
                     type: "tool_result",
                     name,
@@ -364,8 +362,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
                   if (name === "register_callback") {
                     const payload = result.result as { status?: string };
                     if (payload.status === "registered") {
-                      pendingCallbackFinalization = true;
-                      armCallbackFinalizationFallback();
+                      callbackFinalization?.onRegisterCallbackSucceeded();
                     }
                   }
                 } catch (err) {
@@ -376,10 +373,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             },
 
             onTurnComplete() {
-              if (pendingCallbackFinalization) {
-                pendingCallbackFinalization = false;
-                scheduleTestCallEndAfterCallback();
-              }
+              void callbackFinalization?.onTurnComplete();
             },
 
             onError(err) {
@@ -394,6 +388,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             },
 
             onClose() {
+              if (callbackFinalization?.shouldSkipOnClose()) return;
               if (gemini !== null) {
                 gemini = null;
                 safeSend(ws, { type: "ended" });

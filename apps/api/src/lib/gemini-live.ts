@@ -338,6 +338,15 @@ export class GeminiLiveSession {
       this.reconnectOnGoAway();
     }
 
+    // toolCall を turnComplete より先に処理し、register_callback の非同期 dispatch と
+    // turnComplete のレースを減らす
+    if (msg.toolCall?.functionCalls) {
+      for (const fc of msg.toolCall.functionCalls) {
+        logger.info({ toolName: fc.name, args: fc.args }, "Gemini Live: tool call received");
+        this.callbacks?.onToolCall(fc.id, fc.name, fc.args);
+      }
+    }
+
     const sc = msg.serverContent;
     if (sc) {
       if (sc.interrupted) {
@@ -363,13 +372,6 @@ export class GeminiLiveSession {
 
       if (sc.turnComplete) {
         this.callbacks?.onTurnComplete();
-      }
-    }
-
-    if (msg.toolCall?.functionCalls) {
-      for (const fc of msg.toolCall.functionCalls) {
-        logger.info({ toolName: fc.name, args: fc.args }, "Gemini Live: tool call received");
-        this.callbacks?.onToolCall(fc.id, fc.name, fc.args);
       }
     }
   }
