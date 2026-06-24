@@ -199,7 +199,8 @@ variable "web_env_vars" {
   default     = { NODE_ENV = "production" }
   description = <<-EOT
     Plain environment variables for the web Cloud Run service (Next.js).
-    Typical keys: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_BASE_URL (see frontend/.env.example).
+    Typical keys: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_BASE_URL (see apps/web/.env.example).
+    NEXT_PUBLIC_API_URL must be the API origin only (no /api/v1 suffix; client paths include /v1).
     NEXT_PUBLIC_* are baked in at docker build for client bundles; keep Cloud Build substitutions aligned with these URLs.
   EOT
 }

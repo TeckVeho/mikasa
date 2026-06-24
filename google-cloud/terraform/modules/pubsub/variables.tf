@@ -14,5 +14,5 @@ variable "subscription_name" {
 
 variable "cloud_run_service_account" {
   type        = string
-  description = "Runtime SA granted roles/pubsub.subscriber."
+  description = "Runtime SA granted roles/pubsub.publisher (API) and roles/pubsub.subscriber (worker)."
 }

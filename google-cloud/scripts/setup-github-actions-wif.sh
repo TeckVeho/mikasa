@@ -312,7 +312,7 @@ Secrets (per environment):
 Variables (single-project — leave AR/DEPLOY empty or set both to ${PROJECT_ID}):
   GCP_AR_PROJECT_ID=${PROJECT_ID}          # optional; omit for workflow default
   GCP_DEPLOY_PROJECT_ID=${PROJECT_ID}      # optional; omit for workflow default
-  GCP_NEXT_PUBLIC_API_URL=<your-api-url>   # required for full/web builds
+  GCP_NEXT_PUBLIC_API_URL=<api-origin-only>   # e.g. https://logivoice-api.example.com (no /api/v1 suffix)
   GCP_NEXT_PUBLIC_BASE_URL=<your-web-url>
   GCP_NEXT_PUBLIC_FIREBASE_API_KEY=<...>
   GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${PROJECT_ID}.firebaseapp.com

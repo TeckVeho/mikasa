@@ -46,7 +46,7 @@ substitutions:
   _TAG: prod
   _AR_PROJECT_ID: ''
   _DEPLOY_PROJECT_ID: ''
-  _NEXT_PUBLIC_API_URL: 'https://api.example.com/api/v1'
+  _NEXT_PUBLIC_API_URL: 'https://api.example.com'
   _NEXT_PUBLIC_BASE_URL: 'https://app.example.com'
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''
   _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''

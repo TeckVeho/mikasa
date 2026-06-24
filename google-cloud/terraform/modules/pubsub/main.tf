@@ -21,6 +21,12 @@ resource "google_pubsub_subscription" "summarize_worker" {
   depends_on = [google_pubsub_topic.call_completed]
 }
 
+resource "google_pubsub_topic_iam_member" "api_publisher" {
+  topic  = google_pubsub_topic.call_completed.id
+  role   = "roles/pubsub.publisher"
+  member = "serviceAccount:${var.cloud_run_service_account}"
+}
+
 resource "google_pubsub_subscription_iam_member" "worker_subscriber" {
   subscription = google_pubsub_subscription.summarize_worker.id
   role           = "roles/pubsub.subscriber"

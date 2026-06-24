@@ -42,7 +42,7 @@ env_vars = {
 web_env_vars = {
   NODE_ENV = "production"
 
-  NEXT_PUBLIC_API_URL  = "https://api.example.com/api/v1"
+  NEXT_PUBLIC_API_URL  = "https://api.example.com"
   NEXT_PUBLIC_BASE_URL = "https://app.example.com"
 
   NEXT_PUBLIC_FIREBASE_API_KEY     = "your-firebase-web-api-key"
