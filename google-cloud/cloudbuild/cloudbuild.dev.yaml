@@ -169,7 +169,7 @@ substitutions:
   _AR_PROJECT_ID: ''
   _DEPLOY_PROJECT_ID: ''
   _WORKER_SERVICE_NAME: dx-logivoice-worker-dev
-  _NEXT_PUBLIC_API_URL: 'https://dx-logivoice-api-dev-739321310569.asia-northeast1.run.app/api/v1'
+  _NEXT_PUBLIC_API_URL: 'https://dx-logivoice-api-dev-739321310569.asia-northeast1.run.app'
   _NEXT_PUBLIC_BASE_URL: 'https://dx-logivoice-web-dev-739321310569.asia-northeast1.run.app'
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''
   _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''

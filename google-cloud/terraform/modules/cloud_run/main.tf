@@ -16,7 +16,7 @@ locals {
       NEXT_PUBLIC_BASE_URL = "https://${local.web_custom_domain_fqdn}/"
     } : {},
     trimspace(var.api_custom_domain) != "" ? {
-      NEXT_PUBLIC_API_URL = "https://${local.api_custom_domain_fqdn}/api/v1"
+      NEXT_PUBLIC_API_URL = "https://${local.api_custom_domain_fqdn}"
     } : {},
   ) : {}
 
