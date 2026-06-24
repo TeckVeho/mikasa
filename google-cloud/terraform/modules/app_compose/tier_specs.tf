@@ -17,6 +17,14 @@ module "tier_specs" {
 locals {
   tier_api = module.tier_specs.api
   tier_web = module.tier_specs.web
+  tier_worker = {
+    min_instances = local.tier_web.min_instances
+    max_instances = local.tier_web.max_instances
+    cpu           = local.tier_web.cpu
+    memory        = local.tier_web.memory
+    timeout       = local.tier_web.timeout
+    concurrency   = local.tier_web.concurrency
+  }
 
   cloud_run_api_min_instances_effective = coalesce(var.cloud_run_api_min_instances, local.tier_api.min_instances)
   cloud_run_api_max_instances_effective = coalesce(var.cloud_run_api_max_instances, local.tier_api.max_instances)
@@ -30,6 +38,13 @@ locals {
   cloud_run_web_memory_effective        = coalesce(var.cloud_run_web_memory, local.tier_web.memory)
   cloud_run_web_timeout_effective       = coalesce(var.cloud_run_web_timeout, local.tier_web.timeout)
   cloud_run_web_concurrency_effective   = coalesce(var.cloud_run_web_concurrency, local.tier_web.concurrency)
+
+  cloud_run_worker_min_instances_effective = local.tier_worker.min_instances
+  cloud_run_worker_max_instances_effective = local.tier_worker.max_instances
+  cloud_run_worker_cpu_effective           = local.tier_worker.cpu
+  cloud_run_worker_memory_effective        = local.tier_worker.memory
+  cloud_run_worker_timeout_effective       = local.tier_worker.timeout
+  cloud_run_worker_concurrency_effective   = local.tier_worker.concurrency
 
   sql_tier_effective         = coalesce(var.sql_tier, module.tier_specs.sql_instance_tier)
   sql_disk_size_gb_effective = coalesce(var.sql_disk_size_gb, module.tier_specs.sql_disk_size_gb)

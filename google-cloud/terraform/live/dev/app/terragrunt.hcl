@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "${get_terragrunt_dir()}/../../../../..//google-cloud/terraform/environments/_shared/app"
+  source = "${get_terragrunt_dir()}/../../..//environments/_shared/app"
 
   extra_arguments "env_tfvars" {
     commands = get_terraform_commands_that_need_vars()
@@ -20,7 +20,7 @@ dependencies {
 remote_state {
   backend = "gcs"
   config = {
-    bucket = "veho-kumu-terraform-state"
+    bucket = "dx-logivoice-terraform-state"
     prefix = "app/dev"
   }
   generate = {

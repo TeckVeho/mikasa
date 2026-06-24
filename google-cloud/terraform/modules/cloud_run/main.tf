@@ -7,7 +7,7 @@ locals {
     } : {},
     var.enable_web && trimspace(var.web_custom_domain) != "" ? {
       FRONTEND_URL = "https://${local.web_custom_domain_fqdn}"
-      CORS_ORIGINS = "https://${local.web_custom_domain_fqdn}"
+      CORS_ORIGIN  = "https://${local.web_custom_domain_fqdn}"
     } : {},
   )
 
@@ -22,8 +22,18 @@ locals {
 
   api_container_env = merge(
     var.enable_gcs ? {
-      GCS_BUCKET     = var.gcs_uploads_bucket_name
-      GCP_PROJECT_ID = var.project_id
+      GCS_BUCKET      = var.gcs_uploads_bucket_name
+      GCS_BUCKET_NAME = var.gcs_uploads_bucket_name
+      GCP_PROJECT_ID  = var.project_id
+    } : {},
+    var.pubsub_topic_call_completed != "" ? {
+      GOOGLE_CLOUD_PROJECT        = var.project_id
+      PUBSUB_TOPIC_CALL_COMPLETED = var.pubsub_topic_call_completed
+    } : {},
+    var.redis_host != "" ? {
+      REDIS_HOST = var.redis_host
+      REDIS_PORT = var.redis_port
+      REDIS_URL  = "redis://${var.redis_host}:${var.redis_port}"
     } : {},
     var.enable_vertex_ai ? {
       VERTEX_AI          = "true"
@@ -70,7 +80,7 @@ resource "google_cloud_run_v2_service" "api" {
     timeout                          = var.cloud_run_api_timeout_effective
 
     dynamic "vpc_access" {
-      for_each = var.enable_cloud_sql ? [1] : []
+      for_each = var.enable_vpc_access ? [1] : []
       content {
         network_interfaces {
           network    = var.network_id

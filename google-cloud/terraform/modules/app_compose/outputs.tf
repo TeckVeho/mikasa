@@ -1,6 +1,6 @@
 output "iam_env_custom_roles_enabled" {
-  description = "Whether env-scoped custom IAM roles are created for this stack."
-  value       = var.enable_env_iam_custom_roles
+  description = "Env-scoped custom IAM roles are always created for this stack."
+  value       = true
 }
 
 output "iam_env_custom_roles" {
@@ -71,6 +71,22 @@ output "secret_database_url_id" {
 
 output "cloud_run_migrate_job_name" {
   value = module.cloud_run.cloud_run_migrate_job_name
+}
+
+output "worker_cloud_run_uri" {
+  value = module.cloud_run.worker_cloud_run_uri
+}
+
+output "worker_cloud_run_service_name" {
+  value = module.cloud_run.worker_cloud_run_service_name
+}
+
+output "pubsub_call_completed_topic" {
+  value = module.pubsub.call_completed_topic_name
+}
+
+output "memorystore_redis_host" {
+  value = var.enable_cloud_sql ? module.memorystore[0].redis_host : null
 }
 
 output "sql_schedule_function_url" {

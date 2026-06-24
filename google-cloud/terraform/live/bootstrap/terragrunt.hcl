@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "${get_terragrunt_dir()}/../../../..//google-cloud/terraform/environments/bootstrap"
+  source = "${get_terragrunt_dir()}/../..//environments/bootstrap"
 
   extra_arguments "env_tfvars" {
     commands = get_terraform_commands_that_need_vars()

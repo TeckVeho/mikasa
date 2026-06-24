@@ -55,3 +55,21 @@ variable "artifact_cleanup_delete_untagged_after_days" {
     error_message = "artifact_cleanup_delete_untagged_after_days must be >= 1."
   }
 }
+
+variable "enable_project_delete_lien" {
+  type        = bool
+  default     = true
+  description = "When true, attach a Resource Manager lien that blocks project deletion (Console / gcloud / API / Terraform)."
+}
+
+variable "project_delete_lien_origin" {
+  type        = string
+  default     = "logivoice-terraform-bootstrap"
+  description = "Lien origin metadata (shown in GCP Console)."
+}
+
+variable "project_delete_lien_reason" {
+  type        = string
+  default     = "Prevent accidental project deletion — remove lien only when decommissioning."
+  description = "Human-readable reason for the delete-protection lien."
+}

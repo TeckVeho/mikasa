@@ -28,3 +28,18 @@ variable "web_secret_env_from_sm" {
   default     = []
   description = "Same as api_secret_env_from_sm for the web Cloud Run service when enable_web = true."
 }
+
+variable "worker_secret_env_from_sm" {
+  type = list(object({
+    env_name  = string
+    secret_id = string
+    version   = optional(string, "latest")
+  }))
+  default     = []
+  description = "Secret Manager env injection for the summarize worker Cloud Run service."
+}
+
+variable "cloud_run_service_account" {
+  type        = string
+  description = "Cloud Run runtime SA email."
+}

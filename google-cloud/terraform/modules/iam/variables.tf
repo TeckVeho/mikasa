@@ -32,16 +32,7 @@ variable "project_id" {
 variable "env_suffix" {
   type        = string
   default     = "dev"
-  description = "Environment suffix (dev | stg | prod). Used when enable_env_iam_custom_roles = true."
-}
-
-variable "enable_env_iam_custom_roles" {
-  type        = bool
-  default     = false
-  description = <<-EOT
-    When true, create project custom IAM roles for this env_suffix (deployer + readonly, scoped/global split).
-    Bind users via env_iam_principals or project_iam_members — scoped roles auto-receive IAM Conditions for this env's resources.
-  EOT
+  description = "Environment suffix (dev | stg | prod). Used for env-scoped custom IAM roles."
 }
 
 variable "env_iam_scoped_resource_names" {

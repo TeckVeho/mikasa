@@ -1,6 +1,6 @@
 output "env_iam_custom_roles_enabled" {
-  description = "Whether env-scoped custom IAM roles are created for this stack."
-  value       = var.enable_env_iam_custom_roles
+  description = "Env-scoped custom IAM roles are always created for this stack."
+  value       = true
 }
 
 output "env_iam_custom_roles" {
@@ -21,5 +21,5 @@ output "env_iam_custom_roles" {
 
 output "iam_env_scope_condition" {
   description = "IAM Condition expression applied to scoped custom-role bindings for this env."
-  value       = var.enable_env_iam_custom_roles ? local.iam_env_scope_condition : null
+  value       = local.iam_env_scope_condition
 }

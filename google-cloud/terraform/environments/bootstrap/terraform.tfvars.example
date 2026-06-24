@@ -1,24 +1,32 @@
-# Copy to terraform.tfvars (gitignored).
-# Values must match google-cloud/scripts/load-env.sh (GCP_PROJECT_ID, GCP_REGION, GCP_STATE_BUCKET).
+# =============================================================================
+# Bootstrap stack — copy to terraform.tfvars (local file is gitignored).
+#
+# Run once per GCP project before dev/stg/prod app stacks.
+# Creates: Terraform state bucket, Docker Artifact Registry, Cloud Build bucket.
+#
+# Apply:
+#   cd google-cloud/terraform/environments/bootstrap
+#   terraform init && terraform apply
+#
+# Values should match GCP_PROJECT_ID, GCP_REGION, GCP_STATE_BUCKET in CI / load-env.sh.
+# =============================================================================
 
-project_id = "veho-kumu"
+project_id = "your-gcp-project-id"
 region     = "asia-northeast1"
 
-# Empty → {project_id}-terraform-state via naming module; set explicitly to match GCP_STATE_BUCKET.
-state_bucket_name = "veho-kumu-terraform-state"
+# Explicit bucket name (recommended). Empty → {project_id}-terraform-state via naming module.
+state_bucket_name = "your-gcp-project-id-terraform-state"
 
-# artifact_repo_id = ""  # default: veho-kumu-docker
+# Docker Artifact Registry repository id.
+# Empty → default {project_id}-docker (e.g. dx-logivoice-docker).
+# artifact_repo_id = ""
 
-# Cloud Build SA that pushes images (project number from: gcloud projects describe veho-kumu --format='value(projectNumber)')
-# --- Add member: Artifact Registry writer (bootstrap stack) ---
-# additional_artifact_registry_writer_members = [
-#   "serviceAccount:PROJECT_NUMBER@cloudbuild.gserviceaccount.com",
-#   "user:colleague@veho-works.com",
-# ]
-#
-# Env custom roles (kumuDevDeployer, kumuProdReadonly, …) → see environments/{dev,stg,prod}/app/terraform.tfvars.example
-#   env_iam_principals = { deployers = [...], readonly = [...] }
-
+# Registry cleanup policies (keep tagged dev/stg/prod; delete old untagged images).
 artifact_cleanup_keep_count                 = 10
-artifact_cleanup_keep_tag_prefixes          = ["prod", "stg"]
+artifact_cleanup_keep_tag_prefixes          = ["prod", "stg", "dev"]
 artifact_cleanup_delete_untagged_after_days = 7
+
+# Resource Manager lien — blocks project deletion via Console / gcloud / API / Terraform.
+# enable_project_delete_lien = true
+# project_delete_lien_origin = "logivoice-terraform-bootstrap"
+# project_delete_lien_reason = "Prevent accidental project deletion — remove lien only when decommissioning."

@@ -10,7 +10,6 @@ module "app_compose" {
   enable_web                         = var.enable_web
   cloud_run_ingress                  = var.cloud_run_ingress
   web_cloud_run_ingress              = var.web_cloud_run_ingress
-  enable_env_iam_custom_roles        = var.enable_env_iam_custom_roles
   env_iam_principals                 = var.env_iam_principals
   env_iam_extra_scoped_gcs_buckets   = var.env_iam_extra_scoped_gcs_buckets
   web_container_image                = var.web_container_image

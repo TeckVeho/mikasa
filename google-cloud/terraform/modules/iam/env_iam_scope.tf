@@ -65,7 +65,7 @@ locals {
     })
   }
 
-  deployer_principal_bindings = var.enable_env_iam_custom_roles ? flatten([
+  deployer_principal_bindings = flatten([
     for member in distinct(compact(var.env_iam_principals.deployers)) : [
       {
         key       = "deployer-scoped-${replace(replace(member, ":", "-"), "@", "-at-")}"
@@ -82,9 +82,9 @@ locals {
         condition = null
       },
     ]
-  ]) : []
+  ])
 
-  readonly_principal_bindings = var.enable_env_iam_custom_roles ? flatten([
+  readonly_principal_bindings = flatten([
     for member in distinct(compact(var.env_iam_principals.readonly)) : [
       {
         key       = "readonly-scoped-${replace(replace(member, ":", "-"), "@", "-at-")}"
@@ -101,7 +101,7 @@ locals {
         condition = null
       },
     ]
-  ]) : []
+  ])
 
   env_iam_principal_bindings = {
     for b in concat(local.deployer_principal_bindings, local.readonly_principal_bindings) :

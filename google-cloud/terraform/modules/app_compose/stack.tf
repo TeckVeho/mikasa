@@ -1,31 +1,5 @@
 # Compose template-aligned modules (aidd-development-template layout).
 
-# State move: split API cron scheduler resources out of cloud_run into app_cron.
-moved {
-  from = module.cloud_run.google_service_account.cron_api_scheduler
-  to   = module.app_cron.google_service_account.cron_api_scheduler
-}
-
-moved {
-  from = module.cloud_run.google_cloud_run_v2_service_iam_member.cron_scheduler_invokes_api
-  to   = module.app_cron.google_cloud_run_v2_service_iam_member.cron_scheduler_invokes_api
-}
-
-moved {
-  from = module.cloud_run.google_cloud_scheduler_job.cron_cleanup_tokens
-  to   = module.app_cron.google_cloud_scheduler_job.cron_cleanup_tokens
-}
-
-moved {
-  from = module.cloud_run.google_cloud_scheduler_job.cron_tbs_batch
-  to   = module.app_cron.google_cloud_scheduler_job.cron_tbs_batch
-}
-
-moved {
-  from = module.cloud_run.google_cloud_scheduler_job.cron_recommendations
-  to   = module.app_cron.google_cloud_scheduler_job.cron_recommendations
-}
-
 module "iam" {
   source = "../iam"
 
@@ -34,7 +8,6 @@ module "iam" {
   project_id                    = var.project_id
   resource_tier                 = var.resource_tier
   env_suffix                    = var.env_suffix
-  enable_env_iam_custom_roles   = var.enable_env_iam_custom_roles
   env_iam_scoped_resource_names = local.env_iam_scoped_resource_names
   env_iam_principals            = var.env_iam_principals
 }
@@ -52,10 +25,30 @@ module "gcs" {
 module "secrets" {
   source = "../secrets"
 
-  api_secret_env_from_sm    = var.api_secret_env_from_sm
+  api_secret_env_from_sm      = var.api_secret_env_from_sm
+  project_id                  = var.project_id
+  web_secret_env_from_sm      = var.web_secret_env_from_sm
+  worker_secret_env_from_sm   = local.worker_secret_env_from_sm_effective
+  cloud_run_service_account   = local.cloud_run_service_account
+}
+
+module "pubsub" {
+  source = "../pubsub"
+
   project_id                = var.project_id
-  web_secret_env_from_sm    = var.web_secret_env_from_sm
+  topic_name                = local.pubsub_topic_name_effective
+  subscription_name         = local.pubsub_sub_name_effective
   cloud_run_service_account = local.cloud_run_service_account
+}
+
+module "memorystore" {
+  count  = var.enable_cloud_sql ? 1 : 0
+  source = "../memorystore"
+
+  project_id          = var.project_id
+  region              = var.region
+  instance_name       = local.redis_instance_name_effective
+  network_self_link   = data.terraform_remote_state.network[0].outputs.network_self_link
 }
 
 module "cloud_sql" {
@@ -86,6 +79,8 @@ module "cloud_run" {
     module.secrets,
     module.cloud_sql,
     module.gcs,
+    module.pubsub,
+    module.memorystore,
   ]
   allow_unauthenticated                 = var.allow_unauthenticated
   allow_unauthenticated_web             = var.allow_unauthenticated_web
@@ -98,6 +93,7 @@ module "cloud_run" {
   container_image                       = var.container_image
   container_port                        = var.container_port
   enable_cloud_sql                      = var.enable_cloud_sql
+  enable_vpc_access                     = local.network_stack_required
   enable_cron_cloud_scheduler           = var.enable_cron_cloud_scheduler
   enable_gcs                            = var.enable_gcs
   enable_vertex_ai                      = var.enable_vertex_ai
@@ -115,8 +111,8 @@ module "cloud_run" {
   web_custom_domain                     = var.web_custom_domain
   web_env_vars                          = var.web_env_vars
   web_secret_env_from_sm                = var.web_secret_env_from_sm
-  network_id                            = var.enable_cloud_sql ? data.terraform_remote_state.network[0].outputs.network_id : ""
-  connector_subnet_name                 = var.enable_cloud_sql ? data.terraform_remote_state.network[0].outputs.connector_subnet_name : ""
+  network_id                            = local.network_stack_required ? data.terraform_remote_state.network[0].outputs.network_id : ""
+  connector_subnet_name                 = local.network_stack_required ? data.terraform_remote_state.network[0].outputs.connector_subnet_name : ""
   cloud_sql_connection_name             = module.cloud_sql.cloud_sql_connection_name != null ? module.cloud_sql.cloud_sql_connection_name : ""
   database_url_secret_name              = module.cloud_sql.database_url_secret_name != null ? module.cloud_sql.database_url_secret_name : ""
   database_url_secret_version_name      = module.cloud_sql.database_url_secret_version_name != null ? module.cloud_sql.database_url_secret_version_name : ""
@@ -126,6 +122,14 @@ module "cloud_run" {
   cloud_run_service_account             = local.cloud_run_service_account
   runtime_service_account_email         = local.runtime_service_account_email
   cron_scheduler_service_account_email  = var.enable_cron_cloud_scheduler ? local.cron_api_sa_email : ""
+  pubsub_topic_call_completed           = module.pubsub.call_completed_topic_name
+  pubsub_subscription_id                = module.pubsub.summarize_subscription_id
+  redis_host                            = var.enable_cloud_sql ? module.memorystore[0].redis_host : ""
+  redis_port                            = var.enable_cloud_sql ? tostring(module.memorystore[0].redis_port) : ""
+  worker_cloud_run_service_name         = local.worker_cloud_run_service_name_effective
+  worker_container_image                = local.worker_container_image_effective
+  worker_dashboard_url                  = local.worker_dashboard_url_effective
+  worker_secret_env_from_sm               = local.worker_secret_env_from_sm_effective
   cloud_run_api_min_instances_effective = local.cloud_run_api_min_instances_effective
   cloud_run_api_max_instances_effective = local.cloud_run_api_max_instances_effective
   cloud_run_api_cpu_effective           = local.cloud_run_api_cpu_effective
@@ -138,6 +142,12 @@ module "cloud_run" {
   cloud_run_web_memory_effective        = local.cloud_run_web_memory_effective
   cloud_run_web_timeout_effective       = local.cloud_run_web_timeout_effective
   cloud_run_web_concurrency_effective   = local.cloud_run_web_concurrency_effective
+  cloud_run_worker_min_instances_effective = local.cloud_run_worker_min_instances_effective
+  cloud_run_worker_max_instances_effective = local.cloud_run_worker_max_instances_effective
+  cloud_run_worker_cpu_effective           = local.cloud_run_worker_cpu_effective
+  cloud_run_worker_memory_effective        = local.cloud_run_worker_memory_effective
+  cloud_run_worker_timeout_effective       = local.cloud_run_worker_timeout_effective
+  cloud_run_worker_concurrency_effective   = local.cloud_run_worker_concurrency_effective
 }
 
 module "app_cron" {

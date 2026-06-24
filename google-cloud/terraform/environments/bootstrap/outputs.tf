@@ -22,3 +22,8 @@ output "cloudbuild_staging_bucket_name" {
 output "cloudbuild_source_lifecycle_age_days" {
   value = module.cloudbuild_bucket.cloudbuild_source_lifecycle_age_days
 }
+
+output "project_delete_lien_name" {
+  description = "Resource Manager lien blocking project deletion; null when enable_project_delete_lien is false."
+  value       = module.project_lien.lien_name
+}

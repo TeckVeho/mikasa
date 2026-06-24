@@ -5,6 +5,7 @@
 **/.turbo
 **/*.tsbuildinfo
 .git
+.github
 .idea
 .cursor
 **/coverage
@@ -14,6 +15,11 @@
 **/.env.*
 !**/.env.example
 
-infra/terraform/.terraform
-infra/terraform/*.tfstate
-infra/terraform/*.tfstate.*
+infra/
+google-cloud/
+docs/
+e2e/
+
+firebase-private-key.pem
+secret.md
+test.md

@@ -85,3 +85,19 @@ output "cron_scheduler_service_account_email" {
 output "cron_scheduler_job_names" {
   value = module.app_compose.cron_scheduler_job_names
 }
+
+output "worker_cloud_run_uri" {
+  value = module.app_compose.worker_cloud_run_uri
+}
+
+output "worker_cloud_run_service_name" {
+  value = module.app_compose.worker_cloud_run_service_name
+}
+
+output "pubsub_call_completed_topic" {
+  value = module.app_compose.pubsub_call_completed_topic
+}
+
+output "memorystore_redis_host" {
+  value = module.app_compose.memorystore_redis_host
+}

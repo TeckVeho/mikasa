@@ -2,6 +2,21 @@
 
 State is **local** for this stack only. After apply, configure remote backend on env stacks to use `terraform_state_bucket_name`.
 
+## Project delete protection (Resource Manager lien)
+
+Bootstrap uses [`../../modules/project_lien`](../../modules/project_lien) to attach a **lien** on the GCP project (`enable_project_delete_lien = true` by default) that blocks `resourcemanager.projects.delete` via Console, `gcloud`, API, and Terraform.
+
+To decommission the project intentionally:
+
+1. Set `enable_project_delete_lien = false` in `terraform.tfvars` and apply, **or** delete manually: `gcloud alpha resource-manager liens delete LIEN_NAME --project=PROJECT_ID`.
+2. Then delete the project via Console or `gcloud projects delete`.
+
+Verify:
+
+```bash
+gcloud alpha resource-manager liens list --project=PROJECT_ID
+```
+
 ```bash
 cd google-cloud/terraform/live/bootstrap
 cp ../../environments/bootstrap/terraform.tfvars.example ../../environments/bootstrap/terraform.tfvars

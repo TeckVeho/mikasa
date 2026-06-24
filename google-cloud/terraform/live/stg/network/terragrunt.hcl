@@ -3,7 +3,7 @@ include "root" {
 }
 
 terraform {
-  source = "${get_terragrunt_dir()}/../../../../..//google-cloud/terraform/environments/_shared/network"
+  source = "${get_terragrunt_dir()}/../../..//environments/_shared/network"
 
   extra_arguments "env_tfvars" {
     commands = get_terraform_commands_that_need_vars()
@@ -16,7 +16,7 @@ terraform {
 remote_state {
   backend = "gcs"
   config = {
-    bucket = "veho-kumu-terraform-state"
+    bucket = "dx-logivoice-terraform-state"
     prefix = "network/stg"
   }
   generate = {

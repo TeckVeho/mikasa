@@ -40,3 +40,12 @@ module "cloudbuild_bucket" {
 
   project_id = var.project_id
 }
+
+module "project_lien" {
+  source = "../../modules/project_lien"
+
+  project_id = var.project_id
+  enable     = var.enable_project_delete_lien
+  origin     = var.project_delete_lien_origin
+  reason     = var.project_delete_lien_reason
+}

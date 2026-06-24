@@ -1,0 +1,57 @@
+# Cloud Build — production web only
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -eo pipefail
+        export DOCKER_CLI_EXPERIMENTAL=enabled
+        docker buildx inspect logivoice-builder >/dev/null 2>&1 \
+          || docker buildx create --name logivoice-builder --driver docker-container --use
+        docker buildx use logivoice-builder
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG} || true
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:buildcache || true
+        docker buildx build -f apps/web/Dockerfile \
+          --build-arg NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL} \
+          --build-arg NEXT_PUBLIC_BASE_URL=${_NEXT_PUBLIC_BASE_URL} \
+          --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY} \
+          --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN} \
+          --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID} \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:buildcache \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG} \
+          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:buildcache,mode=max \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG} \
+          --push \
+          .
+    dir: '.'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'dx-logivoice-web-prod'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+substitutions:
+  _REGION: asia-northeast1
+  _TAG: prod
+  _AR_PROJECT_ID: ''
+  _DEPLOY_PROJECT_ID: ''
+  _NEXT_PUBLIC_API_URL: 'https://api.example.com/api/v1'
+  _NEXT_PUBLIC_BASE_URL: 'https://app.example.com'
+  _NEXT_PUBLIC_FIREBASE_API_KEY: ''
+  _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''
+  _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_MEDIUM

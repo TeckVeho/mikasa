@@ -34,3 +34,11 @@ output "cloud_run_migrate_job_name" {
   value = var.enable_cloud_sql ? google_cloud_run_v2_job.migrate[0].name : null
 }
 
+output "worker_cloud_run_uri" {
+  value = google_cloud_run_v2_service.worker.uri
+}
+
+output "worker_cloud_run_service_name" {
+  value = google_cloud_run_v2_service.worker.name
+}
+

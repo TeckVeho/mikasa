@@ -173,7 +173,7 @@ locals {
   active_env_iam_custom_role_definitions = {
     for key, def in local.env_iam_custom_role_catalog[var.env_suffix] :
     key => def
-    if var.enable_env_iam_custom_roles
+    if local.enable_env_iam_custom_roles
   }
 
   env_custom_role_source_role_names = distinct(flatten([
@@ -190,17 +190,15 @@ data "google_iam_role" "env_custom_role_source" {
 # Project-level custom roles cannot include every permission from predefined roles
 # (e.g. resourcemanager.projects.list is org-level only).
 data "google_iam_testable_permissions" "project" {
-  count = var.enable_env_iam_custom_roles ? 1 : 0
-
   full_resource_name = "//cloudresourcemanager.googleapis.com/projects/${var.project_id}"
 }
 
 locals {
-  env_custom_role_testable_permission_names = var.enable_env_iam_custom_roles ? toset([
-    for p in data.google_iam_testable_permissions.project[0].permissions :
+  env_custom_role_testable_permission_names = toset([
+    for p in data.google_iam_testable_permissions.project.permissions :
     p.name
     if try(p.custom_roles_support_level, "SUPPORTED") != "NOT_SUPPORTED"
-  ]) : toset([])
+  ])
 
   # Still reported as testable for projects but rejected on role create (GCP API quirk).
   env_custom_role_permission_denylist = toset([

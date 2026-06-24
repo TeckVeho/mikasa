@@ -1,3 +1,0 @@
-# Use with: terraform init -reconfigure -backend-config=backend.tf.prod
-bucket = "dx-logivoice-common-terraform-state"
-prefix = "app/prod"

@@ -1,0 +1,48 @@
+# Cloud Build — worker image + deploy (production).
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -eo pipefail
+        export DOCKER_CLI_EXPERIMENTAL=enabled
+        docker buildx inspect logivoice-builder >/dev/null 2>&1 \
+          || docker buildx create --name logivoice-builder --driver docker-container --use
+        docker buildx use logivoice-builder
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG} || true
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:buildcache || true
+        docker buildx build -f apps/worker/Dockerfile \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:buildcache \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG} \
+          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:buildcache,mode=max \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG} \
+          --push \
+          .
+    dir: '.'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_WORKER_SERVICE_NAME}'
+      - '--project'
+      - '${_DEPLOY_PROJECT_ID}'
+      - '--image'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG}'
+      - '--region'
+      - '${_REGION}'
+      - '--no-allow-unauthenticated'
+
+substitutions:
+  _REGION: asia-northeast1
+  _TAG: prod
+  _AR_PROJECT_ID: ''
+  _DEPLOY_PROJECT_ID: ''
+  _WORKER_SERVICE_NAME: dx-logivoice-worker-prod
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_MEDIUM

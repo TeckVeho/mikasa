@@ -219,16 +219,7 @@ variable "web_secret_env_from_sm" {
   description = "Same as api_secret_env_from_sm for the web Cloud Run service when enable_web = true."
 }
 
-# --- Optional: project IAM (custom roles + manual bindings) ---
-
-variable "enable_env_iam_custom_roles" {
-  type        = bool
-  default     = false
-  description = <<-EOT
-    When true, create project custom IAM roles for this env_suffix (dev/stg/prod deployer + readonly).
-    Bind users via env_iam_principals or project_iam_members — scoped roles auto-receive IAM Conditions.
-  EOT
-}
+# --- Project IAM (custom roles always on; bind users via env_iam_principals) ---
 
 variable "env_iam_principals" {
   type = object({

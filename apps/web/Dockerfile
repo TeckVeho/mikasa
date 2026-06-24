@@ -2,15 +2,19 @@
 # Build context: repository root (LogiVoice/).
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
+ENV HUSKY=0
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json turbo.json tsconfig.base.json ./
-COPY packages ./packages
-COPY apps ./apps
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
 RUN npm ci
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
+ENV HUSKY=0
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 ARG NEXT_PUBLIC_BASE_URL=http://localhost:3000
@@ -26,8 +30,9 @@ ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./
 COPY --from=deps /app/tsconfig.base.json ./tsconfig.base.json
-COPY --from=deps /app/packages/shared ./packages/shared
-COPY --from=deps /app/apps/web ./apps/web
+
+COPY packages/shared ./packages/shared
+COPY apps/web ./apps/web
 
 RUN npm run build -w @logivoice/shared
 RUN npm run build -w @logivoice/web

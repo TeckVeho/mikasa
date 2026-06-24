@@ -21,11 +21,6 @@ resource "google_project_iam_member" "extra" {
 # One-time per app stack state: terraform import 'google_project.wiki_labels' PROJECT_ID
 # Shared project: each env apply may update the label; last apply wins (same resource_tier → no drift).
 
-moved {
-  from = google_project.wiki_labels[0]
-  to   = google_project.wiki_labels
-}
-
 locals {
   tier_label = replace(lower(trimspace(var.resource_tier)), "_", "-")
 }

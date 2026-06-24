@@ -1,0 +1,57 @@
+# Reduces `gcloud builds submit` upload size and time.
+# Patterns follow .gitignore-style; see: gcloud topic gcloudignore
+
+.git
+.github
+
+# Never upload local installs — Docker runs npm ci inside the image
+**/node_modules
+
+# IDE / local
+.cursor
+.idea
+.vscode
+*.swp
+.DS_Store
+
+# Terraform state & plugins (not needed for Docker builds)
+**/.terraform
+*.tfstate
+*.tfstate.*
+**/terraform.tfvars
+**/terraform.tfvars.dev
+**/terraform.tfvars.prod
+**/terraform.tfvars.dev.old
+google-cloud/terraform/**/.terraform
+
+# Build outputs on host (containers rebuild)
+**/dist
+**/build
+**/.next
+**/out
+**/.turbo
+**/*.tsbuildinfo
+
+# Tests & coverage
+**/coverage
+**/.nyc_output
+**/playwright-report
+**/test-results
+
+# Logs & temp
+**/*.log
+**/logs
+/tmp
+
+# Large / non-app paths
+docs/
+e2e/
+google-cloud/
+
+# Env files and secrets (never upload)
+**/.env
+**/.env.*
+!**/.env.example
+firebase-private-key.pem
+secret.md
+test.md

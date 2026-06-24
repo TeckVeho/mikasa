@@ -1,6 +1,6 @@
 # Submit Cloud Build (WIF): API (+ migrate job), web, worker.
 #
-# GCP setup: cloudbuild/GITHUB_ACTIONS_WIF.md
+# GCP setup: google-cloud/cloudbuild/GITHUB_ACTIONS_WIF.md
 #
 # deploy_scope:
 # - Push always uses `auto`: path-filtered submits; touching root/shared/CI/Dockerfiles or all of
@@ -110,7 +110,7 @@ jobs:
               - 'apps/worker/**'
             ci:
               - '.github/workflows/**'
-              - 'cloudbuild/**'
+              - 'google-cloud/cloudbuild/**'
             docker:
               - 'apps/api/Dockerfile'
               - 'apps/web/Dockerfile'
@@ -222,7 +222,7 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ ! -f cloudbuild/cloudbuild.dev.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.yaml ]; then
+          if [ ! -f google-cloud/cloudbuild/cloudbuild.dev.yaml ] && [ -f LogiVoice/google-cloud/cloudbuild/cloudbuild.dev.yaml ]; then
             cd LogiVoice
           fi
           TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
@@ -239,7 +239,7 @@ jobs:
           CFG="${{ needs.plan.outputs.cfg_full }}"
           gcloud builds submit \
             --project="${GCP_PROJECT_ID}" \
-            --config="cloudbuild/${CFG}" \
+            --config="google-cloud/cloudbuild/${CFG}" \
             --substitutions="${joined}" \
             .
 
@@ -249,7 +249,7 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ ! -f cloudbuild/cloudbuild.dev.api.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.api.yaml ]; then
+          if [ ! -f google-cloud/cloudbuild/cloudbuild.dev.api.yaml ] && [ -f LogiVoice/google-cloud/cloudbuild/cloudbuild.dev.api.yaml ]; then
             cd LogiVoice
           fi
           TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
@@ -260,7 +260,7 @@ jobs:
           CFG="${{ needs.plan.outputs.cfg_api }}"
           gcloud builds submit \
             --project="${GCP_PROJECT_ID}" \
-            --config="cloudbuild/${CFG}" \
+            --config="google-cloud/cloudbuild/${CFG}" \
             --substitutions="${joined}" \
             .
 
@@ -270,7 +270,7 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ ! -f cloudbuild/cloudbuild.dev.web.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.web.yaml ]; then
+          if [ ! -f google-cloud/cloudbuild/cloudbuild.dev.web.yaml ] && [ -f LogiVoice/google-cloud/cloudbuild/cloudbuild.dev.web.yaml ]; then
             cd LogiVoice
           fi
           TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
@@ -286,7 +286,7 @@ jobs:
           CFG="${{ needs.plan.outputs.cfg_web }}"
           gcloud builds submit \
             --project="${GCP_PROJECT_ID}" \
-            --config="cloudbuild/${CFG}" \
+            --config="google-cloud/cloudbuild/${CFG}" \
             --substitutions="${joined}" \
             .
 
@@ -296,7 +296,7 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ ! -f cloudbuild/cloudbuild.dev.worker.yaml ] && [ -f LogiVoice/cloudbuild/cloudbuild.dev.worker.yaml ]; then
+          if [ ! -f google-cloud/cloudbuild/cloudbuild.dev.worker.yaml ] && [ -f LogiVoice/google-cloud/cloudbuild/cloudbuild.dev.worker.yaml ]; then
             cd LogiVoice
           fi
           TAG="${GCP_IMAGE_TAG:-${{ needs.plan.outputs.default_tag }}}"
@@ -308,6 +308,6 @@ jobs:
           CFG="${{ needs.plan.outputs.cfg_worker }}"
           gcloud builds submit \
             --project="${GCP_PROJECT_ID}" \
-            --config="cloudbuild/${CFG}" \
+            --config="google-cloud/cloudbuild/${CFG}" \
             --substitutions="${joined}" \
             .
