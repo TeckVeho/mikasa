@@ -9,7 +9,7 @@
 # (see google_cloud_run_v2_job below). Example shape:
 #   gcloud run jobs create ... --vpc-network=NETWORK --vpc-subnet=SUBNET --vpc-egress=private-ranges-only \
 #     --set-cloudsql-instances=CLOUDSQL_INSTANCE --set-secrets=DATABASE_URL=SECRET:latest \
-#     --command=sh --args=scripts/prisma-migrate-deploy.sh --working-directory=/app
+#     --command=npx --args=prisma,migrate,deploy --working-directory=/app/apps/api
 
 locals {
   name_prefix                = replace(var.project_id, "_", "-")
@@ -52,9 +52,9 @@ resource "google_cloud_run_v2_job" "migrate" {
 
       containers {
         image       = var.container_image
-        working_dir = "/app"
-        command     = ["sh"]
-        args        = ["scripts/prisma-migrate-deploy.sh"]
+        working_dir = "/app/apps/api"
+        command     = ["npx"]
+        args        = ["prisma", "migrate", "deploy"]
 
         volume_mounts {
           name       = "cloudsql"

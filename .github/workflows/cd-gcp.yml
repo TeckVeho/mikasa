@@ -94,6 +94,9 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: changes
         with:
+          # Compare against the pushed branch itself (before→after), not default branch (develop).
+          # Otherwise production/staging merges from develop show 0 diff and skip deploy.
+          base: ${{ github.ref_name }}
           filters: |
             root:
               - 'package.json'
