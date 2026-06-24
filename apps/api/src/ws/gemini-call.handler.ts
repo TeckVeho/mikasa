@@ -23,6 +23,7 @@ import { uploadCallRecording } from "../lib/storage.js";
 import { newId } from "../utils/id.js";
 import * as callRepo from "../repositories/call-log.repo.js";
 import { publishCallCompleted } from "../lib/pubsub.js";
+import { createCallbackFinalizationCoordinator } from "./callback-finalization.js";
 import { logger } from "../lib/logger.js";
 import { activeCallsStore } from "../services/active-calls.service.js";
 
@@ -61,41 +62,21 @@ export async function handleGeminiLiveCall(
 
   const gemini = new GeminiLiveSession();
 
-  let pendingCallbackFinalization = false;
-  let callbackFallbackTimer: NodeJS.Timeout | null = null;
+  /** クロージング音声の再生待ち（Gemini は turnComplete 直後に close する） */
+  const CALLBACK_POST_CLOSE_MS = 2500;
 
-  function scheduleCallEndAfterCallback(): void {
-    if (callbackFallbackTimer) {
-      clearTimeout(callbackFallbackTimer);
-      callbackFallbackTimer = null;
-    }
-    callbackFallbackTimer = setTimeout(() => {
-      callbackFallbackTimer = null;
-      if (!finalized) {
-        pendingCallbackFinalization = false;
-        void finalize("complete");
-        if (ws.readyState === ws.OPEN) {
-          ws.close();
-        }
+  const callbackFinalization = createCallbackFinalizationCoordinator({
+    onBeginClosing: () => {
+      gemini.close();
+    },
+    onEndCall: () => {
+      void finalize("complete");
+      if (ws.readyState === ws.OPEN) {
+        ws.close();
       }
-    }, 4000);
-  }
-
-  function armCallbackFinalizationFallback(): void {
-    setTimeout(() => {
-      if (!finalized && pendingCallbackFinalization) {
-        pendingCallbackFinalization = false;
-        if (callbackFallbackTimer) {
-          clearTimeout(callbackFallbackTimer);
-          callbackFallbackTimer = null;
-        }
-        void finalize("complete");
-        if (ws.readyState === ws.OPEN) {
-          ws.close();
-        }
-      }
-    }, 15000);
-  }
+    },
+    postCloseMs: CALLBACK_POST_CLOSE_MS,
+  });
 
   const pronunciationDictionary = await getPronunciationDictionary(
     session.tenantId,
@@ -127,6 +108,7 @@ export async function handleGeminiLiveCall(
 
   async function finalize(status: string): Promise<void> {
     if (finalized) return;
+    callbackFinalization.warnIfInterrupted(`finalize:${status}`);
     finalized = true;
 
     gemini.close();
@@ -212,17 +194,27 @@ export async function handleGeminiLiveCall(
       onToolCall(id, name, args) {
         void (async () => {
           try {
-            const result = await dispatchToolCall(
+            const dispatchPromise = dispatchToolCall(
               { id, name, args },
               toolContext,
             );
+
+            if (name === "register_callback") {
+              callbackFinalization.trackRegisterCallbackDispatch(
+                dispatchPromise.then((r) => ({
+                  status: (r.result as { status?: string }).status,
+                  error: (r.result as { error?: string }).error,
+                })),
+              );
+            }
+
+            const result = await dispatchPromise;
             gemini.sendToolResult(id, result.result);
 
             if (name === "register_callback") {
               const payload = result.result as { status?: string };
               if (payload.status === "registered") {
-                pendingCallbackFinalization = true;
-                armCallbackFinalizationFallback();
+                callbackFinalization.onRegisterCallbackSucceeded();
               }
             }
 
@@ -260,10 +252,7 @@ export async function handleGeminiLiveCall(
       },
 
       onTurnComplete() {
-        if (pendingCallbackFinalization) {
-          pendingCallbackFinalization = false;
-          scheduleCallEndAfterCallback();
-        }
+        void callbackFinalization.onTurnComplete();
       },
 
       onError(err) {
@@ -288,6 +277,7 @@ export async function handleGeminiLiveCall(
       },
 
       onClose() {
+        if (callbackFinalization.shouldSkipOnClose()) return;
         void finalize("complete");
       },
     },
