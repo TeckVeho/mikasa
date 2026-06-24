@@ -15,6 +15,7 @@ import { logger } from "../lib/logger.js";
 import { newId } from "../utils/id.js";
 import { verifyAuthToken } from "../services/auth.service.js";
 import { createCallbackFinalizationCoordinator } from "./callback-finalization.js";
+import { maybeCreateFallbackCallbackRequest } from "../services/callback-fallback.js";
 
 type ClientMessage =
   | { type: "start"; scenarioId: string }
@@ -167,6 +168,24 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
           ),
           structuredData: { source: "scenario_voice_test" },
         });
+
+        try {
+          await maybeCreateFallbackCallbackRequest({
+            tenantId: s.tenantId,
+            callSid: s.twilioCallSid,
+            callerNumber: "音声テスト",
+            transcript: s.transcript,
+            wasRegistered:
+              callbackFinalization?.wasRegisteredSuccessfully() ?? false,
+            callLogId: id,
+          });
+        } catch (fallbackErr) {
+          logger.error(
+            { err: fallbackErr, twilioCallSid: s.twilioCallSid },
+            "register_callback fallback failed in test call",
+          );
+        }
+
         await publishCallCompleted({
           tenantId: s.tenantId,
           callLogId: id,

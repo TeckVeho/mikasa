@@ -90,5 +90,22 @@ describe("createCallbackFinalizationCoordinator", () => {
     await coordinator.onTurnComplete();
 
     expect(coordinator.shouldSkipOnClose()).toBe(true);
+    expect(coordinator.wasRegisteredSuccessfully()).toBe(true);
+  });
+
+  it("wasRegisteredSuccessfully は dispatch 成功後に true になる", async () => {
+    const coordinator = createCallbackFinalizationCoordinator({
+      onBeginClosing: vi.fn(),
+      onEndCall: vi.fn(),
+    });
+
+    expect(coordinator.wasRegisteredSuccessfully()).toBe(false);
+
+    coordinator.trackRegisterCallbackDispatch(
+      Promise.resolve({ status: "registered" }),
+    );
+    coordinator.onRegisterCallbackSucceeded();
+
+    expect(coordinator.wasRegisteredSuccessfully()).toBe(true);
   });
 });

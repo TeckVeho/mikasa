@@ -24,6 +24,7 @@ import { newId } from "../utils/id.js";
 import * as callRepo from "../repositories/call-log.repo.js";
 import { publishCallCompleted } from "../lib/pubsub.js";
 import { createCallbackFinalizationCoordinator } from "./callback-finalization.js";
+import { maybeCreateFallbackCallbackRequest } from "../services/callback-fallback.js";
 import { logger } from "../lib/logger.js";
 import { activeCallsStore } from "../services/active-calls.service.js";
 
@@ -139,6 +140,19 @@ export async function handleGeminiLiveCall(
       durationSeconds: Math.round((Date.now() - session.startedAt) / 1000),
       audioStoragePath,
     });
+
+    try {
+      await maybeCreateFallbackCallbackRequest({
+        tenantId: session.tenantId,
+        callSid,
+        callerNumber: session.variables.caller_number ?? "unknown",
+        transcript: accumulatedTranscript,
+        wasRegistered: callbackFinalization.wasRegisteredSuccessfully(),
+        callLogId: id,
+      });
+    } catch (err) {
+      logger.error({ err, callSid }, "register_callback fallback failed");
+    }
 
     await publishCallCompleted({
       tenantId: session.tenantId,
