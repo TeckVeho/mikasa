@@ -2,22 +2,29 @@
 # Build context: repository root (LogiVoice/).
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
+ENV HUSKY=0
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json turbo.json tsconfig.base.json ./
-COPY packages ./packages
-COPY apps ./apps
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/worker/package.json apps/worker/
 RUN npm ci
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
+ENV HUSKY=0
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./
 COPY --from=deps /app/tsconfig.base.json ./tsconfig.base.json
-COPY --from=deps /app/packages ./packages
-COPY --from=deps /app/apps ./apps
+
+COPY packages/shared ./packages/shared
+COPY apps/api/prisma ./apps/api/prisma
+COPY apps/worker ./apps/worker
+COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 
 RUN npm run build -w @logivoice/shared
 RUN npm run build -w @logivoice/worker

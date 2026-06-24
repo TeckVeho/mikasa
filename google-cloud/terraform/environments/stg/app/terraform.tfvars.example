@@ -1,0 +1,77 @@
+# =============================================================================
+# Staging app stack — copy to terraform.tfvars (gitignored).
+#
+# Optional pre-production environment in the same GCP project (*-stg naming).
+# Terragrunt: google-cloud/terraform/live/stg/app
+#
+# Apply order: bootstrap → stg/network → push :stg images → stg/app
+# =============================================================================
+
+project_id = "your-gcp-project-id"
+env_suffix = "stg"
+region     = "asia-northeast1"
+
+resource_tier = "tier3"
+
+container_image     = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-api:stg"
+web_container_image = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-web:stg"
+
+container_port     = 8080
+web_container_port = 3000
+enable_web         = true
+
+allow_unauthenticated     = false
+allow_unauthenticated_web = false
+
+env_vars = {
+  NODE_ENV  = "production"
+  LOG_LEVEL = "info"
+
+  CORS_ORIGIN        = "https://app-stg.example.com"
+  API_PUBLIC_URL     = "https://api-stg.example.com"
+  TWILIO_WEBHOOK_URL = "https://api-stg.example.com/webhooks/twilio/voice"
+
+  FIREBASE_PROJECT_ID = "your-gcp-project-id"
+  TWILIO_ACCOUNT_SID  = "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+  RESEND_FROM_EMAIL = "LogiVoice <noreply@example.com>"
+}
+
+web_env_vars = {
+  NODE_ENV = "production"
+
+  NEXT_PUBLIC_API_URL  = "https://api-stg.example.com/api/v1"
+  NEXT_PUBLIC_BASE_URL = "https://app-stg.example.com"
+
+  NEXT_PUBLIC_FIREBASE_API_KEY     = "your-firebase-web-api-key"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "your-gcp-project-id.firebaseapp.com"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID  = "your-gcp-project-id"
+
+  NEXT_PUBLIC_USE_MOCK     = "false"
+  NEXT_PUBLIC_USE_DEV_AUTH = "false"
+}
+
+api_secret_env_from_sm = [
+  { env_name = "TWILIO_AUTH_TOKEN", secret_id = "logivoice-twilio-auth-token-stg", version = "latest" },
+  { env_name = "OPENAI_API_KEY",    secret_id = "logivoice-openai-stg",            version = "latest" },
+  { env_name = "GEMINI_API_KEY",    secret_id = "logivoice-gemini-api-key-stg",    version = "latest" },
+  { env_name = "AMIVOICE_APP_KEY",  secret_id = "logivoice-amivoice-stg",          version = "latest" },
+  { env_name = "FORM_TOKEN_SECRET", secret_id = "logivoice-form-token-stg",        version = "latest" },
+  { env_name = "RESEND_API_KEY",    secret_id = "logivoice-resend-stg",            version = "latest" },
+]
+
+api_custom_domain = "api-stg.example.com"
+web_custom_domain = "app-stg.example.com"
+
+enable_cloud_sql = true
+
+network_remote_state_bucket = "your-gcp-project-id-terraform-state"
+network_remote_state_prefix = "network/stg"
+
+# Staging: optional SQL schedule (same as dev) or leave off for 24/7 SQL.
+enable_sql_night_weekend_schedule = false
+
+# env_iam_principals = {
+#   deployers = ["group:gcp-stg-deployers@example.com"]
+#   readonly  = []
+# }

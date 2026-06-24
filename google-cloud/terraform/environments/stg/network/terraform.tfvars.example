@@ -1,0 +1,15 @@
+# =============================================================================
+# Staging network stack — copy to terraform.tfvars (gitignored).
+#
+# Optional third environment in the same GCP project (isolated by env_suffix + CIDR).
+# Apply live/stg/network before live/stg/app.
+# =============================================================================
+
+project_id = "your-gcp-project-id"
+region     = "asia-northeast1"
+env_suffix = "stg"
+
+network_name = "your-gcp-project-id-vpc-stg"
+
+connector_subnet_cidr        = "10.9.0.0/24"
+private_service_peering_cidr = "10.248.0.0"

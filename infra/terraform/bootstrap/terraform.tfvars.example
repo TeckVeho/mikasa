@@ -1,5 +1,0 @@
-# Copy to terraform.tfvars (gitignored). Use the common project for project_id.
-
-project_id        = "my-project-common"
-region            = "asia-northeast1"
-state_bucket_name = "my-project-common-terraform-state"

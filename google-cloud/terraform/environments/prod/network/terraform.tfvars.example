@@ -1,0 +1,15 @@
+# =============================================================================
+# Prod network stack — copy to terraform.tfvars (gitignored).
+#
+# Same layout as dev/network; use a non-overlapping subnet and peering range.
+# Apply live/prod/network before live/prod/app.
+# =============================================================================
+
+project_id = "your-gcp-project-id"
+region     = "asia-northeast1"
+env_suffix = "prod"
+
+network_name = "your-gcp-project-id-vpc-prod"
+
+connector_subnet_cidr        = "10.10.0.0/24"
+private_service_peering_cidr = "10.249.0.0"

@@ -1,3 +1,0 @@
-# GCS backend (dev). Use with: terraform init -reconfigure -backend-config=backend.tf.dev
-bucket = "dx-logivoice-common-terraform-state"
-prefix = "network/dev"
