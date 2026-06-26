@@ -32,6 +32,7 @@ export async function upsert(
     languageCode?: string;
     transferEnabled?: boolean;
     transferNumber?: string | null;
+    transferNumberClaims?: string | null;
     transferTimeout?: number;
   },
 ) {
@@ -48,6 +49,7 @@ export async function upsert(
       languageCode: data.languageCode ?? "ja-JP",
       transferEnabled: data.transferEnabled ?? true,
       transferNumber: data.transferNumber ?? null,
+      transferNumberClaims: data.transferNumberClaims ?? null,
       transferTimeout: data.transferTimeout ?? 30,
     },
     update: {
@@ -67,6 +69,9 @@ export async function upsert(
       }),
       ...(data.transferNumber !== undefined && {
         transferNumber: data.transferNumber,
+      }),
+      ...(data.transferNumberClaims !== undefined && {
+        transferNumberClaims: data.transferNumberClaims,
       }),
       ...(data.transferTimeout !== undefined && {
         transferTimeout: data.transferTimeout,

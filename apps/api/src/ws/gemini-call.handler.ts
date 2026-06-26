@@ -9,6 +9,7 @@ import {
 import { getPronunciationDictionary } from "../services/pronunciation-dictionary.service.js";
 import {
   dispatchToolCall,
+  resolveTransferNumber,
   type ToolDispatchContext,
 } from "../services/tool-dispatcher.js";
 import { cacheTransferInfo } from "../services/call-transfer.js";
@@ -53,6 +54,7 @@ export async function handleGeminiLiveCall(
     languageCode: string;
     transferEnabled: boolean;
     transferNumber: string | null;
+    transferNumberClaims: string | null;
     transferTimeout: number;
   },
   tenantName: string,
@@ -105,6 +107,7 @@ export async function handleGeminiLiveCall(
     callerNumber: session.variables.caller_number ?? "",
     callLogId,
     transferNumber: geminiScenario.transferNumber,
+    transferNumberClaims: geminiScenario.transferNumberClaims,
     transferTimeout: geminiScenario.transferTimeout,
     toolDefinitions: geminiScenario.toolDefinitions,
   };
@@ -234,12 +237,10 @@ export async function handleGeminiLiveCall(
             }
 
             if (name === "transfer_to_operator") {
-              if (
-                geminiScenario.transferEnabled &&
-                geminiScenario.transferNumber
-              ) {
+              const targetNumber = resolveTransferNumber(args, toolContext);
+              if (geminiScenario.transferEnabled && targetNumber) {
                 await cacheTransferInfo(callSid, {
-                  transferNumber: geminiScenario.transferNumber,
+                  transferNumber: targetNumber,
                   callerNumber: session.variables.caller_number ?? "",
                   timeout: geminiScenario.transferTimeout,
                   reason: String(args.reason ?? ""),
@@ -247,10 +248,7 @@ export async function handleGeminiLiveCall(
                 setTimeout(() => {
                   void (async () => {
                     try {
-                      await executeTransfer(
-                        callSid,
-                        geminiScenario.transferNumber!,
-                      );
+                      await executeTransfer(callSid, targetNumber);
                       await finalize("transferred");
                     } catch (err) {
                       logger.error({ err }, "transfer execution failed");
