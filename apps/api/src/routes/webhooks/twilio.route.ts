@@ -21,6 +21,62 @@ function buildStreamUrl(called: string, from: string, scenarioId?: string | null
   return url;
 }
 
+type HumanFirstGemini = {
+  humanFirstEnabled: boolean;
+  humanFirstNumber: string | null;
+  humanFirstTimeout: number;
+};
+
+function shouldUseHumanFirst(gs: HumanFirstGemini | null | undefined): gs is HumanFirstGemini & { humanFirstNumber: string } {
+  return Boolean(gs?.humanFirstEnabled && gs.humanFirstNumber);
+}
+
+function buildHumanFirstFallbackUrl(
+  called: string,
+  from: string,
+  scenarioId?: string | null,
+): string {
+  let url = `/webhooks/twilio/human-first-fallback?called=${encodeURIComponent(called)}&from=${encodeURIComponent(from)}`;
+  if (scenarioId) url += `&scenarioId=${encodeURIComponent(scenarioId)}`;
+  return url;
+}
+
+function buildStreamTwiml(called: string, from: string, scenarioId?: string | null): string {
+  const streamUrl = buildStreamUrl(called, from, scenarioId);
+  const scenarioParam = scenarioId
+    ? `\n      <Parameter name="scenarioId" value="${escapeXml(scenarioId)}" />`
+    : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Connect>
+    <Stream url="${escapeXml(streamUrl)}">
+      <Parameter name="called" value="${escapeXml(called)}" />
+      <Parameter name="from" value="${escapeXml(from)}" />${scenarioParam}
+    </Stream>
+  </Connect>
+</Response>`;
+}
+
+function buildHumanFirstDialTwiml(
+  called: string,
+  from: string,
+  scenarioId: string | null | undefined,
+  gs: HumanFirstGemini & { humanFirstNumber: string },
+): string {
+  const fallbackUrl = buildHumanFirstFallbackUrl(called, from, scenarioId);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial timeout="${gs.humanFirstTimeout}" action="${escapeXml(fallbackUrl)}" callerId="${escapeXml(called)}">
+    <Number>${escapeXml(gs.humanFirstNumber)}</Number>
+  </Dial>
+</Response>`;
+}
+
+const phoneInclude = {
+  ivrRoutes: { orderBy: { sortOrder: "asc" as const } },
+  scenario: { include: { geminiScenario: true } },
+} as const;
+
 twilioWebhookRouter.post("/voice", async (req, res) => {
   const To = (req.body?.To as string) ?? "";
   const From = (req.body?.From as string) ?? "";
@@ -30,7 +86,7 @@ twilioWebhookRouter.post("/voice", async (req, res) => {
       number: To,
       tenant: { deletedAt: null },
     },
-    include: { ivrRoutes: { orderBy: { sortOrder: "asc" } } },
+    include: phoneInclude,
   });
 
   logger.info({ To, From, ivrEnabled: phone?.ivrEnabled }, "twilio voice webhook");
@@ -60,17 +116,14 @@ twilioWebhookRouter.post("/voice", async (req, res) => {
     return;
   }
 
-  const streamUrl = buildStreamUrl(To, From);
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="${escapeXml(streamUrl)}">
-      <Parameter name="called" value="${escapeXml(To)}" />
-      <Parameter name="from" value="${escapeXml(From)}" />
-    </Stream>
-  </Connect>
-</Response>`;
-  res.type("text/xml").send(xml);
+  const gs = phone?.scenario?.geminiScenario;
+  if (shouldUseHumanFirst(gs)) {
+    const xml = buildHumanFirstDialTwiml(To, From, phone?.scenarioId, gs);
+    res.type("text/xml").send(xml);
+    return;
+  }
+
+  res.type("text/xml").send(buildStreamTwiml(To, From));
 });
 
 twilioWebhookRouter.post("/ivr-route", async (req, res) => {
@@ -91,19 +144,37 @@ twilioWebhookRouter.post("/ivr-route", async (req, res) => {
 
   logger.info({ Digits, called, scenarioId }, "ivr-route selected");
 
-  const streamUrl = buildStreamUrl(called, from, scenarioId);
+  const gs = scenarioId
+    ? await prisma.geminiScenario.findUnique({ where: { scenarioId } })
+    : null;
 
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Connect>
-    <Stream url="${escapeXml(streamUrl)}">
-      <Parameter name="called" value="${escapeXml(called)}" />
-      <Parameter name="from" value="${escapeXml(from)}" />
-      <Parameter name="scenarioId" value="${escapeXml(scenarioId ?? "")}" />
-    </Stream>
-  </Connect>
-</Response>`;
-  res.type("text/xml").send(xml);
+  if (shouldUseHumanFirst(gs)) {
+    const xml = buildHumanFirstDialTwiml(called, from, scenarioId, gs);
+    res.type("text/xml").send(xml);
+    return;
+  }
+
+  res.type("text/xml").send(buildStreamTwiml(called, from, scenarioId));
+});
+
+twilioWebhookRouter.post("/human-first-fallback", (req, res) => {
+  const dialStatus = req.body?.DialCallStatus as string | undefined;
+  const called = (req.query?.called as string) ?? "";
+  const from = (req.query?.from as string) ?? "";
+  const scenarioId = (req.query?.scenarioId as string) || undefined;
+
+  logger.info(
+    { dialStatus, called, from, scenarioId, callSid: req.body?.CallSid },
+    "human-first fallback",
+  );
+
+  if (dialStatus === "completed" || dialStatus === "answered") {
+    res.type("text/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
+<Response><Hangup/></Response>`);
+    return;
+  }
+
+  res.type("text/xml").send(buildStreamTwiml(called, from, scenarioId));
 });
 
 twilioWebhookRouter.post("/status", (req, res) => {
