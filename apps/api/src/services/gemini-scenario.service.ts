@@ -163,6 +163,9 @@ function defaultGeminiScenario(scenarioId: string) {
     transferEnabled: true,
     transferNumber: null,
     transferTimeout: 30,
+    humanFirstEnabled: false,
+    humanFirstNumber: null,
+    humanFirstTimeout: 18,
     createdAt: null,
     updatedAt: null,
   };
@@ -198,6 +201,9 @@ export async function getGeminiScenario(
       transferEnabled: gs.transferEnabled,
       transferNumber: gs.transferNumber,
       transferTimeout: gs.transferTimeout,
+      humanFirstEnabled: gs.humanFirstEnabled,
+      humanFirstNumber: gs.humanFirstNumber,
+      humanFirstTimeout: gs.humanFirstTimeout,
       createdAt: gs.createdAt.toISOString(),
       updatedAt: gs.updatedAt.toISOString(),
     },
@@ -220,6 +226,9 @@ export async function upsertGeminiScenario(
     transferEnabled?: boolean;
     transferNumber?: string | null;
     transferTimeout?: number;
+    humanFirstEnabled?: boolean;
+    humanFirstNumber?: string | null;
+    humanFirstTimeout?: number;
   },
 ): Promise<Result<unknown>> {
   const scenario = await scenarioRepo.findScenarioById(tenantId, scenarioId);
@@ -244,6 +253,9 @@ export async function upsertGeminiScenario(
     transferEnabled: data.transferEnabled,
     transferNumber: data.transferNumber,
     transferTimeout: data.transferTimeout,
+    humanFirstEnabled: data.humanFirstEnabled,
+    humanFirstNumber: data.humanFirstNumber,
+    humanFirstTimeout: data.humanFirstTimeout,
   });
   return { ok: true, data: { id: gs.id, scenarioId: gs.scenarioId } };
 }
