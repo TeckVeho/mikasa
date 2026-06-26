@@ -163,7 +163,11 @@ export function NewGeminiScenario() {
   const [toolDefinitions, setToolDefinitions] = useState("");
   const [transferEnabled, setTransferEnabled] = useState(true);
   const [transferNumber, setTransferNumber] = useState("");
+  const [transferNumberClaims, setTransferNumberClaims] = useState("");
   const [transferTimeout, setTransferTimeout] = useState(30);
+  const [humanFirstEnabled, setHumanFirstEnabled] = useState(false);
+  const [humanFirstNumber, setHumanFirstNumber] = useState("");
+  const [humanFirstTimeout, setHumanFirstTimeout] = useState(18);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
@@ -193,7 +197,11 @@ export function NewGeminiScenario() {
           toolDefinitions,
           transferEnabled,
           transferNumber,
+          transferNumberClaims: transferNumberClaims || null,
           transferTimeout,
+          humanFirstEnabled,
+          humanFirstNumber: humanFirstNumber || null,
+          humanFirstTimeout,
         }),
       });
       if (!geminiRes.ok) {
@@ -271,10 +279,18 @@ export function NewGeminiScenario() {
         <TransferSettings
           enabled={transferEnabled}
           number={transferNumber}
+          claimsNumber={transferNumberClaims}
           timeout={transferTimeout}
+          humanFirstEnabled={humanFirstEnabled}
+          humanFirstNumber={humanFirstNumber}
+          humanFirstTimeout={humanFirstTimeout}
           onEnabledChange={setTransferEnabled}
           onNumberChange={setTransferNumber}
+          onClaimsNumberChange={setTransferNumberClaims}
           onTimeoutChange={setTransferTimeout}
+          onHumanFirstEnabledChange={setHumanFirstEnabled}
+          onHumanFirstNumberChange={setHumanFirstNumber}
+          onHumanFirstTimeoutChange={setHumanFirstTimeout}
         />
       </div>
 
