@@ -162,6 +162,7 @@ function defaultGeminiScenario(scenarioId: string) {
     languageCode: "ja-JP",
     transferEnabled: true,
     transferNumber: null,
+    transferNumberClaims: null,
     transferTimeout: 30,
     createdAt: null,
     updatedAt: null,
@@ -197,6 +198,7 @@ export async function getGeminiScenario(
       languageCode: gs.languageCode,
       transferEnabled: gs.transferEnabled,
       transferNumber: gs.transferNumber,
+      transferNumberClaims: gs.transferNumberClaims,
       transferTimeout: gs.transferTimeout,
       createdAt: gs.createdAt.toISOString(),
       updatedAt: gs.updatedAt.toISOString(),
@@ -219,6 +221,7 @@ export async function upsertGeminiScenario(
     languageCode?: string;
     transferEnabled?: boolean;
     transferNumber?: string | null;
+    transferNumberClaims?: string | null;
     transferTimeout?: number;
   },
 ): Promise<Result<unknown>> {
@@ -243,6 +246,7 @@ export async function upsertGeminiScenario(
     languageCode: data.languageCode,
     transferEnabled: data.transferEnabled,
     transferNumber: data.transferNumber,
+    transferNumberClaims: data.transferNumberClaims,
     transferTimeout: data.transferTimeout,
   });
   return { ok: true, data: { id: gs.id, scenarioId: gs.scenarioId } };

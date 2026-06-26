@@ -211,6 +211,7 @@ export function attachCallStreamHandler(
             languageCode: gs.languageCode,
             transferEnabled: gs.transferEnabled,
             transferNumber: gs.transferNumber,
+            transferNumberClaims: gs.transferNumberClaims,
             transferTimeout: gs.transferTimeout,
           },
           phone.tenant.name,
