@@ -15,9 +15,12 @@
     "dev:app": "turbo run dev --filter=@logivoice/shared --filter=@logivoice/api --filter=@logivoice/web",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
   }
