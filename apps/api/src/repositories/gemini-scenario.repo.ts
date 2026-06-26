@@ -32,7 +32,11 @@ export async function upsert(
     languageCode?: string;
     transferEnabled?: boolean;
     transferNumber?: string | null;
+    transferNumberClaims?: string | null;
     transferTimeout?: number;
+    humanFirstEnabled?: boolean;
+    humanFirstNumber?: string | null;
+    humanFirstTimeout?: number;
   },
 ) {
   return prisma.geminiScenario.upsert({
@@ -48,7 +52,11 @@ export async function upsert(
       languageCode: data.languageCode ?? "ja-JP",
       transferEnabled: data.transferEnabled ?? true,
       transferNumber: data.transferNumber ?? null,
+      transferNumberClaims: data.transferNumberClaims ?? null,
       transferTimeout: data.transferTimeout ?? 30,
+      humanFirstEnabled: data.humanFirstEnabled ?? false,
+      humanFirstNumber: data.humanFirstNumber ?? null,
+      humanFirstTimeout: data.humanFirstTimeout ?? 18,
     },
     update: {
       persona: data.persona,
@@ -68,8 +76,20 @@ export async function upsert(
       ...(data.transferNumber !== undefined && {
         transferNumber: data.transferNumber,
       }),
+      ...(data.transferNumberClaims !== undefined && {
+        transferNumberClaims: data.transferNumberClaims,
+      }),
       ...(data.transferTimeout !== undefined && {
         transferTimeout: data.transferTimeout,
+      }),
+      ...(data.humanFirstEnabled !== undefined && {
+        humanFirstEnabled: data.humanFirstEnabled,
+      }),
+      ...(data.humanFirstNumber !== undefined && {
+        humanFirstNumber: data.humanFirstNumber,
+      }),
+      ...(data.humanFirstTimeout !== undefined && {
+        humanFirstTimeout: data.humanFirstTimeout,
       }),
     },
   });

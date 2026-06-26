@@ -245,6 +245,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
         const voiceName = gs?.voiceName ?? "Aoede";
         const languageCode = gs?.languageCode ?? "ja-JP";
         const transferNumber = gs?.transferNumber ?? null;
+        const transferNumberClaims = gs?.transferNumberClaims ?? null;
         const transferTimeout = gs?.transferTimeout ?? 30;
 
         const tenant = await prisma.tenant.findUnique({
@@ -360,6 +361,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
                       callerNumber: "音声テスト",
                       callLogId,
                       transferNumber,
+                      transferNumberClaims,
                       transferTimeout,
                       toolDefinitions,
                     },

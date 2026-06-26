@@ -28,7 +28,11 @@ type GeminiScenario = {
   toolDefinitions: string;
   transferEnabled: boolean;
   transferNumber: string;
+  transferNumberClaims: string;
   transferTimeout: number;
+  humanFirstEnabled: boolean;
+  humanFirstNumber: string;
+  humanFirstTimeout: number;
 };
 
 type ScenarioDetail = {
@@ -63,7 +67,11 @@ export default function GeminiSettingsPage() {
   const [toolDefinitions, setToolDefinitions] = useState("");
   const [transferEnabled, setTransferEnabled] = useState(false);
   const [transferNumber, setTransferNumber] = useState("");
+  const [transferNumberClaims, setTransferNumberClaims] = useState("");
   const [transferTimeout, setTransferTimeout] = useState(30);
+  const [humanFirstEnabled, setHumanFirstEnabled] = useState(false);
+  const [humanFirstNumber, setHumanFirstNumber] = useState("");
+  const [humanFirstTimeout, setHumanFirstTimeout] = useState(18);
   const [saved, setSaved] = useState(false);
 
   const [previewText, setPreviewText] = useState("");
@@ -102,7 +110,11 @@ export default function GeminiSettingsPage() {
     setToolDefinitions(q.data.toolDefinitions ?? "");
     setTransferEnabled(q.data.transferEnabled ?? false);
     setTransferNumber(q.data.transferNumber ?? "");
+    setTransferNumberClaims(q.data.transferNumberClaims ?? "");
     setTransferTimeout(q.data.transferTimeout ?? 30);
+    setHumanFirstEnabled(q.data.humanFirstEnabled ?? false);
+    setHumanFirstNumber(q.data.humanFirstNumber ?? "");
+    setHumanFirstTimeout(q.data.humanFirstTimeout ?? 18);
   }, [q.data]);
 
   const saveMutation = useMutation({
@@ -137,7 +149,11 @@ export default function GeminiSettingsPage() {
           toolDefinitions,
           transferEnabled,
           transferNumber,
+          transferNumberClaims: transferNumberClaims || null,
           transferTimeout,
+          humanFirstEnabled,
+          humanFirstNumber: humanFirstNumber || null,
+          humanFirstTimeout,
         }),
       });
       if (!r.ok) throw new Error(r.message ?? r.error);
@@ -285,10 +301,18 @@ export default function GeminiSettingsPage() {
         <TransferSettings
           enabled={transferEnabled}
           number={transferNumber}
+          claimsNumber={transferNumberClaims}
           timeout={transferTimeout}
+          humanFirstEnabled={humanFirstEnabled}
+          humanFirstNumber={humanFirstNumber}
+          humanFirstTimeout={humanFirstTimeout}
           onEnabledChange={setTransferEnabled}
           onNumberChange={setTransferNumber}
+          onClaimsNumberChange={setTransferNumberClaims}
           onTimeoutChange={setTransferTimeout}
+          onHumanFirstEnabledChange={setHumanFirstEnabled}
+          onHumanFirstNumberChange={setHumanFirstNumber}
+          onHumanFirstTimeoutChange={setHumanFirstTimeout}
         />
       </div>
 

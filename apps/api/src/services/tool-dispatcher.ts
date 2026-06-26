@@ -21,9 +21,23 @@ export type ToolDispatchContext = {
   /** 通話開始時に確定した通話ログ ID（register_callback の紐付け用） */
   callLogId: string;
   transferNumber: string | null;
+  transferNumberClaims: string | null;
   transferTimeout: number;
   toolDefinitions?: unknown[];
 };
+
+/** transfer_to_operator の department に応じて転送先番号を決定する */
+export function resolveTransferNumber(
+  args: Record<string, unknown>,
+  context: ToolDispatchContext,
+): string | null {
+  const department =
+    args.department != null ? String(args.department) : "general";
+  if (department === "claims" && context.transferNumberClaims) {
+    return context.transferNumberClaims;
+  }
+  return context.transferNumber;
+}
 
 const CUSTOM_TOOL_TIMEOUT_MS = 5_000;
 

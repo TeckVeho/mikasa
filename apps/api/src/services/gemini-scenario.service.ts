@@ -162,7 +162,11 @@ function defaultGeminiScenario(scenarioId: string) {
     languageCode: "ja-JP",
     transferEnabled: true,
     transferNumber: null,
+    transferNumberClaims: null,
     transferTimeout: 30,
+    humanFirstEnabled: false,
+    humanFirstNumber: null,
+    humanFirstTimeout: 18,
     createdAt: null,
     updatedAt: null,
   };
@@ -197,7 +201,11 @@ export async function getGeminiScenario(
       languageCode: gs.languageCode,
       transferEnabled: gs.transferEnabled,
       transferNumber: gs.transferNumber,
+      transferNumberClaims: gs.transferNumberClaims,
       transferTimeout: gs.transferTimeout,
+      humanFirstEnabled: gs.humanFirstEnabled,
+      humanFirstNumber: gs.humanFirstNumber,
+      humanFirstTimeout: gs.humanFirstTimeout,
       createdAt: gs.createdAt.toISOString(),
       updatedAt: gs.updatedAt.toISOString(),
     },
@@ -219,7 +227,11 @@ export async function upsertGeminiScenario(
     languageCode?: string;
     transferEnabled?: boolean;
     transferNumber?: string | null;
+    transferNumberClaims?: string | null;
     transferTimeout?: number;
+    humanFirstEnabled?: boolean;
+    humanFirstNumber?: string | null;
+    humanFirstTimeout?: number;
   },
 ): Promise<Result<unknown>> {
   const scenario = await scenarioRepo.findScenarioById(tenantId, scenarioId);
@@ -243,7 +255,11 @@ export async function upsertGeminiScenario(
     languageCode: data.languageCode,
     transferEnabled: data.transferEnabled,
     transferNumber: data.transferNumber,
+    transferNumberClaims: data.transferNumberClaims,
     transferTimeout: data.transferTimeout,
+    humanFirstEnabled: data.humanFirstEnabled,
+    humanFirstNumber: data.humanFirstNumber,
+    humanFirstTimeout: data.humanFirstTimeout,
   });
   return { ok: true, data: { id: gs.id, scenarioId: gs.scenarioId } };
 }
