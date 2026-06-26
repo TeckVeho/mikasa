@@ -1,6 +1,23 @@
 import WebSocket from "ws";
 import { logger } from "./logger.js";
 
+export type GeminiThinkingConfig = {
+  thinkingLevel: "LOW" | "MEDIUM" | "HIGH";
+};
+
+export type GeminiAutomaticActivityDetection = {
+  startOfSpeechSensitivity?:
+    | "START_SENSITIVITY_LOW"
+    | "START_SENSITIVITY_MEDIUM"
+    | "START_SENSITIVITY_HIGH";
+  endOfSpeechSensitivity?:
+    | "END_SENSITIVITY_LOW"
+    | "END_SENSITIVITY_MEDIUM"
+    | "END_SENSITIVITY_HIGH";
+  prefixPaddingMs?: number;
+  silenceDurationMs?: number;
+};
+
 export type GeminiLiveConfig = {
   apiKey: string;
   model: string;
@@ -8,6 +25,30 @@ export type GeminiLiveConfig = {
   tools: unknown[];
   voice: string;
   languageCode: string;
+  /** @default 0.4 */
+  temperature?: number;
+  /** @default 0.85 */
+  topP?: number;
+  /** @default 30 */
+  topK?: number;
+  /** @default { thinkingLevel: "LOW" } */
+  thinkingConfig?: GeminiThinkingConfig;
+  /** VAD sensitivity overrides for realtime input */
+  automaticActivityDetection?: GeminiAutomaticActivityDetection;
+};
+
+const DEFAULT_GENERATION = {
+  temperature: 0.4,
+  topP: 0.85,
+  topK: 30,
+  thinkingConfig: { thinkingLevel: "LOW" as const },
+};
+
+const DEFAULT_ACTIVITY_DETECTION: Required<GeminiAutomaticActivityDetection> = {
+  startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+  endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+  prefixPaddingMs: 30,
+  silenceDurationMs: 700,
 };
 
 export type GeminiLiveCallbacks = {
@@ -271,16 +312,38 @@ export class GeminiLiveSession {
       ? { handle: this.resumptionHandle }
       : {};
 
+    const activityDetection = config.automaticActivityDetection ?? {};
     const setup = {
       setup: {
         model: config.model.startsWith("models/") ? config.model : `models/${config.model}`,
         generationConfig: {
           responseModalities: ["AUDIO"],
+          temperature: config.temperature ?? DEFAULT_GENERATION.temperature,
+          topP: config.topP ?? DEFAULT_GENERATION.topP,
+          topK: config.topK ?? DEFAULT_GENERATION.topK,
+          thinkingConfig:
+            config.thinkingConfig ?? DEFAULT_GENERATION.thinkingConfig,
           speechConfig: {
             voiceConfig: {
               prebuiltVoiceConfig: { voiceName: config.voice },
             },
             languageCode: config.languageCode,
+          },
+        },
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            startOfSpeechSensitivity:
+              activityDetection.startOfSpeechSensitivity ??
+              DEFAULT_ACTIVITY_DETECTION.startOfSpeechSensitivity,
+            endOfSpeechSensitivity:
+              activityDetection.endOfSpeechSensitivity ??
+              DEFAULT_ACTIVITY_DETECTION.endOfSpeechSensitivity,
+            prefixPaddingMs:
+              activityDetection.prefixPaddingMs ??
+              DEFAULT_ACTIVITY_DETECTION.prefixPaddingMs,
+            silenceDurationMs:
+              activityDetection.silenceDurationMs ??
+              DEFAULT_ACTIVITY_DETECTION.silenceDurationMs,
           },
         },
         systemInstruction: {
