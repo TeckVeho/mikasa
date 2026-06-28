@@ -17,7 +17,7 @@ const BUILT_IN_ENTRIES: PronunciationEntry[] = [
   { word: "概ね", reading: "おおむね", category: "keigo" },
   { word: "折り返し", reading: "おりかえし", category: "keigo" },
   { word: "伺います", reading: "うかがいます", category: "keigo" },
-  { word: "恐れ入ります", reading: "おそれいります", category: "keigo" },
+  { word: "恐れ入ります", reading: "おそれはいります", category: "keigo" },
   { word: "宜しく", reading: "よろしく", category: "keigo" },
   { word: "致します", reading: "いたします", category: "keigo" },
   { word: "例えば", reading: "たとえば", category: "keigo" },
