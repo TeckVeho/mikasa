@@ -13,6 +13,11 @@ region     = "asia-northeast1"
 
 resource_tier = "tier3"
 
+# Test call / Gemini Live WebSocket: tier default timeout (120s) cuts long sessions.
+# Override for voice workloads (Cloud Run max request timeout is 3600s).
+cloud_run_api_timeout = "3600s"
+cloud_run_api_memory  = "512Mi"
+
 container_image     = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-api:stg"
 web_container_image = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-web:stg"
 
