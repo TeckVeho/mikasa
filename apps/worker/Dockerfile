@@ -24,7 +24,6 @@ COPY --from=deps /app/tsconfig.base.json ./tsconfig.base.json
 COPY packages/shared ./packages/shared
 COPY apps/api/prisma ./apps/api/prisma
 COPY apps/worker ./apps/worker
-COPY --from=deps /app/apps/worker/node_modules ./apps/worker/node_modules
 
 RUN npm run build -w @logivoice/shared
 RUN npm run build -w @logivoice/worker
