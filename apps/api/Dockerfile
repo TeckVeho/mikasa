@@ -24,7 +24,6 @@ COPY --from=deps /app/tsconfig.base.json ./tsconfig.base.json
 
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 
 RUN npm run build -w @logivoice/shared
 RUN npm run build -w @logivoice/api
