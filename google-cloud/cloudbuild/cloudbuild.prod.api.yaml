@@ -61,6 +61,10 @@ steps:
       - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG}'
       - '--region'
       - '${_REGION}'
+      - '--timeout'
+      - '${_API_TIMEOUT}'
+      - '--memory'
+      - '${_API_MEMORY}'
       - '--no-allow-unauthenticated'
 
 substitutions:
@@ -68,6 +72,8 @@ substitutions:
   _TAG: prod
   _AR_PROJECT_ID: ''
   _DEPLOY_PROJECT_ID: ''
+  _API_TIMEOUT: '3600'
+  _API_MEMORY: '512Mi'
 
 options:
   logging: CLOUD_LOGGING_ONLY

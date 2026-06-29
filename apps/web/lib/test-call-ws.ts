@@ -11,7 +11,7 @@ export type TestCallMessage =
   | { type: "tool_call"; name: string; args: unknown }
   | { type: "tool_result"; name: string; result: unknown }
   | { type: "error"; message: string }
-  | { type: "ended" };
+  | { type: "ended"; reason?: string };
 
 export type TestCallCallbacks = {
   onAudio: (base64Pcm24k: string) => void;
@@ -58,6 +58,22 @@ function appendActingTenantParam(url: string): string {
   if (!actingTenantId) return url;
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}acting_tenant_id=${encodeURIComponent(actingTenantId)}`;
+}
+
+function formatDisconnectMessage(code: number, reason: string): string {
+  if (process.env.NODE_ENV === "development") {
+    console.warn("[TestCallClient] WebSocket closed", { code, reason });
+  }
+
+  if (code === 1006) {
+    return "サーバーまたはネットワークにより接続が切断されました。長時間の通話の場合は管理者にご連絡ください。";
+  }
+
+  if (reason) {
+    return `接続が切断されました（code=${code}）。テスト通話を終了してください。`;
+  }
+
+  return "接続が切断されました。テスト通話を終了してください。";
 }
 
 /**
@@ -173,11 +189,13 @@ export class TestCallClient {
       this.callbacks?.onError("WebSocket 接続エラーが発生しました");
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (ev: CloseEvent) => {
       this.ws = null;
       if (this.userStopped || this.endedNotified) return;
       this.endedNotified = true;
-      this.callbacks?.onError("接続が切断されました。テスト通話を終了してください。");
+      this.callbacks?.onError(
+        formatDisconnectMessage(ev.code, ev.reason ?? ""),
+      );
     };
   }
 

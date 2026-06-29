@@ -124,10 +124,20 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
     let gemini: GeminiLiveSession | null = null;
     let testSession: TestSessionState | null = null;
     let finalized = false;
+    let clientNotifiedEnd = false;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
     let callbackFinalization: ReturnType<
       typeof createCallbackFinalizationCoordinator
     > | null = null;
+
+    function notifyClientEnded(reason?: string): void {
+      if (clientNotifiedEnd) return;
+      clientNotifiedEnd = true;
+      safeSend(
+        ws,
+        reason ? { type: "ended", reason } : { type: "ended" },
+      );
+    }
 
     function startHeartbeat(): void {
       stopHeartbeat();
@@ -312,7 +322,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             gemini?.close();
             gemini = null;
             void finalizeTestCall();
-            safeSend(ws, { type: "ended" });
+            notifyClientEnded();
           },
           postCloseMs: CALLBACK_POST_CLOSE_MS,
         });
@@ -409,14 +419,14 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
               });
               void finalizeTestCall();
               gemini = null;
-              safeSend(ws, { type: "ended" });
+              notifyClientEnded("gemini_error");
             },
 
             onClose() {
               if (callbackFinalization?.shouldSkipOnClose()) return;
-              if (gemini !== null) {
-                gemini = null;
-                safeSend(ws, { type: "ended" });
+              gemini = null;
+              if (testSession !== null) {
+                notifyClientEnded();
               }
               void finalizeTestCall();
             },
@@ -461,12 +471,26 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
         gemini = null;
         session?.close();
         void finalizeTestCall();
-        safeSend(ws, { type: "ended" });
+        notifyClientEnded("user_stop");
         return;
       }
     });
 
-    ws.on("close", () => {
+    ws.on("close", (code, reasonBuf) => {
+      const reason = reasonBuf?.toString() || "";
+      const durationSeconds = testSession
+        ? Math.round((Date.now() - testSession.startedAt) / 1000)
+        : null;
+      logger.info(
+        {
+          code,
+          reason,
+          durationSeconds,
+          scenarioId: testSession?.scenarioId ?? null,
+          clientNotifiedEnd,
+        },
+        "test-call browser WebSocket closed",
+      );
       stopHeartbeat();
       gemini?.close();
       gemini = null;

@@ -27,6 +27,10 @@ region     = "asia-northeast1"
 # Sizing tier (wiki-aligned): tier3 → smaller Cloud Run / Cloud SQL on dev.
 resource_tier = "tier3"
 
+# Test call / Gemini Live WebSocket: tier default timeout (120s) cuts long sessions.
+cloud_run_api_timeout = "3600s"
+cloud_run_api_memory  = "512Mi"
+
 # --- Container images (tag must match Cloud Build _TAG, usually "dev") ---
 container_image     = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-api:dev"
 web_container_image = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-web:dev"

@@ -61,6 +61,7 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
   const [toolLogs, setToolLogs] = useState<ToolLogEntry[]>([]);
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState(0);
 
   const captureRef = useRef<AudioCapture | null>(null);
   const clientRef = useRef<TestCallClient | null>(null);
@@ -171,7 +172,12 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
       });
 
     return cleanup;
-  }, [open, scenarioId, cleanup]);
+  }, [open, scenarioId, cleanup, sessionKey]);
+
+  useEffect(() => {
+    if (open) return;
+    setSessionKey(0);
+  }, [open]);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,6 +191,12 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
   const handleClose = () => {
     cleanup();
     onClose();
+  };
+
+  const handleReconnect = () => {
+    cleanup();
+    setError(null);
+    setSessionKey((prev) => prev + 1);
   };
 
   const toggleMute = () => {
@@ -211,8 +223,8 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
       : status === "active"
         ? `通話中 (${formatTime(elapsed)})`
         : status === "ended"
-          ? "通話終了"
-          : "エラー";
+          ? `通話終了 (${formatTime(elapsed)})`
+          : `エラー (${formatTime(elapsed)})`;
 
   const statusColor =
     status === "active"
@@ -376,6 +388,16 @@ export function TestCallDialog({ scenarioId, open, onClose }: Props) {
               <PhoneOff size={14} className="mr-1.5" />
               終了
             </Button>
+          ) : status === "error" ? (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleReconnect}>
+                <Phone size={14} className="mr-1.5" />
+                再接続
+              </Button>
+              <Button variant="secondary" size="sm" onClick={handleClose}>
+                閉じる
+              </Button>
+            </div>
           ) : (
             <Button variant="secondary" size="sm" onClick={handleClose}>
               閉じる

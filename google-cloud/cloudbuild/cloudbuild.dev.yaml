@@ -128,6 +128,10 @@ steps:
       - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG}'
       - '--region'
       - '${_REGION}'
+      - '--timeout'
+      - '${_API_TIMEOUT}'
+      - '--memory'
+      - '${_API_MEMORY}'
       - '--no-allow-unauthenticated'
     waitFor: ['migrate-execute']
 
@@ -168,6 +172,8 @@ substitutions:
   _TAG: dev
   _AR_PROJECT_ID: ''
   _DEPLOY_PROJECT_ID: ''
+  _API_TIMEOUT: '3600'
+  _API_MEMORY: '512Mi'
   _WORKER_SERVICE_NAME: dx-logivoice-worker-dev
   _NEXT_PUBLIC_API_URL: 'https://dx-logivoice-api-dev-739321310569.asia-northeast1.run.app'
   _NEXT_PUBLIC_BASE_URL: 'https://dx-logivoice-web-dev-739321310569.asia-northeast1.run.app'
