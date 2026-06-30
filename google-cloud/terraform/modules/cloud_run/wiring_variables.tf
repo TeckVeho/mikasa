@@ -79,7 +79,7 @@ variable "database_url_secret_id" {
 variable "enable_vpc_access" {
   type        = bool
   default     = false
-  description = "Direct VPC egress for Cloud SQL and/or Memorystore Redis."
+  description = "Direct VPC egress for Cloud SQL private IP."
 }
 
 variable "pubsub_topic_call_completed" {
@@ -92,18 +92,6 @@ variable "pubsub_subscription_id" {
   type        = string
   default     = ""
   description = "Full Pub/Sub subscription resource id for worker PUBSUB_SUBSCRIPTION_SUMMARIZE."
-}
-
-variable "redis_host" {
-  type        = string
-  default     = ""
-  description = "Memorystore Redis host for API/worker env."
-}
-
-variable "redis_port" {
-  type        = string
-  default     = ""
-  description = "Memorystore Redis port."
 }
 
 variable "worker_cloud_run_service_name" {

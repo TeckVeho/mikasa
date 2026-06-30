@@ -1,7 +1,7 @@
 import { TextToSpeechClient } from "@google-cloud/text-to-speech";
 import { createHash } from "node:crypto";
 import type { Result } from "@logivoice/shared";
-import { getRedis } from "./redis.js";
+import { getTtsCache, putTtsCache } from "./storage.js";
 
 let client: TextToSpeechClient | null = null;
 
@@ -15,19 +15,18 @@ function getTtsClient(): TextToSpeechClient | null {
   }
 }
 
+function ttsCacheHash(text: string, speed: number): string {
+  return createHash("sha256").update(`${text}:${speed}`).digest("hex");
+}
+
 export async function synthesizeSpeech(input: {
   text: string;
   speed: number;
 }): Promise<Result<Buffer>> {
-  const cacheKey = `tts:${createHash("sha256")
-    .update(`${input.text}:${input.speed}`)
-    .digest("hex")}`;
-  const redis = getRedis();
-  if (redis) {
-    const cachedB64 = await redis.get(cacheKey);
-    if (cachedB64) {
-      return { ok: true, data: Buffer.from(cachedB64, "base64") };
-    }
+  const hash = ttsCacheHash(input.text, input.speed);
+  const cached = await getTtsCache(hash);
+  if (cached) {
+    return { ok: true, data: cached };
   }
 
   const tts = getTtsClient();
@@ -51,8 +50,6 @@ export async function synthesizeSpeech(input: {
   if (!content || !(content instanceof Buffer)) {
     return { ok: false, error: "no audio", code: "INTERNAL_ERROR" };
   }
-  if (redis) {
-    await redis.set(cacheKey, content.toString("base64"), "EX", 86400);
-  }
+  await putTtsCache(hash, content);
   return { ok: true, data: content };
 }

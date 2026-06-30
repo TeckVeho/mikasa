@@ -13,7 +13,8 @@
 #   Cloud Run : {project_id}-api-dev, {project_id}-web-dev, {project_id}-worker-dev
 #   GCS       : {project_id}-uploads-dev
 #   Pub/Sub   : {project_id}-call-completed-dev → {project_id}-summarize-worker-dev
-#   Redis     : {project_id}-redis-dev (with Cloud SQL + network)
+#   Pub/Sub   : {project_id}-call-completed-dev → {project_id}-summarize-worker-dev
+#   KV cache  : MySQL kv_cache table (session/transfer); TTS cache in GCS tts-cache/
 #   Migrate job: {project_id}-migrate-dev
 #   Worker image: derived from container_image (logivoice-api → logivoice-worker)
 #   Firebase ADC: roles/firebaseauth.admin on runtime SA {project_id}-run-dev

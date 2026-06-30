@@ -1,8 +1,8 @@
 # =============================================================================
 # Dev network stack — copy to terraform.tfvars (gitignored).
 #
-# Creates VPC, Direct VPC subnet, and private service peering for Cloud SQL /
-# Memorystore Redis. Required before dev/app when enable_cloud_sql = true.
+# Creates VPC, Direct VPC subnet, and private service peering for Cloud SQL.
+# Required before dev/app when enable_cloud_sql = true.
 #
 # Apply order:
 #   1. bootstrap (state bucket)

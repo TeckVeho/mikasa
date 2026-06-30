@@ -85,10 +85,6 @@ output "pubsub_call_completed_topic" {
   value = module.pubsub.call_completed_topic_name
 }
 
-output "memorystore_redis_host" {
-  value = var.enable_cloud_sql ? module.memorystore[0].redis_host : null
-}
-
 output "sql_schedule_function_url" {
   value = module.sql_schedule.sql_schedule_function_url
 }

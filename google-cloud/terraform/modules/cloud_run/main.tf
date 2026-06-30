@@ -30,11 +30,6 @@ locals {
       GOOGLE_CLOUD_PROJECT        = var.project_id
       PUBSUB_TOPIC_CALL_COMPLETED = var.pubsub_topic_call_completed
     } : {},
-    var.redis_host != "" ? {
-      REDIS_HOST = var.redis_host
-      REDIS_PORT = var.redis_port
-      REDIS_URL  = "redis://${var.redis_host}:${var.redis_port}"
-    } : {},
     var.enable_vertex_ai ? {
       VERTEX_AI          = "true"
       VERTEX_AI_LOCATION = var.vertex_ai_location != "" ? var.vertex_ai_location : var.region

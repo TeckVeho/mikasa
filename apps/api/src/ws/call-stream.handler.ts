@@ -11,7 +11,7 @@ import {
 } from "../utils/audio.js";
 import { uploadCallRecording } from "../lib/storage.js";
 import { AmiVoiceSession } from "../lib/amivoice.js";
-import { setSessionJson, getSessionJson } from "../lib/redis.js";
+import { setCacheJson, getCacheJson } from "../lib/cache.js";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import * as callRepo from "../repositories/call-log.repo.js";
@@ -295,7 +295,7 @@ export function attachCallStreamHandler(
     }
     session = r.session;
     if (callSid) {
-      await setSessionJson(
+      await setCacheJson(
         `${SESSION_PREFIX}${callSid}`,
         session,
         SESSION_TTL,
@@ -343,7 +343,7 @@ export function attachCallStreamHandler(
               };
               if (callSid) activeCallsStore.updateTranscript(callSid, acc);
               if (callSid) {
-                await setSessionJson(
+                await setCacheJson(
                   `${SESSION_PREFIX}${callSid}`,
                   session,
                   SESSION_TTL,
@@ -394,7 +394,7 @@ export function attachCallStreamHandler(
     sid: string,
     mulawChunks: Buffer[],
   ) {
-    const stored = await getSessionJson<CallSession>(`${SESSION_PREFIX}${sid}`);
+    const stored = await getCacheJson<CallSession>(`${SESSION_PREFIX}${sid}`);
     const finalSession = stored ?? s;
     const id = newId();
     let audioStoragePath: string | null = null;

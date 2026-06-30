@@ -320,7 +320,7 @@ The workflow runs on **push** to **`develop`**, **`staging`**, or **`production`
 | Value | Behaviour |
 |-------|-----------|
 | `auto` | Path-based submits only (`cd-gcp.yml` + paths-filter); see GitHub Actions section in [`README.md`](README.md). |
-| `all` | One full `cloudbuild.dev.yaml` or `cloudbuild.prod.yaml` (API + migrate + web + worker). |
+| `all` | Three parallel submits: `*-api.yaml` (includes migrate), `*-web.yaml`, `*-worker.yaml`. |
 | `api` / `web` / `worker` | Submit only that component’s YAML (`*-api.yaml` runs migrate too). |
 
 Other branches / scopes do not submit (push still runs `plan` but may **skip** with a notice).
