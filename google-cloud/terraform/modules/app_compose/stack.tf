@@ -41,16 +41,6 @@ module "pubsub" {
   cloud_run_service_account = local.cloud_run_service_account
 }
 
-module "memorystore" {
-  count  = var.enable_cloud_sql ? 1 : 0
-  source = "../memorystore"
-
-  project_id          = var.project_id
-  region              = var.region
-  instance_name       = local.redis_instance_name_effective
-  network_self_link   = data.terraform_remote_state.network[0].outputs.network_self_link
-}
-
 module "cloud_sql" {
   source = "../cloud_sql"
 
@@ -80,7 +70,6 @@ module "cloud_run" {
     module.cloud_sql,
     module.gcs,
     module.pubsub,
-    module.memorystore,
   ]
   allow_unauthenticated                 = var.allow_unauthenticated
   allow_unauthenticated_web             = var.allow_unauthenticated_web
@@ -124,8 +113,6 @@ module "cloud_run" {
   cron_scheduler_service_account_email  = var.enable_cron_cloud_scheduler ? local.cron_api_sa_email : ""
   pubsub_topic_call_completed           = module.pubsub.call_completed_topic_name
   pubsub_subscription_id                = module.pubsub.summarize_subscription_id
-  redis_host                            = var.enable_cloud_sql ? module.memorystore[0].redis_host : ""
-  redis_port                            = var.enable_cloud_sql ? tostring(module.memorystore[0].redis_port) : ""
   worker_cloud_run_service_name         = local.worker_cloud_run_service_name_effective
   worker_container_image                = local.worker_container_image_effective
   worker_dashboard_url                  = local.worker_dashboard_url_effective

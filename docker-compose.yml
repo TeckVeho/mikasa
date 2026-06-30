@@ -9,7 +9,3 @@ services:
     ports:
       - "3306:3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"

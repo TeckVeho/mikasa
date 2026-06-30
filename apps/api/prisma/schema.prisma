@@ -232,3 +232,15 @@ model TransferHandoff {
   @@index([tenantId, status])
   @@map("transfer_handoffs")
 }
+
+/// Short-lived key-value entries (call session, transfer info). TTS audio uses GCS.
+model KvCache {
+  cacheKey  String   @id @map("cache_key") @db.VarChar(255)
+  value     String   @db.MediumText
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([expiresAt])
+  @@map("kv_cache")
+}

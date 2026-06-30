@@ -10,7 +10,6 @@ locals {
 
   pubsub_topic_name_effective = substr("${local.name_prefix}-call-completed-${var.env_suffix}", 0, 63)
   pubsub_sub_name_effective   = substr("${local.name_prefix}-summarize-worker-${var.env_suffix}", 0, 63)
-  redis_instance_name_effective = substr("${local.name_prefix}-redis-${var.env_suffix}", 0, 63)
 
   # Derive worker image from API image (same registry, tag, repo; logivoice-worker instead of logivoice-api).
   worker_container_image_effective = replace(var.container_image, "logivoice-api", "logivoice-worker")

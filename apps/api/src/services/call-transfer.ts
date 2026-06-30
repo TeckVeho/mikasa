@@ -1,4 +1,4 @@
-import { getRedis } from "../lib/redis.js";
+import { getCacheJson, setCacheJson } from "../lib/cache.js";
 
 export type TransferInfo = {
   transferNumber: string;
@@ -7,24 +7,18 @@ export type TransferInfo = {
   reason: string;
 };
 
-/** 転送情報を Redis にキャッシュ（Webhook で参照） */
+const TRANSFER_TTL_SECONDS = 300;
+
+/** Cache transfer metadata for Twilio webhook (cross Cloud Run instance). */
 export async function cacheTransferInfo(
   callSid: string,
   info: TransferInfo,
 ): Promise<void> {
-  const redis = getRedis();
-  if (redis) {
-    await redis.set(`transfer:${callSid}`, JSON.stringify(info), "EX", 300);
-  }
+  await setCacheJson(`transfer:${callSid}`, info, TRANSFER_TTL_SECONDS);
 }
 
-/** Redis から転送情報を取得 */
 export async function getTransferInfo(
   callSid: string,
 ): Promise<TransferInfo | null> {
-  const redis = getRedis();
-  if (!redis) return null;
-  const raw = await redis.get(`transfer:${callSid}`);
-  if (!raw) return null;
-  return JSON.parse(raw) as TransferInfo;
+  return getCacheJson<TransferInfo>(`transfer:${callSid}`);
 }

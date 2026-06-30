@@ -12,11 +12,6 @@ locals {
     var.worker_dashboard_url != "" ? {
       DASHBOARD_URL = var.worker_dashboard_url
     } : {},
-    var.redis_host != "" ? {
-      REDIS_HOST = var.redis_host
-      REDIS_PORT = var.redis_port
-      REDIS_URL  = "redis://${var.redis_host}:${var.redis_port}"
-    } : {},
     {
       GCP_PROJECT_ID                = var.project_id
       GOOGLE_CLOUD_PROJECT          = var.project_id

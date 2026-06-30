@@ -1,10 +1,12 @@
 import { Storage } from "@google-cloud/storage";
 import { logger } from "./logger.js";
 
+const TTS_CACHE_PREFIX = "tts-cache/";
+
 let storageClient: Storage | null = null;
 
 function getStorage(): Storage | null {
-  const bucket = process.env.GCS_BUCKET_NAME;
+  const bucket = process.env.GCS_BUCKET_NAME ?? process.env.GCS_BUCKET;
   if (!bucket) return null;
   if (!storageClient) {
     try {
@@ -15,6 +17,45 @@ function getStorage(): Storage | null {
     }
   }
   return storageClient;
+}
+
+function ttsCacheObjectPath(hash: string): string {
+  return `${TTS_CACHE_PREFIX}${hash}.pcm`;
+}
+
+/** Read cached LINEAR16 8kHz PCM from GCS (lifecycle deletes after 1 day). */
+export async function getTtsCache(hash: string): Promise<Buffer | null> {
+  const bucketName = process.env.GCS_BUCKET_NAME ?? process.env.GCS_BUCKET;
+  if (!bucketName) return null;
+  const s = getStorage();
+  if (!s) return null;
+  const objectPath = ttsCacheObjectPath(hash);
+  try {
+    const file = s.bucket(bucketName).file(objectPath);
+    const [exists] = await file.exists();
+    if (!exists) return null;
+    const [data] = await file.download();
+    return data;
+  } catch (e) {
+    logger.debug({ err: e, objectPath }, "getTtsCache miss or error");
+    return null;
+  }
+}
+
+export async function putTtsCache(hash: string, data: Buffer): Promise<void> {
+  const bucketName = process.env.GCS_BUCKET_NAME ?? process.env.GCS_BUCKET;
+  if (!bucketName) return;
+  const s = getStorage();
+  if (!s) return;
+  const objectPath = ttsCacheObjectPath(hash);
+  try {
+    await s.bucket(bucketName).file(objectPath).save(data, {
+      contentType: "audio/l16",
+      resumable: false,
+    });
+  } catch (e) {
+    logger.warn({ err: e, objectPath }, "putTtsCache failed");
+  }
 }
 
 /**

@@ -31,6 +31,16 @@ resource "google_storage_bucket" "uploads" {
   uniform_bucket_level_access = true
   force_destroy               = false
 
+  lifecycle_rule {
+    condition {
+      age            = 1
+      matches_prefix = ["tts-cache/"]
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
   depends_on = [google_project_service.storage]
 }
 
