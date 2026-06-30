@@ -18,13 +18,16 @@ The workflow runs **`dorny/paths-filter`** on **`develop`**, **`staging`**, and 
 
 | Changed paths | What runs |
 |----------------|-----------|
-| `packages/shared/**`, root `package-lock.json`/`turbo`/`tsconfig.base.json`, `google-cloud/cloudbuild/**`, `.github/workflows/**`, `apps/*/Dockerfile` | Treated as **full stack** → one Cloud Build (`cloudbuild.dev.yaml` / `cloudbuild.prod.yaml`) for API (with migrate) + web + worker — single build VM. |
+| `packages/shared/**`, root `package-lock.json`/`turbo`/`tsconfig.base.json`, `google-cloud/cloudbuild/**`, `.github/workflows/**`, `apps/*/Dockerfile` | Treated as **full stack** → three **parallel** Cloud Build submits (`*-api.yaml`, `*-web.yaml`, `*-worker.yaml`). |
 | Only `apps/api/**` | `cloudbuild.*.api.yaml` (API image + `gcloud run jobs` migrate deploy/execute + API deploy). |
 | Only `apps/web/**` | `cloudbuild.*.web.yaml`. |
 | Only `apps/worker/**` | `cloudbuild.*.worker.yaml`. |
+| All of `apps/api/**`, `apps/web/**`, and `apps/worker/**` in one push | Same as full stack — three parallel submits. |
 | Nothing matched in deploy scope | **No** Cloud Build submit (cost saver). |
 
-**Manual `workflow_dispatch`:** set `deploy_scope` to **`all`** (full once), **`auto`** (table above), or force **`api` / `web` / `worker`**.
+**Manual `workflow_dispatch`:** set `deploy_scope` to **`all`** (parallel api + web + worker), **`auto`** (table above), or force **`api` / `web` / `worker`**.
+
+**Combined configs:** `cloudbuild.dev.yaml` / `cloudbuild.prod.yaml` remain for manual `gcloud builds submit` or GCP Console triggers; GitHub Actions always uses the split YAMLs for parallelism.
 
 ## Branch triggers (example)
 
