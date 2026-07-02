@@ -16,6 +16,7 @@ import { newId } from "../utils/id.js";
 import { verifyAuthToken } from "../services/auth.service.js";
 import { createCallbackFinalizationCoordinator } from "./callback-finalization.js";
 import { maybeCreateFallbackCallbackRequest } from "../services/callback-fallback.js";
+import { TranscriptAccumulator } from "../utils/transcript-accumulator.js";
 
 type ClientMessage =
   | { type: "start"; scenarioId: string }
@@ -38,7 +39,7 @@ type TestSessionState = {
   phoneNumberId: string;
   twilioCallSid: string;
   callLogId: string;
-  transcript: string;
+  transcriptAccumulator: TranscriptAccumulator;
 };
 
 async function resolveActingTenantForSuperadmin(
@@ -162,7 +163,8 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
       const s = testSession;
       testSession = null;
       const id = s.callLogId;
-      const transcriptText = s.transcript.trim() || null;
+      const transcript = s.transcriptAccumulator.finalize();
+      const transcriptText = transcript.trim() || null;
       try {
         await callRepo.upsertCallLogByTwilioSid({
           id,
@@ -185,7 +187,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             tenantId: s.tenantId,
             callSid: s.twilioCallSid,
             callerNumber: "音声テスト",
-            transcript: s.transcript,
+            transcript,
             wasRegistered:
               callbackFinalization?.wasRegisteredSuccessfully() ?? false,
             callLogId: id,
@@ -290,7 +292,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
           phoneNumberId,
           twilioCallSid,
           callLogId,
-          transcript: "",
+          transcriptAccumulator: new TranscriptAccumulator(),
         };
 
         const pronunciationDictionary =
@@ -352,11 +354,9 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             },
 
             onTranscript(role, text) {
+              if (!text) return;
               safeSend(ws, { type: "transcript", role, text });
-              if (text && testSession) {
-                const prefix = role === "user" ? "お客様: " : "AI: ";
-                testSession.transcript += prefix + text + "\n";
-              }
+              testSession?.transcriptAccumulator.appendChunk(role, text);
             },
 
             onToolCall(id, name, args) {
@@ -408,6 +408,7 @@ export function handleTestCall(ws: WebSocket, req: IncomingMessage): void {
             },
 
             onTurnComplete() {
+              testSession?.transcriptAccumulator.onTurnComplete();
               void callbackFinalization?.onTurnComplete();
             },
 

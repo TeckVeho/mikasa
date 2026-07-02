@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { apiJson } from "@/lib/api";
+import { parseTranscriptText } from "@/lib/parse-transcript";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -177,6 +178,47 @@ function AudioPlayer({
   );
 }
 
+function TranscriptConversation({
+  transcriptText,
+}: {
+  transcriptText: string | null;
+}) {
+  const messages = parseTranscriptText(transcriptText);
+
+  if (messages.length === 0) {
+    return <p className="text-sm text-muted">（なし）</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {messages.map((message, index) => {
+        const isUser = message.role === "user";
+        return (
+          <div
+            key={`${message.role}-${index}`}
+            className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                isUser
+                  ? "bg-primary/10 text-text"
+                  : "bg-bg text-text border border-border"
+              }`}
+            >
+              <p className="text-xs font-medium text-muted mb-1">
+                {isUser ? "お客様" : "AI"}
+              </p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {message.text}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CallDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -267,9 +309,7 @@ export default function CallDetailPage() {
           <div className="rounded-xl border border-border bg-surface p-5">
             <h2 className="text-base font-medium text-text">文字起こし</h2>
             <div className="mt-3 max-h-96 overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-sm text-muted leading-relaxed">
-                {d.transcriptText ?? "（なし）"}
-              </pre>
+              <TranscriptConversation transcriptText={d.transcriptText} />
             </div>
           </div>
 

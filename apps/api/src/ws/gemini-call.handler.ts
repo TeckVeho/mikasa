@@ -28,6 +28,7 @@ import { createCallbackFinalizationCoordinator } from "./callback-finalization.j
 import { maybeCreateFallbackCallbackRequest } from "../services/callback-fallback.js";
 import { logger } from "../lib/logger.js";
 import { activeCallsStore } from "../services/active-calls.service.js";
+import { TranscriptAccumulator } from "../utils/transcript-accumulator.js";
 
 type TwilioMediaMessage = {
   event: string;
@@ -60,7 +61,7 @@ export async function handleGeminiLiveCall(
   tenantName: string,
 ): Promise<void> {
   const recordingMulawChunks: Buffer[] = [];
-  let accumulatedTranscript = "";
+  const transcriptAccumulator = new TranscriptAccumulator();
   let finalized = false;
   const callLogId = newId();
 
@@ -131,6 +132,7 @@ export async function handleGeminiLiveCall(
       );
     }
 
+    const accumulatedTranscript = transcriptAccumulator.finalize();
     const transcriptText = accumulatedTranscript.trim() || null;
     await callRepo.upsertCallLogByTwilioSid({
       id: callLogId,
@@ -202,11 +204,12 @@ export async function handleGeminiLiveCall(
       },
 
       onTranscript(role, text) {
-        if (text) {
-          const prefix = role === "user" ? "お客様: " : "AI: ";
-          accumulatedTranscript += prefix + text + "\n";
-          activeCallsStore.updateTranscript(callSid, accumulatedTranscript);
-        }
+        if (!text) return;
+        transcriptAccumulator.appendChunk(role, text);
+        activeCallsStore.updateTranscript(
+          callSid,
+          transcriptAccumulator.getPreview(),
+        );
       },
 
       onToolCall(id, name, args) {
@@ -265,6 +268,11 @@ export async function handleGeminiLiveCall(
       },
 
       onTurnComplete() {
+        transcriptAccumulator.onTurnComplete();
+        activeCallsStore.updateTranscript(
+          callSid,
+          transcriptAccumulator.getPreview(),
+        );
         void callbackFinalization.onTurnComplete();
       },
 
