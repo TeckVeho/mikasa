@@ -1,0 +1,94 @@
+import { Router } from "express";
+import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
+import type { AuthRequest } from "../types/express.d.js";
+import * as project from "../services/project.service.js";
+import { getProjectProgress } from "../services/progress.service.js";
+import * as model from "../services/model.service.js";
+
+export const projectsRouter = Router();
+projectsRouter.use(requireAuth);
+
+projectsRouter.get("/", async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const excludeShipped = req.query.excludeShipped !== "false";
+  const data = await project.listProjects(tenantId, {
+    teamId: req.query.teamId as string | undefined,
+    status: req.query.status as string | undefined,
+    category: req.query.category as string | undefined,
+    search: req.query.search as string | undefined,
+    excludeShipped,
+  });
+  res.json({ ok: true, data });
+});
+
+projectsRouter.post("/", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const r = await project.createProject(tenantId, req.body);
+  sendResult(res, r);
+});
+
+projectsRouter.post("/import", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const csv = typeof req.body?.csv === "string" ? req.body.csv : "";
+  const rows = project.parseCsvImport(csv);
+  const r = await project.importProjects(tenantId, rows);
+  sendResult(res, r);
+});
+
+projectsRouter.get("/:id", async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const data = await project.getProject(tenantId, req.params.id!);
+  if (!data) {
+    res.status(404).json({ ok: false, error: "NOT_FOUND", message: "工事が見つかりません" });
+    return;
+  }
+  res.json({ ok: true, data });
+});
+
+projectsRouter.put("/:id", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const r = await project.updateProject(tenantId, req.params.id!, req.body);
+  sendResult(res, r);
+});
+
+projectsRouter.post("/:id/model-preview", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const weight = Number(req.body?.weight);
+  const memberLength = Number(req.body?.memberLength);
+  const r = await model.previewProjectModel(
+    tenantId,
+    req.params.id!,
+    weight,
+    memberLength,
+  );
+  sendResult(res, r);
+});
+
+projectsRouter.post("/:id/apply-model", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const weight = Number(req.body?.weight);
+  const memberLength = Number(req.body?.memberLength);
+  const r = await model.applyProjectModel(
+    tenantId,
+    req.params.id!,
+    weight,
+    memberLength,
+  );
+  sendResult(res, r);
+});
+
+projectsRouter.delete("/:id", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const r = await project.deleteProject(tenantId, req.params.id!);
+  sendResult(res, r);
+});
+
+projectsRouter.get("/:id/progress", async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const data = await getProjectProgress(tenantId, req.params.id!);
+  if (!data) {
+    res.status(404).json({ ok: false, error: "NOT_FOUND", message: "工事が見つかりません" });
+    return;
+  }
+  res.json({ ok: true, data });
+});

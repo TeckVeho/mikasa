@@ -38,14 +38,9 @@ const WORKSPACE_PREFIXES = [
   { prefix: "packages/shared/", pkg: "@logivoice/shared" },
   { prefix: "apps/web/", pkg: "@logivoice/web" },
   { prefix: "apps/api/", pkg: "@logivoice/api" },
-  { prefix: "apps/worker/", pkg: "@logivoice/worker" },
 ];
 
-const SHARED_DEPENDENTS = [
-  "@logivoice/api",
-  "@logivoice/web",
-  "@logivoice/worker",
-];
+const SHARED_DEPENDENTS = ["@logivoice/api", "@logivoice/web"];
 
 if (files.some((f) => ROOT_CONFIG.has(f.split("/").pop() ?? f))) {
   execSync("npm run typecheck", { stdio: "inherit" });

@@ -14,7 +14,7 @@ export function Input({ className, label, error, id, ...props }: InputProps) {
       {label ? (
         <label
           htmlFor={inputId}
-          className="mb-1.5 block text-sm font-medium text-muted-foreground"
+          className="mb-1.5 block text-[13px] font-medium text-muted-foreground"
         >
           {label}
         </label>
@@ -22,13 +22,13 @@ export function Input({ className, label, error, id, ...props }: InputProps) {
       <input
         id={inputId}
         className={cn(
-          "w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-text placeholder:text-muted/60 outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10",
-          error && "border-danger focus:ring-danger/20",
+          "w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-text placeholder:text-muted/50 outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/20",
+          error && "border-danger focus:border-danger focus:ring-danger/20",
           className,
         )}
         {...props}
       />
-      {error ? <p className="mt-1.5 text-xs text-danger">{error}</p> : null}
+      {error ? <p className="mt-1 text-xs text-danger">{error}</p> : null}
     </div>
   );
 }

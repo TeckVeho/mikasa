@@ -35,22 +35,22 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/20"
         aria-label="閉じる"
         onClick={onClose}
       />
       <div
         className={cn(
-          "relative z-10 w-full rounded-2xl bg-white p-6 shadow-[0_8px_32px_rgba(30,20,10,0.10)] animate-fade-in-up",
+          "relative z-10 w-full rounded-lg border border-border bg-white p-5 shadow-lg animate-fade-in-up",
           width,
         )}
         role="dialog"
         aria-modal="true"
       >
-        <h2 className="mb-5 text-base font-semibold text-text">{title}</h2>
+        <h2 className="mb-4 text-sm font-semibold text-text">{title}</h2>
         {children}
         {footer ? (
-          <div className="mt-6 flex justify-end gap-2">{footer}</div>
+          <div className="mt-5 flex justify-end gap-2">{footer}</div>
         ) : null}
       </div>
     </div>

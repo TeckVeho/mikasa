@@ -17,8 +17,8 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "LogiVoice",
-  description: "物流向け電話自動対応 AI",
+  title: "ミカサ金属 - 負荷調整システム",
+  description: "ミカサ金属 負荷計算システム",
 };
 
 export default function RootLayout({

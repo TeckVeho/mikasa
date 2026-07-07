@@ -3,26 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Sparkles,
-  Check,
-} from "lucide-react";
+import { ArrowRight, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { loginWithEmailPassword } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const FEATURES = [
-  "ノーコードでシナリオを構築",
-  "リアルタイムの文字起こしと要約",
-  "通話データの分析・可視化",
-] as const;
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return "メールアドレスを入力してください";
@@ -150,106 +137,32 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-bg">
-      {/* 左パネル: ブランドビジュアル */}
-      <div className="relative hidden overflow-hidden lg:flex lg:w-[480px] xl:w-[560px]">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary-hover to-[#8f3d28] animate-gradient-shift" />
-        <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl animate-float-slow" />
-        <div className="absolute -bottom-16 right-0 h-64 w-64 rounded-full bg-[#f2c4a8]/20 blur-3xl animate-pulse-glow" />
-        <div className="absolute right-12 top-1/3 h-40 w-40 rounded-full bg-white/5 blur-2xl animate-float" />
-
-        <div className="relative z-10 flex w-full flex-col justify-between p-12 text-white">
-          <div className="animate-fade-in-up">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/20 text-sm font-bold shadow-lg shadow-black/10 backdrop-blur-md ring-1 ring-white/30">
-                LV
-              </span>
-              <span className="text-lg font-semibold tracking-tight">
-                LogiVoice
-              </span>
+    <div className="flex min-h-screen items-center justify-center bg-bg">
+      <div className="w-full max-w-[380px] animate-fade-in-up">
+        <div className="rounded-lg border border-border bg-white p-8 shadow-sm">
+          <div className="mb-6 text-center">
+            <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-primary text-xs font-bold text-white">
+              M
             </div>
-          </div>
-
-          <div className="space-y-8">
-            <div className="animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/90 backdrop-blur-sm ring-1 ring-white/20">
-                <Sparkles className="h-3.5 w-3.5" />
-                AI音声対応プラットフォーム
-              </div>
-              <h2 className="text-3xl font-semibold leading-snug tracking-tight xl:text-4xl">
-                物流の電話対応を、
-                <br />
-                <span className="bg-gradient-to-r from-white via-white/95 to-white/70 bg-clip-text text-transparent">
-                  AIでスマートに。
-                </span>
-              </h2>
-              <p className="mt-4 text-base leading-relaxed text-white/80">
-                受電からヒアリング、転送判断まで。
-                <br />
-                シナリオベースのAI音声対応で、
-                <br />
-                オペレーターの負荷を大幅に削減します。
-              </p>
-            </div>
-
-            <div className="space-y-4 pt-2">
-              {FEATURES.map((text, i) => (
-                <div
-                  key={text}
-                  className="animate-stagger-fade-in flex items-center gap-3"
-                  style={{ animationDelay: `${0.25 + i * 0.1}s` }}
-                >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 ring-1 ring-white/25 backdrop-blur-sm">
-                    <Check className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-sm text-white/90">{text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <p
-            className="animate-fade-in text-xs text-white/40"
-            style={{ animationDelay: "0.6s" }}
-          >
-            &copy; {new Date().getFullYear()} LogiVoice
-          </p>
-        </div>
-      </div>
-
-      {/* 右パネル: ログインフォーム */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden p-6">
-        <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-primary/[0.04] blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-primary/[0.06] blur-3xl" />
-
-        <div className="relative w-full max-w-[420px] animate-fade-in-up">
-          {/* モバイル用ロゴ */}
-          <div className="mb-10 text-center lg:hidden">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary-hover text-base font-bold text-white shadow-lg shadow-primary/25">
-              LV
-            </span>
-          </div>
-
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-text">
-              ログイン
+            <h1 className="text-base font-semibold text-text">
+              ミカサ金属 負荷計算システム
             </h1>
-            <p className="mt-2 text-sm text-muted">
-              アカウント情報を入力してダッシュボードにアクセス
+            <p className="mt-1 text-[13px] text-muted">
+              アカウント情報を入力してログイン
             </p>
           </div>
 
           {error && (
             <div
               role="alert"
-              className="mb-6 flex items-start gap-2.5 rounded-xl border border-danger/20 bg-danger/[0.06] px-4 py-3 text-sm text-danger animate-fade-in"
+              className="mb-5 flex items-start gap-2 rounded-md border border-danger/20 bg-danger/5 px-3 py-2.5 text-[13px] text-danger"
             >
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-5" noValidate>
+          <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <Input
               label="メールアドレス"
               name="email"
@@ -273,7 +186,7 @@ export default function LoginPage() {
             <div className="w-full">
               <label
                 htmlFor="password"
-                className="mb-1.5 block text-sm font-medium text-muted-foreground"
+                className="mb-1.5 block text-[13px] font-medium text-muted-foreground"
               >
                 パスワード
               </label>
@@ -296,7 +209,7 @@ export default function LoginPage() {
                   }}
                   aria-invalid={!!fieldErrors.password}
                   className={cn(
-                    "w-full rounded-xl border border-border bg-white px-4 py-2.5 pr-11 text-sm text-text placeholder:text-muted/60 outline-none transition-all focus:border-primary/50 focus:ring-2 focus:ring-primary/10",
+                    "w-full rounded-md border border-border bg-white px-3 py-2 pr-10 text-sm text-text placeholder:text-muted/50 outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/20",
                     fieldErrors.password &&
                       "border-danger focus:border-danger focus:ring-danger/20",
                   )}
@@ -304,55 +217,50 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted transition-colors hover:text-text focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/40"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted transition-colors hover:text-text"
                   aria-label={
                     showPassword ? "パスワードを隠す" : "パスワードを表示"
                   }
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
+                    <EyeOff className="h-3.5 w-3.5" />
                   ) : (
-                    <Eye className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5" />
                   )}
                 </button>
               </div>
               {fieldErrors.password ? (
-                <p className="mt-1.5 text-xs text-danger">
+                <p className="mt-1 text-xs text-danger">
                   {fieldErrors.password}
                 </p>
               ) : null}
-              <div className="mt-2 text-right">
-                <button
-                  type="button"
-                  className="text-xs text-muted transition-colors hover:text-primary"
-                  tabIndex={-1}
-                >
-                  パスワードをお忘れですか？
-                </button>
-              </div>
             </div>
 
             <Button
               type="submit"
-              className="group w-full gap-2 shadow-md shadow-primary/20 transition-all hover:shadow-lg hover:shadow-primary/25"
-              size="lg"
+              className="group w-full gap-1.5"
+              size="md"
               loading={loading}
             >
               ログイン
               {!loading && (
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               )}
             </Button>
           </form>
 
           {process.env.NEXT_PUBLIC_USE_DEV_AUTH === "true" && (
-            <div className="mt-8 rounded-xl border border-border bg-bg/60 px-4 py-3 text-center backdrop-blur-sm">
+            <div className="mt-5 rounded-md border border-border bg-bg px-3 py-2 text-center">
               <p className="text-xs text-muted">
                 開発モード: Firebase なしでダッシュボードへ進めます
               </p>
             </div>
           )}
         </div>
+
+        <p className="mt-4 text-center text-xs text-muted">
+          &copy; {new Date().getFullYear()} ミカサ金属
+        </p>
       </div>
     </div>
   );

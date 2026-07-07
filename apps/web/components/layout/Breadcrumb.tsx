@@ -6,16 +6,23 @@ import { ChevronRight } from "lucide-react";
 
 const LABEL_MAP: Record<string, string> = {
   dashboard: "ダッシュボード",
-  numbers: "電話番号",
-  scenarios: "シナリオ",
-  calls: "通話ログ",
-  callbacks: "折り返し予約",
-  analytics: "VOC 分析",
-  billing: "支払い",
+  projects: "工事一覧",
+  teams: "班別ビュー",
+  historical: "過去実績",
   settings: "設定",
   edit: "編集",
   new: "新規作成",
+  import: "CSVインポート",
 };
+
+function isProjectDetailPath(segments: string[]): boolean {
+  return (
+    segments[0] === "projects" &&
+    segments.length === 2 &&
+    segments[1] !== "new" &&
+    segments[1] !== "import"
+  );
+}
 
 function resolveLabel(segment: string): string {
   return LABEL_MAP[segment] ?? segment;
@@ -25,7 +32,7 @@ export function Breadcrumb() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
 
-  if (segments.length <= 1) return null;
+  if (segments.length <= 1 || isProjectDetailPath(segments)) return null;
 
   const crumbs = segments.map((seg, i) => ({
     label: resolveLabel(seg),
@@ -34,7 +41,7 @@ export function Breadcrumb() {
   }));
 
   return (
-    <nav aria-label="パンくずリスト" className="mb-4 flex items-center gap-1 text-sm">
+    <nav aria-label="パンくずリスト" className="mb-4 flex items-center gap-1 text-[13px]">
       {crumbs.map((crumb) => (
         <span key={crumb.href} className="flex items-center gap-1">
           {!crumb.isLast ? (
@@ -45,7 +52,7 @@ export function Breadcrumb() {
               >
                 {crumb.label}
               </Link>
-              <ChevronRight className="h-3.5 w-3.5 text-muted/60" />
+              <ChevronRight className="h-3 w-3 text-muted/50" />
             </>
           ) : (
             <span className="font-medium text-text">{crumb.label}</span>

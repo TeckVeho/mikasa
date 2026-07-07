@@ -8,27 +8,20 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @db.VarChar(26)
-  name      String   @db.VarChar(255)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id        String    @id @db.VarChar(26)
+  name      String    @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  maintenanceMode    Boolean @default(false) @map("maintenance_mode")
-  maintenanceMessage String? @map("maintenance_message") @db.Text
-  billingPlan        String  @default("standard") @map("billing_plan") @db.VarChar(40)
-  voiceEngine        String  @default("gemini_live") @map("voice_engine") @db.VarChar(20)
-
-  notifyCallComplete Boolean @default(false) @map("notify_call_complete")
-  notifyTransfer     Boolean @default(false) @map("notify_transfer")
-  notifyEmail        String? @map("notify_email") @db.VarChar(255)
-
   users              User[]
-  phoneNumbers       PhoneNumber[]
-  scenarios          Scenario[]
-  callLogs           CallLog[]
-  speechDictionaries SpeechDictionary[]
-  callbackRequests   CallbackRequest[]
+  productTypes       ProductType[]
+  processTypes       ProcessType[]
+  teams              Team[]
+  calendars          Calendar[]
+  capacitySettings   CapacitySetting[]
+  projects           Project[]
+  historicalAverages HistoricalAverage[]
 
   @@map("tenants")
 }
@@ -41,206 +34,193 @@ model User {
   role        String   @default("operator") @db.VarChar(20)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teamMembers TeamMember[]
 
   @@index([firebaseUid])
   @@map("users")
 }
 
-model PhoneNumber {
-  id              String   @id @db.VarChar(26)
-  tenantId        String   @map("tenant_id") @db.VarChar(26)
-  scenarioId      String?  @map("scenario_id") @db.VarChar(26)
-  number          String   @db.VarChar(20)
-  twilioNumberSid String?  @unique @map("twilio_number_sid") @db.VarChar(64)
-  byocTrunkSid    String?  @unique @map("byoc_trunk_sid") @db.VarChar(64)
-  numberType      String   @default("twilio") @map("number_type") @db.VarChar(20)
-  status          String   @default("inactive") @db.VarChar(20)
-  ivrEnabled      Boolean  @default(false) @map("ivr_enabled")
-  ivrMessage      String?  @map("ivr_message") @db.Text
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  scenario  Scenario?  @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
-  callLogs  CallLog[]
-  ivrRoutes IvrRoute[]
-
-  @@unique([number])
-  @@map("phone_numbers")
-}
-
-model Scenario {
-  id          String    @id @db.VarChar(26)
-  tenantId    String    @map("tenant_id") @db.VarChar(26)
-  name        String    @db.VarChar(255)
-  flowJson    Json      @map("flow_json")
-  status      String    @default("draft") @db.VarChar(20)
-  publishedAt DateTime? @map("published_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  scenarioType String  @default("inbound") @map("scenario_type") @db.VarChar(20)
-  description  String? @db.Text
-
-  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phoneNumbers   PhoneNumber[]
-  callLogs       CallLog[]
-  versions       ScenarioVersion[]
-  geminiScenario GeminiScenario?
-  ivrRoutes      IvrRoute[]
-
-  @@index([tenantId, status])
-  @@index([tenantId, scenarioType])
-  @@map("scenarios")
-}
-
-model ScenarioVersion {
-  id          String   @id @db.VarChar(26)
-  scenarioId  String   @map("scenario_id") @db.VarChar(26)
-  version     Int
-  flowJson    Json     @map("flow_json")
-  publishedAt DateTime @default(now()) @map("published_at")
-  publishedBy String?  @map("published_by") @db.VarChar(26)
-
-  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-
-  @@index([scenarioId, version])
-  @@map("scenario_versions")
-}
-
-model CallLog {
-  id               String   @id @db.VarChar(26)
-  tenantId         String   @map("tenant_id") @db.VarChar(26)
-  phoneNumberId    String   @map("phone_number_id") @db.VarChar(26)
-  scenarioId       String   @map("scenario_id") @db.VarChar(26)
-  twilioCallSid    String   @unique @map("twilio_call_sid") @db.VarChar(64)
-  callerNumber     String   @map("caller_number") @db.VarChar(20)
-  durationSeconds  Int?     @map("duration_seconds")
-  status           String   @db.VarChar(20)
-  transcriptText   String?  @map("transcript_text") @db.Text
-  summaryText      String?  @map("summary_text") @db.Text
-  structuredData   Json?    @map("structured_data")
-  transcriptSegments Json?  @map("transcript_segments")
-  audioStoragePath String?  @map("audio_storage_path") @db.Text
-  operatorNote     String   @map("operator_note") @db.Text
-  callbackDone     Boolean  @default(false) @map("callback_done")
-  createdAt        DateTime @default(now()) @map("created_at")
-
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  phoneNumber      PhoneNumber       @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
-  scenario         Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
-  transferHandoffs TransferHandoff[]
-
-  @@index([tenantId, createdAt(sort: Desc)])
-  @@index([tenantId, status])
-  @@map("call_logs")
-}
-
-model SpeechDictionary {
-  id        String   @id @db.VarChar(26)
-  tenantId  String   @map("tenant_id") @db.VarChar(26)
-  word      String   @db.VarChar(100)
-  reading   String   @db.VarChar(100)
-  category  String   @default("general") @db.VarChar(20)
-  createdAt DateTime @default(now()) @map("created_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
-  @@map("speech_dictionaries")
-}
-
-model CallbackRequest {
+model ProductType {
   id            String    @id @db.VarChar(26)
   tenantId      String    @map("tenant_id") @db.VarChar(26)
-  callLogId     String?   @map("call_log_id") @db.VarChar(26)
-  callerNumber  String    @map("caller_number") @db.VarChar(20)
-  preferredTime String?   @map("preferred_time") @db.VarChar(100)
-  status        String    @default("pending") @db.VarChar(20)
-  assigneeId    String?   @map("assignee_id") @db.VarChar(26)
-  note          String    @map("note") @db.Text
-  completedAt   DateTime? @map("completed_at")
+  name          String    @db.VarChar(100)
+  category      String    @db.VarChar(20)
+  sortOrder     Int       @default(0) @map("sort_order")
+  regressionA   Decimal?  @map("regression_a") @db.Decimal(12, 8)
+  regressionB   Decimal?  @map("regression_b") @db.Decimal(10, 3)
+  processRatios Json?     @map("process_ratios")
   createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects           Project[]
+  historicalAverages HistoricalAverage[]
+
+  @@index([tenantId])
+  @@map("product_types")
+}
+
+model ProcessType {
+  id           String  @id @db.VarChar(26)
+  tenantId     String  @map("tenant_id") @db.VarChar(26)
+  name         String  @db.VarChar(50)
+  displayOrder Int     @map("display_order")
+  defaultRatio Decimal @map("default_ratio") @db.Decimal(6, 4)
+  isWelding    Boolean @default(false) @map("is_welding")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processRecords ProcessRecord[]
+
+  @@index([tenantId])
+  @@map("process_types")
+}
+
+model Team {
+  id        String    @id @db.VarChar(26)
+  tenantId  String    @map("tenant_id") @db.VarChar(26)
+  name      String    @db.VarChar(100)
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members            TeamMember[]
+  projects           Project[]
+  capacitySettings   CapacitySetting[]
+  historicalAverages HistoricalAverage[]
+
+  @@index([tenantId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @db.VarChar(26)
+  teamId    String   @map("team_id") @db.VarChar(26)
+  name      String   @db.VarChar(100)
+  userId    String?  @map("user_id") @db.VarChar(26)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([teamId])
+  @@map("team_members")
+}
+
+model Calendar {
+  id          String   @id @db.VarChar(26)
+  tenantId    String   @map("tenant_id") @db.VarChar(26)
+  date        DateTime @db.Date
+  isHoliday   Boolean  @default(false) @map("is_holiday")
+  holidayName String?  @map("holiday_name") @db.VarChar(100)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@unique([tenantId, date])
+  @@map("calendars")
+}
+
+model CapacitySetting {
+  id                 String   @id @db.VarChar(26)
+  tenantId           String   @map("tenant_id") @db.VarChar(26)
+  teamId             String?  @map("team_id") @db.VarChar(26)
+  category           String   @db.VarChar(20)
+  regularHoursPerDay Decimal  @map("regular_hours_per_day") @db.Decimal(5, 1)
+  overtime2hPerDay   Decimal  @map("overtime_2h_per_day") @db.Decimal(5, 1)
+  overtime4hPerDay   Decimal  @map("overtime_4h_per_day") @db.Decimal(5, 1)
+  headcount          Int      @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  team   Team?  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, teamId, category])
+  @@map("capacity_settings")
+}
+
+model Project {
+  id                String    @id @db.VarChar(26)
+  tenantId          String    @map("tenant_id") @db.VarChar(26)
+  projectNumber     String    @map("project_number") @db.VarChar(20)
+  clientName        String?   @map("client_name") @db.VarChar(200)
+  projectName       String    @map("project_name") @db.VarChar(200)
+  productTypeId     String?   @map("product_type_id") @db.VarChar(26)
+  deadline          DateTime? @db.Date
+  weight            Decimal?  @db.Decimal(10, 2)
+  memberLength      Decimal?  @map("member_length") @db.Decimal(10, 2)
+  drawingReceivedAt DateTime? @map("drawing_received_at") @db.Date
+  plannedHours      Decimal?  @map("planned_hours") @db.Decimal(8, 1)
+  weldingRatio      Decimal?  @map("welding_ratio") @db.Decimal(6, 4)
+  teamId            String?   @map("team_id") @db.VarChar(26)
+  status            String    @default("pending") @db.VarChar(30)
+  category          String?   @db.VarChar(20)
+  setCount          Int?      @map("set_count")
+  detail            String?   @db.VarChar(500)
+  pastAverageHours  Decimal?  @map("past_average_hours") @db.Decimal(8, 1)
+  sortOrder         Int       @default(0) @map("sort_order")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productType    ProductType?    @relation(fields: [productTypeId], references: [id], onDelete: SetNull)
+  team           Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  processRecords ProcessRecord[]
+
+  @@unique([tenantId, projectNumber])
+  @@index([tenantId, teamId])
   @@index([tenantId, status])
-  @@map("callback_requests")
+  @@map("projects")
 }
 
-model GeminiScenario {
-  id                String   @id @default(cuid())
-  scenarioId        String   @unique @map("scenario_id") @db.VarChar(26)
-  persona           String   @db.Text
-  conversationRules String   @map("conversation_rules") @db.Text
-  businessKnowledge String   @map("business_knowledge") @db.Text
-  guardRails        String   @map("guard_rails") @db.Text
-  toolDefinitions   Json     @default("[]") @map("tool_definitions")
-  voiceName         String   @default("Aoede") @map("voice_name") @db.VarChar(50)
-  languageCode      String   @default("ja-JP") @map("language_code") @db.VarChar(10)
-  transferEnabled        Boolean  @default(true) @map("transfer_enabled")
-  transferNumber         String?  @map("transfer_number") @db.VarChar(20)
-  transferNumberClaims   String?  @map("transfer_number_claims") @db.VarChar(20)
-  transferTimeout        Int      @default(30) @map("transfer_timeout")
-  humanFirstEnabled      Boolean  @default(false) @map("human_first_enabled")
-  humanFirstNumber       String?  @map("human_first_number") @db.VarChar(20)
-  humanFirstTimeout      Int      @default(18) @map("human_first_timeout")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-
-  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-
-  @@map("gemini_scenarios")
-}
-
-model IvrRoute {
-  id            String   @id @default(cuid())
-  phoneNumberId String   @map("phone_number_id") @db.VarChar(26)
-  digit         String   @db.VarChar(1)
-  label         String   @db.VarChar(100)
-  scenarioId    String   @map("scenario_id") @db.VarChar(26)
-  sortOrder     Int      @default(0) @map("sort_order")
+model ProcessRecord {
+  id            String   @id @db.VarChar(26)
+  projectId     String   @map("project_id") @db.VarChar(26)
+  processTypeId String   @map("process_type_id") @db.VarChar(26)
+  date          DateTime @db.Date
+  hours         Decimal  @db.Decimal(6, 2)
+  recordedBy    String?  @map("recorded_by") @db.VarChar(26)
   createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  phoneNumber PhoneNumber @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
-  scenario    Scenario    @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  processType ProcessType @relation(fields: [processTypeId], references: [id], onDelete: Cascade)
 
-  @@unique([phoneNumberId, digit])
-  @@index([phoneNumberId])
-  @@map("ivr_routes")
+  @@unique([projectId, processTypeId, date])
+  @@index([date])
+  @@map("process_records")
 }
 
-model TransferHandoff {
-  id           String    @id @default(cuid())
-  callLogId    String?   @map("call_log_id") @db.VarChar(26)
-  tenantId     String    @map("tenant_id") @db.VarChar(26)
-  callSid      String    @map("call_sid") @db.VarChar(64)
-  callerNumber String    @map("caller_number") @db.VarChar(20)
-  reason       String    @db.Text
-  collectedInfo Json?    @map("collected_info")
-  transcript   String?   @db.Text
-  priority     String    @default("normal") @db.VarChar(10)
-  department   String    @default("general") @db.VarChar(40)
-  status       String    @default("pending") @db.VarChar(20)
-  handledBy    String?   @map("handled_by") @db.VarChar(26)
-  handledNote  String    @map("handled_note") @db.Text
-  handledAt    DateTime? @map("handled_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
+model HistoricalAverage {
+  id                   String    @id @db.VarChar(26)
+  tenantId             String    @map("tenant_id") @db.VarChar(26)
+  productTypeId        String    @map("product_type_id") @db.VarChar(26)
+  projectNumber        String    @map("project_number") @db.VarChar(26)
+  clientName           String?   @map("client_name") @db.VarChar(200)
+  bridgeName           String?   @map("bridge_name") @db.VarChar(200)
+  completedAt          DateTime? @map("completed_at") @db.Date
+  teamId               String    @map("team_id") @db.VarChar(26)
+  manufacturingPlanned Decimal?  @map("manufacturing_planned") @db.Decimal(8, 1)
+  salesPlanned         Decimal?  @map("sales_planned") @db.Decimal(8, 1)
+  weight               Decimal?  @db.Decimal(10, 2)
+  assemblyPrepHours    Decimal?  @map("assembly_prep_hours") @db.Decimal(8, 1)
+  assemblyHours        Decimal?  @map("assembly_hours") @db.Decimal(8, 1)
+  weldingHours         Decimal?  @map("welding_hours") @db.Decimal(8, 1)
+  distortionHours      Decimal?  @map("distortion_hours") @db.Decimal(8, 1)
+  paintingHours        Decimal?  @map("painting_hours") @db.Decimal(8, 1)
+  finishingHours       Decimal?  @map("finishing_hours") @db.Decimal(8, 1)
+  totalHours           Decimal?  @map("total_hours") @db.Decimal(8, 1)
+  projectCount         Int?      @map("project_count")
+  memberLength         Decimal?  @map("member_length") @db.Decimal(10, 2)
+  weightPerMeter       Decimal?  @map("weight_per_meter") @db.Decimal(10, 2)
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  callLog CallLog? @relation(fields: [callLogId], references: [id])
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productType ProductType @relation(fields: [productTypeId], references: [id], onDelete: Cascade)
+  team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
-  @@index([tenantId, status])
-  @@map("transfer_handoffs")
-}
-
-/// Short-lived key-value entries (call session, transfer info). TTS audio uses GCS.
-model KvCache {
-  cacheKey  String   @id @map("cache_key") @db.VarChar(255)
-  value     String   @db.MediumText
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  @@index([expiresAt])
-  @@map("kv_cache")
+  @@unique([tenantId, productTypeId, projectNumber])
+  @@index([tenantId, productTypeId, teamId])
+  @@map("historical_averages")
 }

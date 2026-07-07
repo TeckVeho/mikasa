@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-/** サイドバー・ログインと同じ LV マーク（primary #D97757） */
+/** サイドバー・ログインと同じ M マーク（primary #5E6AD2） */
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
@@ -14,17 +14,17 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#D97757",
+          background: "#5E6AD2",
           color: "#ffffff",
-          fontSize: 14,
+          fontSize: 12,
           fontWeight: 700,
           fontFamily:
             'ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans JP", sans-serif',
           letterSpacing: "-0.02em",
-          borderRadius: 8,
+          borderRadius: 5,
         }}
       >
-        LV
+        M
       </div>
     ),
     { ...size },

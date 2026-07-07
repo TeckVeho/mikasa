@@ -1,246 +1,77 @@
-import type { Result } from "@logivoice/shared";
+import type { DashboardSummaryDto } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
+import { toNumber } from "../utils/decimal.js";
+import { formatDateOnly } from "../utils/date.js";
+import { getLoadChart } from "./load-chart.service.js";
+import { getAllProjectsProgress } from "./progress.service.js";
 
-function startOfPeriod(period: string, from?: string): Date {
+export async function getDashboardSummary(tenantId: string): Promise<DashboardSummaryDto> {
   const now = new Date();
-  if (period === "custom" && from) return new Date(from);
-  if (period === "today") {
-    const d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-  if (period === "week") {
-    const d = new Date(now);
-    d.setDate(d.getDate() - 7);
-    return d;
-  }
-  const d = new Date(now.getFullYear(), now.getMonth(), 1);
-  return d;
-}
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
 
-function endOfPeriod(period: string, customTo?: string): Date {
-  if (period === "custom" && customTo) return new Date(customTo);
-  return new Date();
-}
-
-export async function dashboardSummary(
-  tenantId: string,
-  period: string,
-  from?: string,
-  to?: string,
-): Promise<Result<unknown>> {
-  const start = startOfPeriod(period, from);
-  const end = endOfPeriod(period, to);
-
-  const [totalCalls, completed, transferred, durations] = await Promise.all([
-    prisma.callLog.count({
-      where: { tenantId, createdAt: { gte: start, lte: end } },
-    }),
-    prisma.callLog.count({
-      where: {
-        tenantId,
-        status: "complete",
-        createdAt: { gte: start, lte: end },
-      },
-    }),
-    prisma.callLog.count({
-      where: {
-        tenantId,
-        status: "transferred",
-        createdAt: { gte: start, lte: end },
-      },
-    }),
-    prisma.callLog.findMany({
-      where: { tenantId, createdAt: { gte: start, lte: end } },
-      select: { durationSeconds: true },
-    }),
-  ]);
-
-  const avgDuration =
-    durations.length > 0
-      ? Math.round(
-          durations.reduce((a, b) => a + (b.durationSeconds ?? 0), 0) /
-            durations.length,
-        )
-      : 0;
-
-  const periodMs = end.getTime() - start.getTime();
-  const prevEnd = new Date(start.getTime());
-  const prevStart = new Date(start.getTime() - periodMs);
-  const [prevTotal, prevCompleted] = await Promise.all([
-    prisma.callLog.count({
-      where: { tenantId, createdAt: { gte: prevStart, lt: prevEnd } },
-    }),
-    prisma.callLog.count({
-      where: {
-        tenantId,
-        status: "complete",
-        createdAt: { gte: prevStart, lt: prevEnd },
-      },
-    }),
-  ]);
-
-  const currentCr = totalCalls > 0 ? completed / totalCalls : 0;
-  const prevCr = prevTotal > 0 ? prevCompleted / prevTotal : 0;
-
-  return {
-    ok: true,
-    data: {
-      totalCalls,
-      completionRate: currentCr,
-      avgDuration,
-      transferCount: transferred,
-      prevPeriodComparison: {
-        totalCalls: prevTotal > 0 ? (totalCalls - prevTotal) / prevTotal : 0,
-        completionRate: currentCr - prevCr,
-      },
+  const activeProjects = await prisma.project.findMany({
+    where: {
+      tenantId,
+      deletedAt: null,
+      status: { in: ["in_progress", "drawing_wait", "shipping_wait"] },
     },
-  };
-}
+    include: { processRecords: true },
+  });
 
-export async function dashboardByScenario(
-  tenantId: string,
-): Promise<Result<unknown>> {
-  const rows = await prisma.callLog.groupBy({
-    by: ["scenarioId"],
-    where: { tenantId },
-    _count: { id: true },
-  });
-  const scenarios = await prisma.scenario.findMany({
-    where: { tenantId },
-    select: { id: true, name: true },
-  });
-  const nameById = new Map(scenarios.map((s) => [s.id, s.name]));
-  return {
-    ok: true,
-    data: rows.map((r) => ({
-      scenarioId: r.scenarioId,
-      scenarioName: nameById.get(r.scenarioId) ?? r.scenarioId,
-      callCount: r._count.id,
-    })),
-  };
-}
-
-export async function dashboardByNumber(
-  tenantId: string,
-): Promise<Result<unknown>> {
-  const rows = await prisma.callLog.groupBy({
-    by: ["phoneNumberId"],
-    where: { tenantId },
-    _count: { id: true },
-  });
-  const nums = await prisma.phoneNumber.findMany({
-    where: { tenantId },
-    select: { id: true, number: true },
-  });
-  const numById = new Map(nums.map((n) => [n.id, n.number]));
-  return {
-    ok: true,
-    data: rows.map((r) => ({
-      phoneNumberId: r.phoneNumberId,
-      number: numById.get(r.phoneNumberId) ?? r.phoneNumberId,
-      callCount: r._count.id,
-    })),
-  };
-}
-
-export async function dashboardCostEstimate(
-  tenantId: string,
-): Promise<Result<unknown>> {
-  const start = new Date();
-  start.setDate(1);
-  start.setHours(0, 0, 0, 0);
-  const logs = await prisma.callLog.findMany({
-    where: { tenantId, createdAt: { gte: start } },
-    select: { durationSeconds: true },
-  });
-  const minutes =
-    logs.reduce((a, l) => a + (l.durationSeconds ?? 0), 0) / 60;
-  return {
-    ok: true,
-    data: {
-      monthToDateCalls: logs.length,
-      totalMinutes: Math.round(minutes * 10) / 10,
-      estimatedUsd: Math.round(minutes * 0.08 * 100) / 100,
-    },
-  };
-}
-
-export async function dailyCalls(
-  tenantId: string,
-  days = 30,
-): Promise<Result<unknown>> {
-  const start = new Date();
-  start.setDate(start.getDate() - days);
-  const rows = await prisma.callLog.findMany({
-    where: { tenantId, createdAt: { gte: start } },
-    select: { createdAt: true },
-  });
-  const byDay = new Map<string, number>();
-  for (const l of rows) {
-    const d = l.createdAt.toISOString().slice(0, 10);
-    byDay.set(d, (byDay.get(d) ?? 0) + 1);
+  let delayedCount = 0;
+  let totalProgress = 0;
+  for (const p of activeProjects) {
+    const planned = toNumber(p.plannedHours) ?? 0;
+    const actual = p.processRecords.reduce(
+      (s, r) => s + (toNumber(r.hours) ?? 0),
+      0,
+    );
+    const rate = planned > 0 ? (actual / planned) * 100 : 0;
+    totalProgress += rate;
+    if (p.deadline && p.deadline < now && p.status !== "shipped") {
+      delayedCount++;
+    }
   }
+
+  const chart = await getLoadChart(
+    tenantId,
+    formatDateOnly(monthStart),
+    formatDateOnly(monthEnd),
+    "category",
+  );
+  const totalLoad = chart.dates.reduce((sum, _, i) => {
+    const dayTotal = chart.series.reduce((s, series) => s + (series.values[i] ?? 0), 0);
+    return sum + dayTotal;
+  }, 0);
+  const workingDays = chart.dates.length;
+  const paceLine = chart.paceLines[0]?.value ?? 8;
+  const capacity = paceLine * workingDays;
+  const monthlyLoadRate =
+    capacity > 0 ? Math.round((totalLoad / capacity) * 10000) / 100 : 0;
+
   return {
-    ok: true,
-    data: Array.from(byDay.entries()).map(([date, count]) => ({ date, count })),
+    activeProjectCount: activeProjects.length,
+    delayedProjectCount: delayedCount,
+    averageProgressRate:
+      activeProjects.length > 0
+        ? Math.round((totalProgress / activeProjects.length) * 100) / 100
+        : 0,
+    monthlyLoadRate,
   };
 }
 
-export async function hourlyDistribution(
-  tenantId: string,
-): Promise<Result<unknown>> {
-  const logs = await prisma.callLog.findMany({
-    where: { tenantId },
-    select: { createdAt: true },
-    take: 10000,
+export async function getTeamDashboard(tenantId: string, teamId: string) {
+  const team = await prisma.team.findFirst({
+    where: { id: teamId, tenantId, deletedAt: null },
+    include: { members: true },
   });
-  const buckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
-  for (const l of logs) {
-    buckets[l.createdAt.getHours()]!.count += 1;
-  }
-  return { ok: true, data: buckets };
-}
+  if (!team) return null;
 
-export async function operatorSummary(
-  tenantId: string,
-): Promise<Result<unknown>> {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const [todayCalls, pendingCallbacks, recentTransfers, recentCalls] =
-    await Promise.all([
-      prisma.callLog.count({
-        where: { tenantId, createdAt: { gte: todayStart } },
-      }),
-      prisma.callbackRequest.count({
-        where: { tenantId, status: "pending" },
-      }),
-      prisma.transferHandoff.count({
-        where: { tenantId, status: "pending" },
-      }),
-      prisma.callLog.findMany({
-        where: { tenantId },
-        orderBy: { createdAt: "desc" },
-        take: 10,
-        select: {
-          id: true,
-          callerNumber: true,
-          status: true,
-          summaryText: true,
-          durationSeconds: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+  const projects = await getAllProjectsProgress(tenantId, teamId);
 
   return {
-    ok: true,
-    data: {
-      todayCalls,
-      pendingCallbacks,
-      pendingTransfers: recentTransfers,
-      recentCalls,
-    },
+    team: { id: team.id, name: team.name, members: team.members },
+    projects,
   };
 }

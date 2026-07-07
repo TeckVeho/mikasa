@@ -4,21 +4,21 @@ import { cn } from "@/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 
 const variants = cva(
-  "inline-flex items-center justify-center font-medium transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50",
+  "inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40 disabled:opacity-50 disabled:pointer-events-none",
   {
     variants: {
       variant: {
-        primary: "rounded-lg bg-primary text-white hover:bg-primary-hover",
-        secondary: "rounded-lg bg-border/60 text-text hover:bg-border",
-        danger: "rounded-lg bg-danger text-white hover:bg-red-700",
-        ghost: "rounded-lg bg-transparent text-muted-foreground hover:bg-primary/5",
-        outline: "rounded-lg border border-border bg-white text-muted-foreground hover:bg-bg",
+        primary: "rounded-md bg-primary text-white hover:bg-primary-hover",
+        secondary: "rounded-md bg-bg text-text border border-border hover:bg-border/40",
+        danger: "rounded-md bg-danger text-white hover:bg-red-700",
+        ghost: "rounded-md bg-transparent text-muted-foreground hover:bg-bg hover:text-text",
+        outline: "rounded-md border border-border bg-white text-muted-foreground hover:bg-bg hover:text-text",
         pill: "rounded-full border border-border bg-white text-muted-foreground hover:bg-bg",
       },
       size: {
-        sm: "h-8 px-3 text-xs",
-        md: "h-9 px-4 text-sm",
-        lg: "h-10 px-5 text-sm",
+        sm: "h-7 px-2.5 text-xs gap-1",
+        md: "h-8 px-3 text-[13px] gap-1.5",
+        lg: "h-9 px-4 text-sm gap-1.5",
       },
     },
     defaultVariants: {
@@ -52,7 +52,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
       ) : (
         children
       )}

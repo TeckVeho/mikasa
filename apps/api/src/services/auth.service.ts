@@ -4,9 +4,7 @@ import { verifyIdToken } from "../lib/firebase-admin.js";
 
 export async function verifyAuthToken(
   token: string,
-): Promise<
-  Result<{ userId: string; tenantId: string; role: string }>
-> {
+): Promise<Result<{ userId: string; tenantId: string; role: string }>> {
   const decoded = await verifyIdToken(token);
   if (!decoded) {
     return { ok: false, error: "Invalid token", code: "UNAUTHORIZED" };
