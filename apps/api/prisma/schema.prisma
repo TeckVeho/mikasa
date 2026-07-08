@@ -22,6 +22,7 @@ model Tenant {
   capacitySettings   CapacitySetting[]
   projects           Project[]
   historicalAverages HistoricalAverage[]
+  scheduleModel      ScheduleModel?
 
   @@map("tenants")
 }
@@ -49,7 +50,6 @@ model ProductType {
   sortOrder     Int       @default(0) @map("sort_order")
   regressionA   Decimal?  @map("regression_a") @db.Decimal(12, 8)
   regressionB   Decimal?  @map("regression_b") @db.Decimal(10, 3)
-  processRatios Json?     @map("process_ratios")
   createdAt     DateTime  @default(now()) @map("created_at")
   deletedAt     DateTime? @map("deleted_at")
 
@@ -69,8 +69,9 @@ model ProcessType {
   defaultRatio Decimal @map("default_ratio") @db.Decimal(6, 4)
   isWelding    Boolean @default(false) @map("is_welding")
 
-  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  processRecords ProcessRecord[]
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  processRecords      ProcessRecord[]
+  scheduleModelDays   ScheduleModelDay[]
 
   @@index([tenantId])
   @@map("process_types")
@@ -157,6 +158,7 @@ model Project {
   setCount          Int?      @map("set_count")
   detail            String?   @db.VarChar(500)
   pastAverageHours  Decimal?  @map("past_average_hours") @db.Decimal(8, 1)
+  scheduleStartDate DateTime? @map("schedule_start_date") @db.Date
   sortOrder         Int       @default(0) @map("sort_order")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -179,6 +181,7 @@ model ProcessRecord {
   processTypeId String   @map("process_type_id") @db.VarChar(26)
   date          DateTime @db.Date
   hours         Decimal  @db.Decimal(6, 2)
+  recordType    String   @default("actual") @map("record_type") @db.VarChar(10)
   recordedBy    String?  @map("recorded_by") @db.VarChar(26)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
@@ -186,9 +189,38 @@ model ProcessRecord {
   project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   processType ProcessType @relation(fields: [processTypeId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, processTypeId, date])
+  @@unique([projectId, processTypeId, date, recordType])
   @@index([date])
+  @@index([recordType])
   @@map("process_records")
+}
+
+model ScheduleModel {
+  id        String   @id @db.VarChar(26)
+  tenantId  String   @unique @map("tenant_id") @db.VarChar(26)
+  totalDays Int      @map("total_days")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dayPatterns ScheduleModelDay[]
+
+  @@map("schedule_models")
+}
+
+model ScheduleModelDay {
+  id              String  @id @db.VarChar(26)
+  scheduleModelId String  @map("schedule_model_id") @db.VarChar(26)
+  processTypeId   String  @map("process_type_id") @db.VarChar(26)
+  dayOffset       Int     @map("day_offset")
+  hoursRatio      Decimal @map("hours_ratio") @db.Decimal(8, 6)
+
+  scheduleModel ScheduleModel @relation(fields: [scheduleModelId], references: [id], onDelete: Cascade)
+  processType   ProcessType   @relation(fields: [processTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleModelId, processTypeId, dayOffset], map: "schedule_model_days_model_proc_day_key")
+  @@index([scheduleModelId])
+  @@map("schedule_model_days")
 }
 
 model HistoricalAverage {

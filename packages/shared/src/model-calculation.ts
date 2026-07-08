@@ -13,7 +13,6 @@ export type ProcessRatiosMap = Record<string, number>;
 export type ProductModelConfig = {
   regressionA: number;
   regressionB: number;
-  processRatios: ProcessRatiosMap;
 };
 
 /** 泉北工程.xlsx モデルシート: ((t/M*1000)*a + b) * t */

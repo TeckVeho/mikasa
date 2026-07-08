@@ -24,62 +24,29 @@ const DEFAULT_PRODUCT_TYPES = [
   { id: "ptype-haisui", name: "排水装置", category: "shinshuku_gai", sortOrder: 7 },
 ] as const;
 
-/** 泉北工程.xlsx モデルシートの回帰係数・工程比率 */
+/** 泉北工程.xlsx モデルシートの回帰係数 */
 const PRODUCT_MODEL_CONFIG: Record<
   string,
   {
     regressionA: number;
     regressionB: number;
-    processRatios: Record<string, number>;
   }
 > = {
   "ptype-hako": {
     regressionA: -0.0107,
     regressionB: 47.698,
-    processRatios: {
-      組立前: 0.261,
-      組立: 0.106,
-      溶接: 0.335,
-      歪取り: 0.067,
-      塗装: 0.056,
-      仕上げ: 0.174,
-    },
   },
   "ptype-i": {
     regressionA: -0.0753,
     regressionB: 85.398,
-    processRatios: {
-      組立前: 0.249,
-      組立: 0.154,
-      溶接: 0.294,
-      歪取り: 0.064,
-      塗装: 0.056,
-      仕上げ: 0.18,
-    },
   },
   "ptype-zaguri": {
     regressionA: -0.0213,
     regressionB: 67.209,
-    processRatios: {
-      組立前: 0.249,
-      組立: 0.167,
-      溶接: 0.203,
-      歪取り: 0.055,
-      塗装: 0.073,
-      仕上げ: 0.258,
-    },
   },
   "ptype-sef": {
     regressionA: -0.0213,
     regressionB: 67.209,
-    processRatios: {
-      組立前: 0.249,
-      組立: 0.167,
-      溶接: 0.203,
-      歪取り: 0.055,
-      塗装: 0.073,
-      仕上げ: 0.258,
-    },
   },
 };
 
@@ -264,7 +231,6 @@ async function canonicalizeProductType(
             regressionB: new Prisma.Decimal(
               PRODUCT_MODEL_CONFIG[canonical.id]!.regressionB,
             ),
-            processRatios: PRODUCT_MODEL_CONFIG[canonical.id]!.processRatios,
           }
         : {}),
     },
@@ -281,7 +247,6 @@ async function canonicalizeProductType(
             regressionB: new Prisma.Decimal(
               PRODUCT_MODEL_CONFIG[canonical.id]!.regressionB,
             ),
-            processRatios: PRODUCT_MODEL_CONFIG[canonical.id]!.processRatios,
           }
         : {}),
     },
@@ -303,10 +268,11 @@ async function canonicalizeProcessType(
     for (const rec of dupRecords) {
       const existing = await prisma.processRecord.findUnique({
         where: {
-          projectId_processTypeId_date: {
+          projectId_processTypeId_date_recordType: {
             projectId: rec.projectId,
             processTypeId: canonical.id,
             date: rec.date,
+            recordType: rec.recordType,
           },
         },
       });
@@ -506,10 +472,11 @@ async function seedProcessRecords(tenantId: string): Promise<void> {
     const date = parseDate(r.date);
     await prisma.processRecord.upsert({
       where: {
-        projectId_processTypeId_date: {
+        projectId_processTypeId_date_recordType: {
           projectId: r.projectId,
           processTypeId: r.processTypeId,
           date,
+          recordType: "actual",
         },
       },
       create: {
@@ -518,6 +485,7 @@ async function seedProcessRecords(tenantId: string): Promise<void> {
         processTypeId: r.processTypeId,
         date,
         hours: new Prisma.Decimal(r.hours),
+        recordType: "actual",
         recordedBy: "dev-user",
       },
       update: {
@@ -708,6 +676,115 @@ async function seedHistoricalAverages(tenantId: string): Promise<void> {
   }
 }
 
+/** 泉北工程.xlsx モデルシートの日次配分（%） */
+const SCHEDULE_MODEL_PATTERNS: {
+  processTypeId: string;
+  dayOffset: number;
+  weight: number;
+}[] = [
+  { processTypeId: "proc-kumitate-mae", dayOffset: 0, weight: 5.6 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 1, weight: 9.4 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 2, weight: 8.5 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 3, weight: 10 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 4, weight: 8.7 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 5, weight: 7.2 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 7, weight: 8.8 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 8, weight: 8.4 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 9, weight: 6.1 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 10, weight: 5.3 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 11, weight: 5.1 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 12, weight: 4.4 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 14, weight: 6 },
+  { processTypeId: "proc-kumitate-mae", dayOffset: 15, weight: 6 },
+  { processTypeId: "proc-kumitate", dayOffset: 5, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 12, weight: 4 },
+  { processTypeId: "proc-kumitate", dayOffset: 14, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 15, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 16, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 17, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 18, weight: 4 },
+  { processTypeId: "proc-kumitate", dayOffset: 21, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 22, weight: 5 },
+  { processTypeId: "proc-kumitate", dayOffset: 23, weight: 7 },
+  { processTypeId: "proc-kumitate", dayOffset: 24, weight: 5 },
+  { processTypeId: "proc-kumitate", dayOffset: 25, weight: 5 },
+  { processTypeId: "proc-kumitate", dayOffset: 28, weight: 6 },
+  { processTypeId: "proc-kumitate", dayOffset: 32, weight: 8 },
+  { processTypeId: "proc-kumitate", dayOffset: 33, weight: 8 },
+  { processTypeId: "proc-yosetsu", dayOffset: 15, weight: 4 },
+  { processTypeId: "proc-yosetsu", dayOffset: 16, weight: 9 },
+  { processTypeId: "proc-yosetsu", dayOffset: 17, weight: 9 },
+  { processTypeId: "proc-yosetsu", dayOffset: 18, weight: 9 },
+  { processTypeId: "proc-yosetsu", dayOffset: 19, weight: 9 },
+  { processTypeId: "proc-yosetsu", dayOffset: 21, weight: 7 },
+  { processTypeId: "proc-yosetsu", dayOffset: 22, weight: 9 },
+  { processTypeId: "proc-yosetsu", dayOffset: 23, weight: 9 },
+  { processTypeId: "proc-yosetsu", dayOffset: 24, weight: 8 },
+  { processTypeId: "proc-yosetsu", dayOffset: 25, weight: 7 },
+  { processTypeId: "proc-yosetsu", dayOffset: 26, weight: 7 },
+  { processTypeId: "proc-yosetsu", dayOffset: 35, weight: 8 },
+  { processTypeId: "proc-yosetsu", dayOffset: 36, weight: 5 },
+  { processTypeId: "proc-yugumi", dayOffset: 10, weight: 15 },
+  { processTypeId: "proc-yugumi", dayOffset: 11, weight: 15 },
+  { processTypeId: "proc-yugumi", dayOffset: 30, weight: 15 },
+  { processTypeId: "proc-yugumi", dayOffset: 31, weight: 15 },
+  { processTypeId: "proc-yugumi", dayOffset: 32, weight: 15 },
+  { processTypeId: "proc-yugumi", dayOffset: 37, weight: 10 },
+  { processTypeId: "proc-yugumi", dayOffset: 38, weight: 10 },
+  { processTypeId: "proc-yugumi", dayOffset: 39, weight: 5 },
+  { processTypeId: "proc-tosou", dayOffset: 44, weight: 5 },
+  { processTypeId: "proc-tosou", dayOffset: 45, weight: 20 },
+  { processTypeId: "proc-tosou", dayOffset: 46, weight: 20 },
+  { processTypeId: "proc-tosou", dayOffset: 47, weight: 20 },
+  { processTypeId: "proc-tosou", dayOffset: 49, weight: 13 },
+  { processTypeId: "proc-tosou", dayOffset: 50, weight: 12 },
+  { processTypeId: "proc-tosou", dayOffset: 56, weight: 10 },
+  { processTypeId: "proc-shiage", dayOffset: 35, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 36, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 37, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 38, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 39, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 40, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 42, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 43, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 44, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 47, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 49, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 50, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 51, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 52, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 53, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 54, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 56, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 57, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 58, weight: 5 },
+  { processTypeId: "proc-shiage", dayOffset: 59, weight: 5 },
+];
+
+async function seedScheduleModel(tenantId: string): Promise<void> {
+  const MODEL_ID = "schedule-model-default";
+  const totalDays = 60;
+
+  const rawPatterns = SCHEDULE_MODEL_PATTERNS;
+
+  await prisma.scheduleModel.upsert({
+    where: { tenantId },
+    create: { id: MODEL_ID, tenantId, totalDays },
+    update: { totalDays },
+  });
+
+  await prisma.scheduleModelDay.deleteMany({ where: { scheduleModelId: MODEL_ID } });
+  await prisma.scheduleModelDay.createMany({
+    data: rawPatterns.map((row) => ({
+      id: ulid(),
+      scheduleModelId: MODEL_ID,
+      processTypeId: row.processTypeId,
+      dayOffset: row.dayOffset,
+      hoursRatio: new Prisma.Decimal(row.weight),
+    })),
+  });
+}
+
 async function main(): Promise<void> {
   const tenantId = TENANT_ID;
 
@@ -743,6 +820,7 @@ async function main(): Promise<void> {
 
   await seedMasters(tenantId);
   await seedCalendar(tenantId);
+  await seedScheduleModel(tenantId);
   await seedProjects(tenantId);
   await seedProcessRecords(tenantId);
   await seedHistoricalAverages(tenantId);

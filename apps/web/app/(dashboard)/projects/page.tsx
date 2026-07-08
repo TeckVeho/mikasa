@@ -84,6 +84,7 @@ function NumCell({
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
+  const [listTab, setListTab] = useState<"all" | "unassigned">("all");
   const [teamId, setTeamId] = useState("");
   const [search, setSearch] = useState("");
   const [includeShipped, setIncludeShipped] = useState(false);
@@ -100,17 +101,27 @@ export default function ProjectsPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["projects", teamId, search, includeShipped],
+    queryKey: ["projects", listTab, teamId, search, includeShipped],
     queryFn: async () => {
       const r = await fetchProjects({
         excludeShipped: includeShipped ? "false" : "true",
-        ...(teamId ? { teamId } : {}),
+        ...(listTab === "unassigned"
+          ? { unassignedOnly: "true" }
+          : teamId
+            ? { teamId }
+            : {}),
         ...(search.trim() ? { search: search.trim() } : {}),
       });
       if (!r.ok) throw new Error(r.message ?? r.error);
       return r.data;
     },
   });
+
+  async function assignTeam(projectId: string, nextTeamId: string) {
+    if (!nextTeamId) return;
+    await updateProject(projectId, { teamId: nextTeamId });
+    void queryClient.invalidateQueries({ queryKey: ["projects"] });
+  }
 
   async function saveWeldingRatio(projectId: string) {
     const pct = Number(wValue);
@@ -143,7 +154,35 @@ export default function ProjectsPage() {
         }
       />
 
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setListTab("all")}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-[13px]",
+            listTab === "all"
+              ? "bg-primary text-white"
+              : "border border-border bg-white text-muted hover:text-text",
+          )}
+        >
+          全工事
+        </button>
+        <button
+          type="button"
+          onClick={() => setListTab("unassigned")}
+          className={cn(
+            "rounded-md px-3 py-1.5 text-[13px]",
+            listTab === "unassigned"
+              ? "bg-primary text-white"
+              : "border border-border bg-white text-muted hover:text-text",
+          )}
+        >
+          班未定
+        </button>
+      </div>
+
       <div className="flex flex-wrap items-end gap-4 rounded-lg border border-border bg-white px-4 py-3">
+        {listTab === "all" ? (
         <label className="text-[13px] text-muted">
           班
           <select
@@ -159,6 +198,7 @@ export default function ProjectsPage() {
             ))}
           </select>
         </label>
+        ) : null}
 
         <label className="min-w-[200px] flex-1 text-[13px] text-muted">
           検索
@@ -404,7 +444,27 @@ export default function ProjectsPage() {
                     )}
                   </NumCell>
                   <td className={cn(tdBase, "whitespace-nowrap text-[11px]")}>
-                    {PROJECT_STATUS_LABELS[p.status] ?? p.status}
+                    {listTab === "unassigned" ? (
+                      <select
+                        className="rounded border border-border px-2 py-1 text-[11px]"
+                        defaultValue=""
+                        onChange={(e) => {
+                          void assignTeam(p.id, e.target.value);
+                          e.target.value = "";
+                        }}
+                      >
+                        <option value="">班を選択</option>
+                        {teams.data
+                          ?.filter((t) => t.name !== "製作班未定")
+                          .map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {formatTeamLabel(t.name)}
+                            </option>
+                          ))}
+                      </select>
+                    ) : (
+                      PROJECT_STATUS_LABELS[p.status] ?? p.status
+                    )}
                   </td>
                 </tr>
               ))}

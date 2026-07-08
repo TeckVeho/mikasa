@@ -4,6 +4,7 @@ import type { AuthRequest } from "../types/express.d.js";
 import * as project from "../services/project.service.js";
 import { getProjectProgress } from "../services/progress.service.js";
 import * as model from "../services/model.service.js";
+import * as scheduleModel from "../services/schedule-model.service.js";
 
 export const projectsRouter = Router();
 projectsRouter.use(requireAuth);
@@ -11,8 +12,10 @@ projectsRouter.use(requireAuth);
 projectsRouter.get("/", async (req, res) => {
   const tenantId = (req as AuthRequest).tenantId;
   const excludeShipped = req.query.excludeShipped !== "false";
+  const unassignedOnly = req.query.unassignedOnly === "true";
   const data = await project.listProjects(tenantId, {
     teamId: req.query.teamId as string | undefined,
+    unassignedOnly,
     status: req.query.status as string | undefined,
     category: req.query.category as string | undefined,
     search: req.query.search as string | undefined,
@@ -23,7 +26,8 @@ projectsRouter.get("/", async (req, res) => {
 
 projectsRouter.post("/", requireAdmin, async (req, res) => {
   const tenantId = (req as AuthRequest).tenantId;
-  const r = await project.createProject(tenantId, req.body);
+  const userId = (req as AuthRequest).userId;
+  const r = await project.createProject(tenantId, { ...req.body, userId });
   sendResult(res, r);
 });
 
@@ -66,13 +70,62 @@ projectsRouter.post("/:id/model-preview", requireAdmin, async (req, res) => {
 
 projectsRouter.post("/:id/apply-model", requireAdmin, async (req, res) => {
   const tenantId = (req as AuthRequest).tenantId;
+  const userId = (req as AuthRequest).userId;
   const weight = Number(req.body?.weight);
   const memberLength = Number(req.body?.memberLength);
+  const startDate =
+    typeof req.body?.startDate === "string" && req.body.startDate.trim()
+      ? req.body.startDate.trim()
+      : undefined;
+
   const r = await model.applyProjectModel(
     tenantId,
     req.params.id!,
     weight,
     memberLength,
+  );
+  if (!r.ok) {
+    sendResult(res, r);
+    return;
+  }
+
+  if (startDate) {
+    const scheduleResult = await scheduleModel.applyScheduleModelToProject(
+      tenantId,
+      req.params.id!,
+      startDate,
+      userId,
+    );
+    if (!scheduleResult.ok) {
+      sendResult(res, scheduleResult);
+      return;
+    }
+  }
+
+  sendResult(res, r);
+});
+
+projectsRouter.post("/:id/schedule-preview", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const startDate = String(req.body?.startDate ?? "");
+  const plannedHours = Number(req.body?.plannedHours);
+  const r = await scheduleModel.previewScheduleApply(
+    tenantId,
+    plannedHours,
+    startDate,
+  );
+  sendResult(res, r);
+});
+
+projectsRouter.post("/:id/apply-schedule", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const userId = (req as AuthRequest).userId;
+  const startDate = String(req.body?.startDate ?? "");
+  const r = await scheduleModel.applyScheduleModelToProject(
+    tenantId,
+    req.params.id!,
+    startDate,
+    userId,
   );
   sendResult(res, r);
 });

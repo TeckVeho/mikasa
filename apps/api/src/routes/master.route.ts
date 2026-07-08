@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth, requireAdmin, sendResult } from "../middleware/auth.js";
 import type { AuthRequest } from "../types/express.d.js";
 import * as master from "../services/master.service.js";
+import * as scheduleModel from "../services/schedule-model.service.js";
 
 export const masterRouter = Router();
 masterRouter.use(requireAuth);
@@ -131,5 +132,30 @@ masterRouter.get("/capacity-settings", async (req, res) => {
 masterRouter.put("/capacity-settings", requireAdmin, async (req, res) => {
   const tenantId = (req as AuthRequest).tenantId;
   const r = await master.upsertCapacitySetting(tenantId, req.body);
+  sendResult(res, r);
+});
+
+masterRouter.get("/settings/schedule-model", async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const data = await scheduleModel.getScheduleModel(tenantId);
+  res.json({ ok: true, data });
+});
+
+masterRouter.put("/settings/schedule-model", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const totalDays = Number(req.body?.totalDays);
+  const dayPatterns = Array.isArray(req.body?.dayPatterns) ? req.body.dayPatterns : [];
+  const r = await scheduleModel.upsertScheduleModel(tenantId, {
+    totalDays,
+    dayPatterns,
+  });
+  sendResult(res, r);
+});
+
+masterRouter.post("/settings/schedule-model/preview", requireAdmin, async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const startDate = String(req.body?.startDate ?? "");
+  const plannedHours = Number(req.body?.plannedHours);
+  const r = await scheduleModel.previewScheduleApply(tenantId, plannedHours, startDate);
   sendResult(res, r);
 });

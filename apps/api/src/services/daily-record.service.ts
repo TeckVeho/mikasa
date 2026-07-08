@@ -3,6 +3,7 @@ import type { Result } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
+import { processRecordUniqueKey } from "../utils/process-record.js";
 import { parseDateOnly, formatDateOnly } from "../utils/date.js";
 
 export async function listDailyRecords(
@@ -33,7 +34,7 @@ export async function listDailyRecords(
         : {};
 
   const rows = await prisma.processRecord.findMany({
-    where: { projectId: { in: projectIds }, ...dateFilter },
+    where: { projectId: { in: projectIds }, recordType: "actual", ...dateFilter },
     include: {
       processType: true,
       project: { select: { projectNumber: true, projectName: true } },
@@ -72,19 +73,19 @@ export async function upsertDailyRecords(
 
     const date = parseDateOnly(rec.date);
     await prisma.processRecord.upsert({
-      where: {
-        projectId_processTypeId_date: {
-          projectId: rec.projectId,
-          processTypeId: rec.processTypeId,
-          date,
-        },
-      },
+      where: processRecordUniqueKey(
+        rec.projectId,
+        rec.processTypeId,
+        date,
+        "actual",
+      ),
       create: {
         id: newId(),
         projectId: rec.projectId,
         processTypeId: rec.processTypeId,
         date,
         hours: new Prisma.Decimal(rec.hours),
+        recordType: "actual",
         recordedBy: userId,
       },
       update: {

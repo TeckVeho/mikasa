@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import type { TeamDto, TeamMemberDto } from "@logivoice/shared";
@@ -12,6 +12,7 @@ import {
   SettingsTableBody,
   SettingsTableHead,
 } from "@/components/settings/SettingsPanel";
+import { ModelDayGridTab } from "@/components/settings/ModelDayGridTab";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
@@ -39,11 +40,12 @@ import { CATEGORY_LABELS } from "@logivoice/shared";
 
 const UNASSIGNED_TEAM_NAME = "製作班未定";
 
-type Tab = "product" | "process" | "team" | "capacity" | "calendar";
+type Tab = "product" | "process" | "team" | "capacity" | "calendar" | "model";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "product", label: "品種" },
   { id: "process", label: "工程" },
+  { id: "model", label: "モデル" },
   { id: "team", label: "班" },
   { id: "capacity", label: "キャパシティ" },
   { id: "calendar", label: "カレンダー" },
@@ -58,6 +60,7 @@ export default function SettingsPage() {
       <SettingsTabBar tabs={TABS} active={tab} onChange={setTab} />
       {tab === "product" && <ProductTypesTab />}
       {tab === "process" && <ProcessTypesTab />}
+      {tab === "model" && <ModelDayGridTab />}
       {tab === "team" && <TeamsTab />}
       {tab === "capacity" && <CapacityTab />}
       {tab === "calendar" && <CalendarTab />}
@@ -164,6 +167,12 @@ function ProcessTypesTab() {
     },
   });
 
+  const ratioTotalPercent = useMemo(() => {
+    if (!data?.length) return 0;
+    const sum = data.reduce((acc, p) => acc + p.defaultRatio, 0);
+    return Math.round(sum * 1000) / 10;
+  }, [data]);
+
   async function updateRatio(id: string, ratio: number) {
     const r = await saveProcessType(id, { defaultRatio: ratio });
     if (!r.ok) {
@@ -179,7 +188,7 @@ function ProcessTypesTab() {
   return (
     <SettingsPanel
       title="工程マスタ"
-      description="各工程のデフォルト配分比率を設定します（フォーカスを外すと保存）"
+      description="各工程のデフォルト配分比率を設定します（フォーカスを外すと保存）。合計は100%になるよう調整してください"
     >
       <SettingsTable>
         <SettingsTableHead>
@@ -192,17 +201,33 @@ function ProcessTypesTab() {
             <tr key={p.id} className="hover:bg-bg/50">
               <td className="px-2 py-2.5 font-medium">{p.name}</td>
               <td className="px-2 py-2.5">
-                <Input
-                  type="number"
-                  step="0.001"
-                  className="h-8 w-28"
-                  defaultValue={p.defaultRatio}
-                  onBlur={(e) => updateRatio(p.id, Number(e.target.value))}
-                />
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    step="0.001"
+                    className="h-8 w-28"
+                    defaultValue={p.defaultRatio}
+                    onBlur={(e) => updateRatio(p.id, Number(e.target.value))}
+                  />
+                  <span className="text-xs tabular-nums text-muted">
+                    ({Math.round(p.defaultRatio * 1000) / 10}%)
+                  </span>
+                </div>
               </td>
               <td className="px-2 py-2.5 text-muted">{p.isWelding ? "はい" : "—"}</td>
             </tr>
           ))}
+          {data && data.length > 0 && (
+            <tr className="border-t border-border bg-bg/50 font-medium">
+              <td className="px-2 py-2.5">合計</td>
+              <td className="px-2 py-2.5 tabular-nums">
+                <span className={ratioTotalPercent === 100 ? "text-text" : "text-warning"}>
+                  {ratioTotalPercent}%
+                </span>
+              </td>
+              <td className="px-2 py-2.5" />
+            </tr>
+          )}
         </SettingsTableBody>
       </SettingsTable>
     </SettingsPanel>

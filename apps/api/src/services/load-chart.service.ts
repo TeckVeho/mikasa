@@ -96,6 +96,7 @@ export async function getLoadChart(
   const records = await prisma.processRecord.findMany({
     where: {
       date: { gte: startDate, lte: endDate },
+      recordType: "actual",
       project: {
         tenantId,
         deletedAt: null,
@@ -164,6 +165,7 @@ async function getTeamDailyChart(
   const records = await prisma.processRecord.findMany({
     where: {
       date: { gte: startDate, lte: endDate },
+      recordType: "actual",
       project: {
         tenantId,
         deletedAt: null,

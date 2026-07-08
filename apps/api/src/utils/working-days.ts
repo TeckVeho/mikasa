@@ -1,4 +1,4 @@
-import { eachDateInclusive, parseDateOnly } from "./date.js";
+import { addDays, eachDateInclusive, parseDateOnly } from "./date.js";
 
 export function filterWorkingDays(
   dates: Date[],
@@ -66,6 +66,42 @@ export function getDefaultWorkingDays(
     if (holidaySet.has(key)) return false;
     return !isWeekend(d);
   });
+}
+
+export function isWorkingDay(date: Date, holidaySet: Set<string>): boolean {
+  const key = date.toISOString().slice(0, 10);
+  if (holidaySet.has(key)) return false;
+  return !isWeekend(date);
+}
+
+/** startDate から数えて dayOffset 番目（0始まり）の稼働日を返す */
+export function getNthWorkingDay(
+  startDate: Date,
+  dayOffset: number,
+  holidaySet: Set<string>,
+): Date | null {
+  if (dayOffset < 0) return null;
+
+  let current = new Date(startDate);
+  let workingDayIndex = -1;
+  const maxIterations = Math.max(366, (dayOffset + 1) * 4);
+
+  for (let i = 0; i < maxIterations; i++) {
+    if (isWorkingDay(current, holidaySet)) {
+      workingDayIndex++;
+      if (workingDayIndex === dayOffset) {
+        return current;
+      }
+    }
+    current = addDays(current, 1);
+  }
+
+  return null;
+}
+
+/** 稼働日数分のカレンダー日数の上限見積もり（土日・祝日バッファ込み） */
+export function estimateCalendarSpanForWorkingDays(workingDays: number): number {
+  return workingDays * 3 + 14;
 }
 
 export { parseDateOnly };

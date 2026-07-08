@@ -2,15 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Info } from "lucide-react";
-import { CATEGORY_LABELS } from "@logivoice/shared";
+import { CATEGORY_LABELS, calculatePastAverageHours } from "@logivoice/shared";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { createProject, fetchProductTypes, fetchTeams } from "@/lib/load-api";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  createProject,
+  fetchProductTypes,
+  fetchScheduleModel,
+  fetchTeams,
+  previewScheduleForNewProject,
+} from "@/lib/load-api";
 import { formatTeamLabel } from "@/lib/team-label";
 
 const selectClassName =
@@ -71,6 +78,7 @@ export default function NewProjectPage() {
     deadline: "",
     weight: "",
     memberLength: "",
+    scheduleStartDate: "",
   });
 
   const productTypes = useQuery({
@@ -91,10 +99,72 @@ export default function NewProjectPage() {
     },
   });
 
+  const scheduleModel = useQuery({
+    queryKey: ["schedule-model"],
+    queryFn: async () => {
+      const r = await fetchScheduleModel();
+      if (!r.ok) throw new Error(r.message ?? r.error);
+      return r.data;
+    },
+  });
+
   const selectedType = productTypes.data?.find((p) => p.id === form.productTypeId);
+  const weightNum = form.weight ? Number(form.weight) : NaN;
+  const memberLengthNum = form.memberLength ? Number(form.memberLength) : NaN;
+
+  const estimatedHours = useMemo(() => {
+    if (!selectedType?.regressionA || !selectedType.regressionB) return null;
+    if (!Number.isFinite(weightNum) || !Number.isFinite(memberLengthNum)) return null;
+    return calculatePastAverageHours(
+      weightNum,
+      memberLengthNum,
+      selectedType.regressionA,
+      selectedType.regressionB,
+    );
+  }, [selectedType, weightNum, memberLengthNum]);
+
+  const preview = useQuery({
+    queryKey: [
+      "new-project-schedule-preview",
+      form.scheduleStartDate,
+      estimatedHours,
+    ],
+    enabled: !!form.scheduleStartDate && estimatedHours != null && estimatedHours > 0,
+    queryFn: async () => {
+      const r = await previewScheduleForNewProject({
+        startDate: form.scheduleStartDate,
+        plannedHours: estimatedHours!,
+      });
+      if (!r.ok) throw new Error(r.message ?? "プレビューに失敗しました");
+      return r.data;
+    },
+  });
+
+  const previewByProcess = useMemo(() => {
+    if (!preview.data) return [];
+    const map = new Map<string, { name: string; byDate: Record<string, number> }>();
+    for (const row of preview.data.dailySchedule) {
+      const current = map.get(row.processTypeId) ?? {
+        name: row.processTypeName,
+        byDate: {},
+      };
+      current.byDate[row.date] = row.hours;
+      map.set(row.processTypeId, current);
+    }
+    return [...map.values()];
+  }, [preview.data]);
+
+  const previewDates = useMemo(() => {
+    if (!preview.data) return [];
+    return [...new Set(preview.data.dailySchedule.map((row) => row.date))].sort();
+  }, [preview.data]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (form.scheduleStartDate && estimatedHours == null) {
+      setError("工程開始日を設定する場合は、重量と部材長さを入力してください");
+      return;
+    }
     setSaving(true);
     setError(null);
     const r = await createProject({
@@ -106,6 +176,7 @@ export default function NewProjectPage() {
       deadline: form.deadline || undefined,
       weight: form.weight ? Number(form.weight) : undefined,
       memberLength: form.memberLength ? Number(form.memberLength) : undefined,
+      scheduleStartDate: form.scheduleStartDate || undefined,
       category: selectedType?.category,
     });
     setSaving(false);
@@ -117,7 +188,7 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <nav
         aria-label="パンくずリスト"
         className="flex items-center gap-1 text-[13px]"
@@ -131,7 +202,7 @@ export default function NewProjectPage() {
 
       <PageHeader
         title="工事登録"
-        description="基本情報を登録後、詳細画面でモデル作成と目標時間の算出を行います"
+        description="モデルマスタに基づき工程予定を自動生成し、班未定で登録します"
       />
 
       <form
@@ -178,7 +249,7 @@ export default function NewProjectPage() {
 
         <div className="border-t border-border/60" />
 
-        <FormSection title="分類・割当" description="品種はモデル作成時の過去平均参照に使用します">
+        <FormSection title="分類・割当">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <FieldLabel htmlFor="productTypeId">品種</FieldLabel>
@@ -213,12 +284,14 @@ export default function NewProjectPage() {
                 disabled={teams.isLoading}
                 onChange={(e) => setForm({ ...form, teamId: e.target.value })}
               >
-                <option value="">未割当</option>
-                {teams.data?.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {formatTeamLabel(t.name)}
-                  </option>
-                ))}
+                <option value="">未定</option>
+                {teams.data
+                  ?.filter((t) => t.name !== "製作班未定")
+                  .map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {formatTeamLabel(t.name)}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
@@ -226,8 +299,8 @@ export default function NewProjectPage() {
 
         <div className="border-t border-border/60" />
 
-        <FormSection title="仕様・納期" description="重量・部材長さはモデル作成で目標時間の算出に使用します">
-          <div className="grid gap-4 sm:grid-cols-3">
+        <FormSection title="仕様・工程予定">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <FieldLabel htmlFor="deadline">納期</FieldLabel>
               <Input
@@ -244,7 +317,6 @@ export default function NewProjectPage() {
                 type="number"
                 step="0.1"
                 min="0"
-                placeholder="12.5"
                 value={form.weight}
                 onChange={(e) => setForm({ ...form, weight: e.target.value })}
               />
@@ -256,12 +328,80 @@ export default function NewProjectPage() {
                 type="number"
                 step="0.1"
                 min="0"
-                placeholder="48.0"
                 value={form.memberLength}
                 onChange={(e) => setForm({ ...form, memberLength: e.target.value })}
               />
             </div>
+            <div>
+              <FieldLabel htmlFor="scheduleStartDate" required>
+                工程開始日
+              </FieldLabel>
+              <Input
+                id="scheduleStartDate"
+                type="date"
+                required
+                value={form.scheduleStartDate}
+                onChange={(e) =>
+                  setForm({ ...form, scheduleStartDate: e.target.value })
+                }
+              />
+            </div>
           </div>
+
+          {!scheduleModel.data ? (
+            <p className="text-sm text-amber-700">
+              モデルマスタが未設定です。
+              <Link href="/settings" className="ml-1 text-primary hover:underline">
+                設定画面
+              </Link>
+              で登録してください。
+            </p>
+          ) : null}
+
+          {estimatedHours != null ? (
+            <p className="text-sm text-muted">
+              推定目標時間: <span className="font-medium text-text">{estimatedHours} h</span>
+              {scheduleModel.data ? (
+                <>
+                  {" "}
+                  · 工期 {scheduleModel.data.totalDays} 日
+                </>
+              ) : null}
+            </p>
+          ) : null}
+
+          {preview.isLoading ? <Skeleton className="h-32" /> : null}
+          {preview.data ? (
+            <div className="overflow-auto rounded-md border border-border">
+              <table className="min-w-full border-collapse text-[11px]">
+                <thead>
+                  <tr className="border-b border-border bg-bg text-muted">
+                    <th className="px-2 py-1 text-left">工程</th>
+                    {previewDates.slice(0, 14).map((date) => (
+                      <th key={date} className="px-1 py-1 text-center font-normal">
+                        {date.slice(5)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewByProcess.map((row) => (
+                    <tr key={row.name} className="border-b border-border/40">
+                      <td className="px-2 py-1">{row.name}</td>
+                      {previewDates.slice(0, 14).map((date) => (
+                        <td key={date} className="px-1 py-1 text-center tabular-nums">
+                          {row.byDate[date] ?? ""}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="border-t border-border px-2 py-1 text-[11px] text-muted">
+                完了予定: {preview.data.endDate}（先頭14日を表示）
+              </p>
+            </div>
+          ) : null}
         </FormSection>
 
         <div className="border-t border-border/60" />
@@ -270,7 +410,7 @@ export default function NewProjectPage() {
           <div className="flex gap-2.5 rounded-md border border-border/60 bg-white px-3 py-2.5 text-xs text-muted">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
             <p>
-              目標時間は登録後の工事詳細画面「モデル作成」で、品種・重量・部材長さから自動算出します。
+              登録時にモデルマスタを自動適用し、工程予定（planned）を生成します。班は未定のまま登録され、後から割り当てできます。
             </p>
           </div>
 
@@ -285,8 +425,8 @@ export default function NewProjectPage() {
             >
               キャンセル
             </Button>
-            <Button type="submit" disabled={saving} loading={saving}>
-              {saving ? "登録中..." : "登録して詳細へ"}
+            <Button type="submit" disabled={saving || !scheduleModel.data} loading={saving}>
+              {saving ? "登録中..." : "登録"}
             </Button>
           </div>
         </div>

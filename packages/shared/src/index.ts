@@ -27,11 +27,20 @@ export type {
   HistoricalAverageLookupDto,
   ProjectModelPreviewDto,
   ModelRegressionSampleDto,
+  ScheduleModelDto,
+  ScheduleModelDayDto,
+  ScheduleApplyPreviewDto,
 } from "./types/load-calculation.js";
 export {
   CATEGORY_LABELS,
   PROJECT_STATUS_LABELS,
 } from "./types/load-calculation.js";
+export {
+  PROCESS_RECORD_TYPES,
+  UNASSIGNED_TEAM_ID,
+  UNASSIGNED_TEAM_NAME,
+} from "./process-record.js";
+export type { ProcessRecordType } from "./process-record.js";
 export {
   PROCESS_NAMES,
   buildProcessTargets,
@@ -44,6 +53,18 @@ export {
   round1,
   weldingRatioFromTargets,
 } from "./model-calculation.js";
+export {
+  distributePlannedHoursByWeight,
+  distributePlannedHoursByProcessPercent,
+  formatSchedulePercent,
+  isLegacyScheduleRatioFormat,
+  normalizeSchedulePercent,
+  sumGridColumnPercents,
+  sumGridPercents,
+  sumGridRowPercents,
+  sumSchedulePercents,
+  sumScheduleWeights,
+} from "./schedule-model.js";
 export type {
   ProcessName,
   ProcessRatiosMap,
