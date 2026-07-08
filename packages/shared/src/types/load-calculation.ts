@@ -60,6 +60,13 @@ export type CapacitySettingDto = {
   headcount: number;
 };
 
+export type ProjectTeamDto = {
+  id: string;
+  teamId: string;
+  teamName: string;
+  sortOrder: number;
+};
+
 export type ProjectDto = {
   id: string;
   projectNumber: string;
@@ -73,8 +80,11 @@ export type ProjectDto = {
   drawingReceivedAt: string | null;
   plannedHours: number | null;
   weldingRatio: number | null;
+  /** @deprecated use teams */
   teamId: string | null;
+  /** @deprecated use teams */
   teamName?: string | null;
+  teams: ProjectTeamDto[];
   status: ProjectStatus;
   category: ProductCategory | null;
   setCount: number | null;
@@ -103,6 +113,7 @@ export type ProcessRecordDto = {
   projectId: string;
   processTypeId: string;
   processTypeName?: string;
+  teamId: string;
   date: string;
   hours: number;
   recordType: ProcessRecordType;
@@ -201,6 +212,18 @@ export type TeamScheduleDto = {
   dates: string[];
   holidays: Record<string, boolean>;
   projects: TeamScheduleProjectDto[];
+};
+
+export type ProjectScheduleDto = {
+  projectId: string;
+  projectNumber: string;
+  projectName: string;
+  month: string;
+  months: number;
+  dates: string[];
+  holidays: Record<string, boolean>;
+  teams: { teamId: string; teamName: string }[];
+  project: TeamScheduleProjectDto;
 };
 
 export type HistoricalAverageDto = {

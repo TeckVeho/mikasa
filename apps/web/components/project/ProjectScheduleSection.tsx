@@ -9,25 +9,26 @@ import { ProcessTypeLegend } from "@/components/team/ProcessTypeLegend";
 import { ScheduleWidthResizer } from "@/components/team/ScheduleWidthResizer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useScheduleUndo } from "@/hooks/useScheduleUndo";
-import type { ScheduleCellUpdate } from "@/lib/schedule-grid-clipboard";
-import { buildUndoSnapshot } from "@/lib/schedule-grid-undo";
 import {
   readStoredVisibleMonths,
   measureDayCellWidth,
   SCHEDULE_STICKY_COLS_WIDTH,
   storeVisibleMonths,
+  todayDateString,
   type ScheduleVisibleMonths,
 } from "@/lib/schedule-display";
+import { fetchProjectSchedule, saveProjectScheduleCell } from "@/lib/load-api";
+import { formatTeamLabels } from "@/lib/team-label";
+import type { ProjectTeamDto } from "@logivoice/shared";
+import type { ScheduleCellUpdate } from "@/lib/schedule-grid-clipboard";
 import {
-  fetchTeamSchedule,
-  saveScheduleCell,
-} from "@/lib/load-api";
-import { formatTeamLabel } from "@/lib/team-label";
+  buildProjectScheduleUndoSnapshot,
+  type ScheduleUndoEntry,
+} from "@/lib/schedule-grid-undo";
 
 type Props = {
   projectId: string;
-  teamId: string;
-  teamName: string | null;
+  teams: ProjectTeamDto[];
   month: string;
   onMonthChange: (month: string) => void;
   onUpdated?: () => void;
@@ -35,13 +36,13 @@ type Props = {
 
 export function ProjectScheduleSection({
   projectId,
-  teamId,
-  teamName,
+  teams,
   month,
   onMonthChange,
   onUpdated,
 }: Props) {
   const queryClient = useQueryClient();
+  const today = todayDateString();
   const [message, setMessage] = useState<string | null>(null);
   const [visibleMonths, setVisibleMonths] = useState<ScheduleVisibleMonths>(1);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -52,13 +53,40 @@ export function ProjectScheduleSection({
   }, []);
 
   const schedule = useQuery({
-    queryKey: ["team-schedule", teamId, month, visibleMonths],
+    queryKey: ["project-schedule", projectId, month, visibleMonths],
     queryFn: async () => {
-      const r = await fetchTeamSchedule(teamId, month, visibleMonths);
+      const r = await fetchProjectSchedule(projectId, month, visibleMonths);
       if (!r.ok) throw new Error(r.message ?? r.error);
       return r.data;
     },
   });
+
+  const scheduleDataRef = useRef(schedule.data);
+  scheduleDataRef.current = schedule.data;
+
+  const applyUndo = useCallback(
+    async (entry: ScheduleUndoEntry) => {
+      for (const update of entry.restore) {
+        if (update.recordType === "actual") continue;
+        const r = await saveProjectScheduleCell(entry.projectId, {
+          processTypeId: update.processTypeId,
+          date: update.date,
+          hours: update.hours,
+          recordType: "planned",
+        });
+        if (!r.ok) {
+          setMessage(r.message ?? r.error);
+          return;
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: ["project-schedule", projectId] });
+      void queryClient.invalidateQueries({ queryKey: ["project-progress", projectId] });
+      onUpdated?.();
+    },
+    [onUpdated, projectId, queryClient],
+  );
+
+  const { pushUndo, undo, isApplyingRef } = useScheduleUndo(applyUndo);
 
   const dayCount = schedule.data?.dates.length ?? 0;
 
@@ -87,63 +115,37 @@ export function ProjectScheduleSection({
     storeVisibleMonths(next);
   }
 
-  const scheduleDataRef = useRef(schedule.data);
-  scheduleDataRef.current = schedule.data;
-
-  const applyUndo = useCallback(
-    async (entry: {
-      teamId: string;
-      projectId: string;
-      restore: ScheduleCellUpdate[];
-    }) => {
-      for (const update of entry.restore) {
-        const r = await saveScheduleCell(entry.teamId, {
-          projectId: entry.projectId,
-          ...update,
-        });
-        if (!r.ok) {
-          setMessage(r.message ?? r.error);
-          return;
-        }
-      }
-      void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
-      void queryClient.invalidateQueries({ queryKey: ["project-progress", projectId] });
-      onUpdated?.();
-    },
-    [month, onUpdated, projectId, queryClient, teamId, visibleMonths],
-  );
-
-  const { pushUndo, isApplyingRef } = useScheduleUndo(applyUndo);
-
-  const projectSchedule = schedule.data?.projects.find(
-    (p) => p.projectId === projectId,
-  );
-
   async function handleSaveCell(
     pid: string,
     processTypeId: string,
     date: string,
     hours: number,
+    recordType?: "planned" | "actual",
   ) {
-    const schedules = scheduleDataRef.current ? [scheduleDataRef.current] : [];
-    const restore = buildUndoSnapshot(schedules, teamId, pid, [
-      { processTypeId, date, hours: 0 },
-    ]);
+    if (recordType === "actual") return;
 
-    const r = await saveScheduleCell(teamId, {
-      projectId: pid,
+    const project = scheduleDataRef.current?.project;
+    const restore =
+      project && !isApplyingRef.current
+        ? buildProjectScheduleUndoSnapshot(project, [
+            { processTypeId, date, hours, recordType: "planned" },
+          ])
+        : [];
+
+    const r = await saveProjectScheduleCell(pid, {
       processTypeId,
       date,
       hours,
+      recordType: "planned",
     });
     if (!r.ok) {
       setMessage(r.message ?? r.error);
       return;
     }
-    if (!isApplyingRef.current) {
-      pushUndo({ teamId, projectId: pid, restore });
+    if (restore.length > 0) {
+      pushUndo({ teamId: "", projectId: pid, restore });
     }
-    void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
+    void queryClient.invalidateQueries({ queryKey: ["project-schedule", projectId] });
     void queryClient.invalidateQueries({ queryKey: ["project-progress", projectId] });
     onUpdated?.();
   }
@@ -152,29 +154,42 @@ export function ProjectScheduleSection({
     pid: string,
     updates: ScheduleCellUpdate[],
   ): Promise<boolean> {
-    const schedules = scheduleDataRef.current ? [scheduleDataRef.current] : [];
-    const restore = buildUndoSnapshot(schedules, teamId, pid, updates);
+    const plannedUpdates = updates.filter(
+      (update) => update.recordType !== "actual",
+    );
+    if (plannedUpdates.length === 0) return true;
 
-    for (const update of updates) {
-      const r = await saveScheduleCell(teamId, {
-        projectId: pid,
-        ...update,
+    const project = scheduleDataRef.current?.project;
+    const restore =
+      project && !isApplyingRef.current
+        ? buildProjectScheduleUndoSnapshot(project, plannedUpdates)
+        : [];
+
+    for (const update of plannedUpdates) {
+      const r = await saveProjectScheduleCell(pid, {
+        processTypeId: update.processTypeId,
+        date: update.date,
+        hours: update.hours,
+        recordType: "planned",
       });
       if (!r.ok) {
         setMessage(r.message ?? r.error);
         return false;
       }
     }
-    if (!isApplyingRef.current) {
-      pushUndo({ teamId, projectId: pid, restore });
+    if (restore.length > 0) {
+      pushUndo({ teamId: "", projectId: pid, restore });
     }
-    void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
+    void queryClient.invalidateQueries({ queryKey: ["project-schedule", projectId] });
     void queryClient.invalidateQueries({ queryKey: ["project-progress", projectId] });
     onUpdated?.();
     return true;
   }
 
-  const teamSheetHref = `/teams?team=${encodeURIComponent(teamId)}&month=${encodeURIComponent(month)}#project-${projectId}`;
+  const teamsHref =
+    teams.length > 0
+      ? `/teams?month=${encodeURIComponent(month)}#project-${projectId}`
+      : "/teams";
 
   return (
     <div className="rounded-lg border border-border bg-white p-4">
@@ -182,7 +197,10 @@ export function ProjectScheduleSection({
         <div>
           <h2 className="text-sm font-semibold">日次スケジュール</h2>
           <p className="mt-0.5 text-[12px] text-muted">
-            {formatTeamLabel(teamName)} の班シート（この工事のみ）
+            予定は工事共通・実績は全班合算（{formatTeamLabels(teams, "班未割当")}）
+          </p>
+          <p className="mt-1 text-[12px] text-muted">
+            実績の入力は班シートで行います
           </p>
           <ProcessTypeLegend className="mt-2" />
         </div>
@@ -192,29 +210,26 @@ export function ProjectScheduleSection({
             months={visibleMonths}
             onChange={onMonthChange}
           />
-          <Link href={teamSheetHref} className="text-[13px] text-primary hover:underline">
-            全班の班シートを開く →
-          </Link>
+          {teams.length > 0 ? (
+            <Link href={teamsHref} className="text-[13px] text-primary hover:underline">
+              班シートで実績入力 →
+            </Link>
+          ) : null}
         </div>
       </div>
 
-      {message && (
+      {message ? (
         <p className="mb-3 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
           {message}
         </p>
-      )}
+      ) : null}
 
       {schedule.isLoading ? (
         <Skeleton className="h-48" />
       ) : schedule.error ? (
         <p className="text-sm text-danger">スケジュールの取得に失敗しました</p>
-      ) : !projectSchedule ? (
-        <p className="text-sm text-muted">
-          この月のスケジュールデータがありません。
-          <Link href={teamSheetHref} className="ml-1 text-primary hover:underline">
-            班シートで確認
-          </Link>
-        </p>
+      ) : !schedule.data ? (
+        <p className="text-sm text-muted">スケジュールデータがありません</p>
       ) : (
         <ScheduleWidthResizer
           months={visibleMonths}
@@ -222,14 +237,17 @@ export function ProjectScheduleSection({
         >
           <div ref={frameRef}>
             <ProjectBlock
-              teamId={teamId}
-              project={projectSchedule}
-              dates={schedule.data!.dates}
-              holidays={schedule.data!.holidays}
+              teamId=""
+              project={schedule.data.project}
+              dates={schedule.data.dates}
+              holidays={schedule.data.holidays}
+              today={today}
               dayCellWidth={dayCellWidth}
               showMonthHeaders={visibleMonths > 1}
               onSaveCell={handleSaveCell}
               onBulkSave={handleBulkSave}
+              onUndo={() => void undo()}
+              actualReadOnly
               anchorId={`project-${projectId}`}
             />
           </div>

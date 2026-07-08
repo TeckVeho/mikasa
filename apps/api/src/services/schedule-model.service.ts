@@ -5,6 +5,7 @@ import type {
   ScheduleModelDto,
 } from "@logivoice/shared";
 import {
+  UNASSIGNED_TEAM_ID,
   buildProcessTargets,
   distributePlannedHoursByProcessPercent,
   isLegacyScheduleRatioFormat,
@@ -344,6 +345,7 @@ export async function applyScheduleModelToProject(
           id: newId(),
           projectId,
           processTypeId: entry.processTypeId,
+          teamId: UNASSIGNED_TEAM_ID,
           date: parseDateOnly(entry.date),
           hours: new Prisma.Decimal(entry.hours),
           recordType: "planned",

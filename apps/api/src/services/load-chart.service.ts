@@ -101,12 +101,13 @@ export async function getLoadChart(
         tenantId,
         deletedAt: null,
         status: { notIn: ["shipped", "completed"] },
-        ...(filters.teamId ? { teamId: filters.teamId } : {}),
+        ...(filters.teamId
+          ? { projectTeams: { some: { teamId: filters.teamId } } }
+          : {}),
       },
     },
     include: {
       processType: true,
-      project: { select: { teamId: true } },
     },
   });
 
@@ -170,18 +171,22 @@ async function getTeamDailyChart(
         tenantId,
         deletedAt: null,
         status: { notIn: ["shipped", "completed"] },
-        ...(filterTeamId ? { teamId: filterTeamId } : {}),
+        ...(filterTeamId
+          ? { projectTeams: { some: { teamId: filterTeamId } } }
+          : {}),
       },
     },
-    include: {
-      project: { select: { teamId: true } },
+    select: {
+      date: true,
+      hours: true,
+      teamId: true,
     },
   });
 
   const series = teams.map((team) => {
     const values = new Array<number>(dates.length).fill(0);
     for (const rec of records) {
-      if (rec.project.teamId !== team.id) continue;
+      if (rec.teamId !== team.id) continue;
       const idx = dateIndex.get(formatDateOnly(rec.date));
       if (idx == null) continue;
       values[idx]! += toNumber(rec.hours) ?? 0;

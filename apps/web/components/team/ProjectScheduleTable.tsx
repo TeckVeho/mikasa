@@ -31,6 +31,8 @@ import {
 } from "@/lib/schedule-grid-clipboard";
 import {
   type GridCell,
+  getActiveCell,
+  getSelectionEdgeFlags,
   isArrowKey,
   isCellInSelection,
   moveGridCell,
@@ -48,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { DayCell } from "./DayCell";
 
 const BLOCK_DRAG_THRESHOLD = 5;
+const DOUBLE_CLICK_MS = 400;
 
 type Props = {
   project: TeamScheduleProjectDto;
@@ -69,6 +72,8 @@ type Props = {
     projectId: string,
     updates: ScheduleCellUpdate[],
   ) => Promise<boolean>;
+  onUndo?: () => void;
+  actualReadOnly?: boolean;
 };
 
 export function ProjectScheduleTable({
@@ -82,6 +87,8 @@ export function ProjectScheduleTable({
   scrollRef,
   onSaveCell,
   onBulkSave,
+  onUndo,
+  actualReadOnly = false,
 }: Props) {
   const styles = getScheduleTableStyles(size);
   const monthGroups = showMonthHeaders ? groupDatesByMonth(dates) : [];
@@ -114,6 +121,7 @@ export function ProjectScheduleTable({
     focus: null,
   });
   const rangeSelectRef = useRef(false);
+  const rangeStartRef = useRef<GridCell | null>(null);
   const blockDragRef = useRef<{
     payload: BlockDragPayload;
     startX: number;
@@ -122,6 +130,9 @@ export function ProjectScheduleTable({
     dropCell: GridCell | null;
   } | null>(null);
   const blockDragCleanupRef = useRef<(() => void) | null>(null);
+  const lastPointerDownRef = useRef<{ row: number; col: number; time: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     selectionRef.current = { anchor, focus };
@@ -168,18 +179,27 @@ export function ProjectScheduleTable({
   }, []);
 
   useEffect(() => {
-    if (!focus) return;
-    focusCellElement(focus);
-  }, [focus, focusCellElement]);
+    const active = getActiveCell(anchor, focus);
+    if (!active) return;
+    focusCellElement(active);
+  }, [anchor, focus, focusCellElement]);
 
   const applySelection = useCallback(
-    (nextAnchor: GridCell, nextFocus: GridCell) => {
-      selectionRef.current = { anchor: nextAnchor, focus: nextFocus };
+    (
+      nextAnchor: GridCell,
+      nextFocus: GridCell,
+      options?: { focusDom?: boolean },
+    ) => {
+      const next = { anchor: nextAnchor, focus: nextFocus };
+      selectionRef.current = next;
       flushSync(() => {
         setAnchor(nextAnchor);
         setFocus(nextFocus);
       });
-      focusCellElement(nextFocus);
+      if (options?.focusDom !== false) {
+        const active = getActiveCell(nextAnchor, nextFocus);
+        if (active) focusCellElement(active);
+      }
     },
     [focusCellElement],
   );
@@ -312,20 +332,19 @@ export function ProjectScheduleTable({
       if (!rangeSelectRef.current) return;
       const cell = findScheduleCellFromPoint(e.clientX, e.clientY);
       if (!cell) return;
-      const { anchor: a } = selectionRef.current;
-      if (!a) return;
-      if (
-        selectionRef.current.focus?.row === cell.row &&
-        selectionRef.current.focus?.col === cell.col
-      ) {
+      const start = rangeStartRef.current;
+      if (!start) return;
+
+      const { focus: f } = selectionRef.current;
+      if (f?.row === cell.row && f?.col === cell.col) {
         return;
       }
-      selectionRef.current = { anchor: a, focus: cell };
-      setFocus(cell);
+      applySelection(start, cell, { focusDom: false });
     }
 
     function onPointerUp() {
       stopRangeSelect();
+      rangeStartRef.current = null;
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
@@ -334,13 +353,22 @@ export function ProjectScheduleTable({
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
     window.addEventListener("pointercancel", onPointerUp);
-  }, [stopRangeSelect]);
+  }, [applySelection, stopRangeSelect]);
 
   const handleCellPointerDown = useCallback(
     (row: number, col: number, e: React.PointerEvent) => {
       if (e.button !== 0) return;
 
       stopBlockDrag();
+
+      const now = Date.now();
+      const lastPointerDown = lastPointerDownRef.current;
+      const isDoubleClickPointer =
+        lastPointerDown !== null &&
+        lastPointerDown.row === row &&
+        lastPointerDown.col === col &&
+        now - lastPointerDown.time < DOUBLE_CLICK_MS;
+      lastPointerDownRef.current = { row, col, time: now };
 
       const { anchor: prevAnchor, focus: prevFocus } = selectionRef.current;
       const wasInSelection = isCellInSelection(row, col, prevAnchor, prevFocus);
@@ -368,10 +396,16 @@ export function ProjectScheduleTable({
       applySelection(nextAnchor, nextFocus);
 
       if (useRangeSelect) {
+        rangeStartRef.current = shift
+          ? (prevAnchor ?? prevFocus ?? { row, col })
+          : { row, col };
         startRangeSelect();
       } else {
         stopRangeSelect();
-        if (selectionHasDataAt(nextAnchor, nextFocus)) {
+        if (
+          !isDoubleClickPointer &&
+          selectionHasDataAt(nextAnchor, nextFocus)
+        ) {
           startBlockDrag(row, col, nextAnchor, nextFocus, e.clientX, e.clientY);
         }
       }
@@ -391,55 +425,58 @@ export function ProjectScheduleTable({
     (key: string, shiftKey: boolean, row: number, col: number) => {
       if (!isArrowKey(key)) return;
 
-      const current = focus ?? { row, col };
+      const active = getActiveCell(anchor, focus) ?? { row, col };
+      const current = shiftKey ? (focus ?? active) : active;
       const next = moveGridCell(current, key, bounds);
 
       if (shiftKey) {
-        setFocus(next);
-        setAnchor((prev) => prev ?? current);
+        applySelection(anchor ?? active, next);
       } else {
-        setFocus(next);
-        setAnchor(next);
+        applySelection(next, next);
       }
     },
-    [bounds, focus],
+    [anchor, applySelection, bounds, focus],
   );
 
-  const applyFocus = useCallback((next: GridCell, extend: boolean) => {
-    setFocus(next);
-    if (extend) {
-      setAnchor((prev) => prev ?? focus ?? next);
-    } else {
-      setAnchor(next);
-    }
-  }, [focus]);
+  const applyFocus = useCallback(
+    (next: GridCell, extend: boolean) => {
+      if (extend) {
+        applySelection(anchor ?? focus ?? next, next);
+      } else {
+        applySelection(next, next);
+      }
+    },
+    [anchor, applySelection, focus],
+  );
 
   const handleCommitNavigateTab = useCallback(
     (reverse: boolean) => {
-      if (!focus) return;
-      const next = navigateTab(focus, bounds, reverse);
-      setFocus(next);
-      setAnchor(next);
+      const active = getActiveCell(anchor, focus);
+      if (!active) return;
+      const next = navigateTab(active, bounds, reverse);
+      applySelection(next, next);
     },
-    [bounds, focus],
+    [anchor, applySelection, bounds, focus],
   );
 
   const handleShiftEnter = useCallback(() => {
-    if (!focus) return;
-    const next = moveGridCell(focus, "ArrowUp", bounds);
-    setFocus(next);
-    setAnchor(next);
-  }, [bounds, focus]);
+    const active = getActiveCell(anchor, focus);
+    if (!active) return;
+    const next = moveGridCell(active, "ArrowUp", bounds);
+    applySelection(next, next);
+  }, [anchor, applySelection, bounds, focus]);
 
   const handleCommitNavigate = useCallback(() => {
-    if (!focus) return;
-    const next = moveGridCell(focus, "ArrowDown", bounds);
-    setFocus(next);
-    setAnchor(next);
-  }, [bounds, focus]);
+    const active = getActiveCell(anchor, focus);
+    if (!active) return;
+    const next = moveGridCell(active, "ArrowDown", bounds);
+    applySelection(next, next);
+  }, [anchor, applySelection, bounds, focus]);
 
   const selectionHasData =
     anchor && focus ? selectionHasDataAt(anchor, focus) : false;
+
+  const activeCell = getActiveCell(anchor, focus);
 
   const handleDelete = useCallback(async () => {
     if (!anchor || !focus) return;
@@ -481,9 +518,8 @@ export function ProjectScheduleTable({
 
   const handleSelectAll = useCallback(() => {
     const { anchor: a, focus: f } = selectAllCells(bounds);
-    setAnchor(a);
-    setFocus(f);
-  }, [bounds]);
+    applySelection(a, f);
+  }, [applySelection, bounds]);
 
   const hasData = useCallback(
     (row: number, col: number) => getHours(row, col) > 0,
@@ -491,7 +527,8 @@ export function ProjectScheduleTable({
   );
 
   const handlePaste = useCallback(async () => {
-    if (!focus) return;
+    const active = getActiveCell(anchor, focus);
+    if (!active) return;
 
     let clip = clipboardRef.current;
     if (!clip) {
@@ -506,8 +543,8 @@ export function ProjectScheduleTable({
 
     const result = computePasteUpdates(
       clip,
-      focus.row,
-      focus.col,
+      active.row,
+      active.col,
       bounds,
       holidays,
       resolveCell,
@@ -516,12 +553,13 @@ export function ProjectScheduleTable({
 
     const ok = await onBulkSave(project.projectId, result.updates);
     if (ok) {
-      const endRow = Math.min(focus.row + clip.rows - 1, rowCount - 1);
-      const endCol = Math.min(focus.col + clip.cols - 1, colCount - 1);
-      setAnchor({ row: focus.row, col: focus.col });
-      setFocus({ row: endRow, col: endCol });
+      const endRow = Math.min(active.row + clip.rows - 1, rowCount - 1);
+      const endCol = Math.min(active.col + clip.cols - 1, colCount - 1);
+      applySelection(active, { row: endRow, col: endCol });
     }
   }, [
+    anchor,
+    applySelection,
     bounds,
     colCount,
     focus,
@@ -573,9 +611,16 @@ export function ProjectScheduleTable({
           void handleFillRight();
           return;
         }
-        if (isArrowKey(e.key) && focus && !isEditing) {
+        if (key === "z" && !shift) {
           e.preventDefault();
-          const next = jumpToDataEdge(focus, e.key, bounds, hasData);
+          onUndo?.();
+          return;
+        }
+        if (isArrowKey(e.key) && anchor && !isEditing) {
+          e.preventDefault();
+          const active = getActiveCell(anchor, focus)!;
+          const from = shift ? (focus ?? active) : active;
+          const next = jumpToDataEdge(from, e.key, bounds, hasData);
           applyFocus(next, shift);
           return;
         }
@@ -593,14 +638,15 @@ export function ProjectScheduleTable({
 
       if (isEditing) return;
 
-      if (!focus) {
+      if (!anchor) {
         if (e.key === "Tab" || isArrowKey(e.key) || e.key === "Home" || e.key === "End") {
           const initial = selectAllCells(bounds);
-          setAnchor(initial.anchor);
-          setFocus(initial.focus);
+          applySelection(initial.anchor, initial.focus);
         }
         return;
       }
+
+      const active = getActiveCell(anchor, focus)!;
 
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
@@ -610,25 +656,26 @@ export function ProjectScheduleTable({
 
       if (e.key === "Tab") {
         e.preventDefault();
-        applyFocus(navigateTab(focus, bounds, shift), false);
+        applyFocus(navigateTab(active, bounds, shift), false);
         return;
       }
 
       if (e.key === "Home") {
         e.preventDefault();
-        applyFocus(jumpToRowEdge(focus, bounds, true), shift);
+        applyFocus(jumpToRowEdge(active, bounds, true), shift);
         return;
       }
 
       if (e.key === "End") {
         e.preventDefault();
-        applyFocus(jumpToRowEdge(focus, bounds, false), shift);
+        applyFocus(jumpToRowEdge(active, bounds, false), shift);
         return;
       }
 
       if (isArrowKey(e.key)) {
         e.preventDefault();
-        const next = moveGridCell(focus, e.key, bounds);
+        const from = shift ? (focus ?? active) : active;
+        const next = moveGridCell(from, e.key, bounds);
         applyFocus(next, shift);
       }
     }
@@ -636,7 +683,9 @@ export function ProjectScheduleTable({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
+    anchor,
     applyFocus,
+    applySelection,
     bounds,
     focus,
     handleCopy,
@@ -647,6 +696,7 @@ export function ProjectScheduleTable({
     handlePaste,
     handleSelectAll,
     hasData,
+    onUndo,
   ]);
 
   return (
@@ -713,7 +763,7 @@ export function ProjectScheduleTable({
                     showMonthHeaders && isMonthStart && "border-l-2 border-l-border",
                   )}
                 >
-                  {isToday ? `今日 ${day}` : day}
+                  {day}
                 </th>
               );
             })}
@@ -780,8 +830,16 @@ export function ProjectScheduleTable({
                     rowKind === "planned"
                       ? proc.plannedDailyHours[date] ?? 0
                       : proc.actualDailyHours[date] ?? proc.dailyHours[date] ?? 0;
-                  const isActive = focus?.row === rowIndex && focus?.col === colIndex;
+                  const isActive =
+                    activeCell?.row === rowIndex &&
+                    activeCell?.col === colIndex;
                   const isSelected = isCellInSelection(
+                    rowIndex,
+                    colIndex,
+                    anchor,
+                    focus,
+                  );
+                  const selectionEdges = getSelectionEdgeFlags(
                     rowIndex,
                     colIndex,
                     anchor,
@@ -802,6 +860,7 @@ export function ProjectScheduleTable({
                       isToday={today === date}
                       isActive={isActive}
                       isSelected={isSelected}
+                      selectionEdges={selectionEdges}
                       isDropTarget={
                         dropPreview?.row === rowIndex &&
                         dropPreview?.col === colIndex
@@ -812,6 +871,7 @@ export function ProjectScheduleTable({
                       onPointerDown={(e) =>
                         handleCellPointerDown(rowIndex, colIndex, e)
                       }
+                      onCancelBlockDrag={stopBlockDrag}
                       onGridKeyDown={(key, shiftKey) =>
                         handleGridKeyDown(key, shiftKey, rowIndex, colIndex)
                       }
@@ -828,6 +888,7 @@ export function ProjectScheduleTable({
                           rowKind,
                         )
                       }
+                      readOnly={actualReadOnly && rowKind === "actual"}
                     />
                   );
                 })}
@@ -901,7 +962,7 @@ export function ProjectScheduleTable({
             <td colSpan={dates.length} className={cn("text-muted", styles.metricCell, styles.hint)}>
               過去平均: {project.pastAverageHours ?? "—"} h
               <span className={cn("ml-3", styles.hintSub)}>
-                （ドラッグで範囲選択・データは掴んで移動 / ブラウザ戻るで取り消し / ⌘C X V A / ⌘D・⌘R）
+                （ドラッグで範囲選択・データは掴んで移動 / ⌘Z またはブラウザ戻るで取り消し / ⌘C X V A / ⌘D・⌘R）
               </span>
             </td>
           </tr>

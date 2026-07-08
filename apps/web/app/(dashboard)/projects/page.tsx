@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchProjects, fetchTeams, updateProject } from "@/lib/load-api";
 import { PROJECT_STATUS_LABELS } from "@logivoice/shared";
-import { formatTeamLabel, formatTeamShortLabel } from "@/lib/team-label";
+import { formatTeamLabel, formatTeamShortLabels } from "@/lib/team-label";
 import { PROCESS_COLUMNS, PROCESS_SECTION_COLORS } from "@/lib/process-colors";
 import { cn } from "@/lib/utils";
 
@@ -119,7 +119,7 @@ export default function ProjectsPage() {
 
   async function assignTeam(projectId: string, nextTeamId: string) {
     if (!nextTeamId) return;
-    await updateProject(projectId, { teamId: nextTeamId });
+    await updateProject(projectId, { teamIds: [nextTeamId] });
     void queryClient.invalidateQueries({ queryKey: ["projects"] });
   }
 
@@ -355,7 +355,7 @@ export default function ProjectsPage() {
                       STICKY_TEAM,
                     )}
                   >
-                    {formatTeamShortLabel(p.teamName)}
+                    {formatTeamShortLabels(p.teams)}
                   </td>
                   <td className={cn(tdBase, tdSticky, STICKY_NUMBER)}>
                     <Link

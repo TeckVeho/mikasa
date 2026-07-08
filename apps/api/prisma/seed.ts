@@ -268,9 +268,10 @@ async function canonicalizeProcessType(
     for (const rec of dupRecords) {
       const existing = await prisma.processRecord.findUnique({
         where: {
-          projectId_processTypeId_date_recordType: {
+          projectId_processTypeId_teamId_date_recordType: {
             projectId: rec.projectId,
             processTypeId: canonical.id,
+            teamId: rec.teamId,
             date: rec.date,
             recordType: rec.recordType,
           },
@@ -450,6 +451,32 @@ async function seedProjects(tenantId: string): Promise<void> {
   }
 }
 
+async function seedProjectTeams(tenantId: string): Promise<void> {
+  const projects = await prisma.project.findMany({
+    where: { tenantId, deletedAt: null },
+    select: { id: true, teamId: true },
+  });
+
+  for (const project of projects) {
+    if (!project.teamId || project.teamId === "team-unassigned") continue;
+    await prisma.projectTeam.upsert({
+      where: {
+        projectId_teamId: {
+          projectId: project.id,
+          teamId: project.teamId,
+        },
+      },
+      create: {
+        id: ulid(),
+        projectId: project.id,
+        teamId: project.teamId,
+        sortOrder: 0,
+      },
+      update: { sortOrder: 0 },
+    });
+  }
+}
+
 async function seedProcessRecords(tenantId: string): Promise<void> {
   const records = [
     { projectId: "proj-001", processTypeId: "proc-kumitate-mae", date: "2026-07-01", hours: 4 },
@@ -470,11 +497,13 @@ async function seedProcessRecords(tenantId: string): Promise<void> {
     if (!project) continue;
 
     const date = parseDate(r.date);
+    const teamId = project.teamId ?? "team-unassigned";
     await prisma.processRecord.upsert({
       where: {
-        projectId_processTypeId_date_recordType: {
+        projectId_processTypeId_teamId_date_recordType: {
           projectId: r.projectId,
           processTypeId: r.processTypeId,
+          teamId,
           date,
           recordType: "actual",
         },
@@ -483,6 +512,7 @@ async function seedProcessRecords(tenantId: string): Promise<void> {
         id: ulid(),
         projectId: r.projectId,
         processTypeId: r.processTypeId,
+        teamId,
         date,
         hours: new Prisma.Decimal(r.hours),
         recordType: "actual",
@@ -822,6 +852,7 @@ async function main(): Promise<void> {
   await seedCalendar(tenantId);
   await seedScheduleModel(tenantId);
   await seedProjects(tenantId);
+  await seedProjectTeams(tenantId);
   await seedProcessRecords(tenantId);
   await seedHistoricalAverages(tenantId);
 

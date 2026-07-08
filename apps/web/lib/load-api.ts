@@ -12,12 +12,13 @@ import type {
   ProductTypeDto,
   ProjectListItemDto,
   ProjectProgressDto,
-  TeamDto,
-  TeamMemberDto,
-  TeamScheduleDto,
   ProjectModelPreviewDto,
   ScheduleModelDto,
   ScheduleApplyPreviewDto,
+  TeamDto,
+  TeamMemberDto,
+  TeamScheduleDto,
+  ProjectScheduleDto,
   ProcessRecordType,
 } from "@logivoice/shared";
 import { apiJson } from "./api";
@@ -143,6 +144,35 @@ export async function fetchLoadChart(params?: {
 
 export async function fetchProjectProgress(id: string) {
   return apiJson<ProjectProgressDto>(`/v1/projects/${id}/progress`);
+}
+
+export async function fetchProjectSchedule(
+  projectId: string,
+  month: string,
+  months = 1,
+) {
+  const params = new URLSearchParams({
+    month,
+    months: String(months),
+  });
+  return apiJson<ProjectScheduleDto>(
+    `/v1/projects/${projectId}/schedule?${params.toString()}`,
+  );
+}
+
+export async function saveProjectScheduleCell(
+  projectId: string,
+  body: {
+    processTypeId: string;
+    date: string;
+    hours: number;
+    recordType?: ProcessRecordType;
+  },
+) {
+  return apiJson<{ saved: boolean }>(`/v1/projects/${projectId}/schedule/cell`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export async function fetchDashboardSummary() {

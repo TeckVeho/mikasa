@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { Result } from "@logivoice/shared";
+import { UNASSIGNED_TEAM_ID } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
@@ -14,7 +15,9 @@ export async function listDailyRecords(
     where: {
       tenantId,
       deletedAt: null,
-      ...(filters.teamId ? { teamId: filters.teamId } : {}),
+      ...(filters.teamId
+        ? { projectTeams: { some: { teamId: filters.teamId } } }
+        : {}),
     },
     select: { id: true },
   });
@@ -68,14 +71,17 @@ export async function upsertDailyRecords(
   for (const rec of records) {
     const project = await prisma.project.findFirst({
       where: { id: rec.projectId, tenantId, deletedAt: null },
+      include: { projectTeams: { orderBy: { sortOrder: "asc" } } },
     });
     if (!project) continue;
 
+    const teamId = project.projectTeams[0]?.teamId ?? UNASSIGNED_TEAM_ID;
     const date = parseDateOnly(rec.date);
     await prisma.processRecord.upsert({
       where: processRecordUniqueKey(
         rec.projectId,
         rec.processTypeId,
+        teamId,
         date,
         "actual",
       ),
@@ -83,6 +89,7 @@ export async function upsertDailyRecords(
         id: newId(),
         projectId: rec.projectId,
         processTypeId: rec.processTypeId,
+        teamId,
         date,
         hours: new Prisma.Decimal(rec.hours),
         recordType: "actual",

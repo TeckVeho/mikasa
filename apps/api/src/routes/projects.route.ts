@@ -145,3 +145,25 @@ projectsRouter.get("/:id/progress", async (req, res) => {
   }
   res.json({ ok: true, data });
 });
+
+projectsRouter.get("/:id/schedule", async (req, res) => {
+  const tenantId = (req as AuthRequest).tenantId;
+  const now = new Date();
+  const defaultMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+  const month = String(req.query.month ?? defaultMonth);
+  const months = Number(req.query.months ?? 1);
+  const { getProjectSchedule } = await import("../services/project-schedule.service.js");
+  const data = await getProjectSchedule(tenantId, req.params.id!, month, months);
+  if (!data) {
+    res.status(404).json({ ok: false, error: "NOT_FOUND", message: "工事が見つかりません" });
+    return;
+  }
+  res.json({ ok: true, data });
+});
+
+projectsRouter.post("/:id/schedule/cell", async (req, res) => {
+  const { tenantId, userId } = req as AuthRequest;
+  const { upsertProjectScheduleCell } = await import("../services/project-schedule.service.js");
+  const r = await upsertProjectScheduleCell(tenantId, req.params.id!, userId, req.body);
+  sendResult(res, r);
+});

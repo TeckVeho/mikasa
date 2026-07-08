@@ -53,6 +53,14 @@ export function cellKey(processTypeId: string, date: string): string {
   return `${processTypeId}\t${date}`;
 }
 
+function cellKeyWithRecordType(
+  recordType: "planned" | "actual",
+  processTypeId: string,
+  date: string,
+): string {
+  return `${recordType}\t${processTypeId}\t${date}`;
+}
+
 export function buildBlockDragPayload(
   projectId: string,
   anchor: GridCell,
@@ -64,10 +72,11 @@ export function buildBlockDragPayload(
     return { row, col, ...data };
   });
   if (!cells.some((c) => c.hours > 0)) return null;
+  const range = normalizeSelection(anchor, focus);
   return {
     projectId,
-    originRow: focus.row,
-    originCol: focus.col,
+    originRow: range.rowMin,
+    originCol: range.colMin,
     cells,
   };
 }
@@ -88,10 +97,18 @@ export function computeBlockMoveUpdates(
   const pending = new Map<string, number>();
 
   for (const cell of payload.cells) {
-    pending.set(cellKey(cell.processTypeId, cell.date), 0);
+    const source = resolveCell(cell.row, cell.col);
+    if (!source.recordType) continue;
+    pending.set(
+      cellKeyWithRecordType(source.recordType, source.processTypeId, source.date),
+      0,
+    );
   }
 
   for (const cell of payload.cells) {
+    const source = resolveCell(cell.row, cell.col);
+    if (!source.recordType) continue;
+
     const targetRow = cell.row + dRow;
     const targetCol = cell.col + dCol;
 
@@ -105,15 +122,28 @@ export function computeBlockMoveUpdates(
     }
 
     const target = resolveCell(targetRow, targetCol);
-    const key = cellKey(target.processTypeId, target.date);
+    const key = cellKeyWithRecordType(
+      source.recordType,
+      target.processTypeId,
+      target.date,
+    );
     pending.set(key, cell.hours);
   }
 
   const updates: ScheduleCellUpdate[] = [];
   for (const [key, hours] of pending) {
-    const [processTypeId, date] = key.split("\t");
-    if (processTypeId && date) {
-      updates.push({ processTypeId, date, hours });
+    const [recordType, processTypeId, date] = key.split("\t");
+    if (
+      (recordType === "planned" || recordType === "actual") &&
+      processTypeId &&
+      date
+    ) {
+      updates.push({
+        processTypeId,
+        date,
+        hours,
+        recordType,
+      });
     }
   }
 

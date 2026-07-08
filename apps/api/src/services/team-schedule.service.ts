@@ -1,10 +1,11 @@
 import type { ProcessRecordType, Result, TeamScheduleDto } from "@logivoice/shared";
-import { resolveProcessRatio, round1 } from "@logivoice/shared";
+import { UNASSIGNED_TEAM_ID, resolveProcessRatio, round1 } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
 import { parseDateOnly, formatDateOnly } from "../utils/date.js";
 import { processRecordUniqueKey } from "../utils/process-record.js";
+import { assertProjectAssignedToTeam } from "../utils/project-team.js";
 import { loadTenantProcessRatios } from "./model.service.js";
 
 function round2(n: number): number {
@@ -63,9 +64,9 @@ export async function getTeamSchedule(
     prisma.project.findMany({
       where: {
         tenantId,
-        teamId,
         deletedAt: null,
         status: { notIn: ["shipped", "completed"] },
+        projectTeams: { some: { teamId } },
       },
       orderBy: [{ sortOrder: "asc" }, { projectNumber: "asc" }],
     }),
@@ -79,7 +80,15 @@ export async function getTeamSchedule(
     prisma.processRecord.findMany({
       where: {
         date: { gte: start, lte: end },
-        project: { tenantId, teamId, deletedAt: null },
+        project: {
+          tenantId,
+          deletedAt: null,
+          projectTeams: { some: { teamId } },
+        },
+        OR: [
+          { teamId },
+          { teamId: UNASSIGNED_TEAM_ID, recordType: "planned" },
+        ],
       },
     }),
     loadTenantProcessRatios(tenantId),
@@ -167,7 +176,7 @@ export async function getTeamSchedule(
 }
 
 export async function moveScheduleRecord(
-  tenantId: string,
+  _tenantId: string,
   teamId: string,
   userId: string,
   data: {
@@ -180,10 +189,8 @@ export async function moveScheduleRecord(
   },
 ): Promise<Result<{ moved: boolean }>> {
   const recordType = data.recordType ?? "actual";
-  const project = await prisma.project.findFirst({
-    where: { id: data.projectId, tenantId, teamId, deletedAt: null },
-  });
-  if (!project) {
+  const assigned = await assertProjectAssignedToTeam(data.projectId, teamId);
+  if (!assigned) {
     return { ok: false, error: "工事が見つかりません", code: "NOT_FOUND" };
   }
 
@@ -195,6 +202,7 @@ export async function moveScheduleRecord(
       where: {
         projectId: data.projectId,
         processTypeId: data.processTypeId,
+        teamId,
         date: from,
         recordType,
       },
@@ -204,6 +212,7 @@ export async function moveScheduleRecord(
       where: processRecordUniqueKey(
         data.projectId,
         data.processTypeId,
+        teamId,
         to,
         recordType,
       ),
@@ -217,6 +226,7 @@ export async function moveScheduleRecord(
       where: processRecordUniqueKey(
         data.projectId,
         data.processTypeId,
+        teamId,
         to,
         recordType,
       ),
@@ -224,6 +234,7 @@ export async function moveScheduleRecord(
         id: newId(),
         projectId: data.projectId,
         processTypeId: data.processTypeId,
+        teamId,
         date: to,
         hours: newHours,
         recordType,
@@ -240,7 +251,7 @@ export async function moveScheduleRecord(
 }
 
 export async function upsertScheduleCell(
-  tenantId: string,
+  _tenantId: string,
   teamId: string,
   userId: string,
   data: {
@@ -252,10 +263,8 @@ export async function upsertScheduleCell(
   },
 ): Promise<Result<{ saved: boolean }>> {
   const recordType = data.recordType ?? "actual";
-  const project = await prisma.project.findFirst({
-    where: { id: data.projectId, tenantId, teamId, deletedAt: null },
-  });
-  if (!project) {
+  const assigned = await assertProjectAssignedToTeam(data.projectId, teamId);
+  if (!assigned) {
     return { ok: false, error: "工事が見つかりません", code: "NOT_FOUND" };
   }
 
@@ -266,6 +275,7 @@ export async function upsertScheduleCell(
       where: {
         projectId: data.projectId,
         processTypeId: data.processTypeId,
+        teamId,
         date,
         recordType,
       },
@@ -277,6 +287,7 @@ export async function upsertScheduleCell(
     where: processRecordUniqueKey(
       data.projectId,
       data.processTypeId,
+      teamId,
       date,
       recordType,
     ),
@@ -284,6 +295,7 @@ export async function upsertScheduleCell(
       id: newId(),
       projectId: data.projectId,
       processTypeId: data.processTypeId,
+      teamId,
       date,
       hours: data.hours,
       recordType,

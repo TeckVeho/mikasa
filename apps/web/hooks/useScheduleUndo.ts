@@ -48,5 +48,26 @@ export function useScheduleUndo(
     );
   }, []);
 
-  return { pushUndo, isApplyingRef };
+  const undo = useCallback(async (): Promise<boolean> => {
+    if (isApplyingRef.current) return false;
+    const entry = stackRef.current.pop();
+    if (!entry) return false;
+
+    isApplyingRef.current = true;
+    try {
+      await onApply(entry);
+      const base = history.state ?? {};
+      if ((base.scheduleUndoDepth ?? 0) > 0) {
+        history.replaceState(
+          { ...base, scheduleUndoDepth: stackRef.current.length },
+          "",
+        );
+      }
+      return true;
+    } finally {
+      isApplyingRef.current = false;
+    }
+  }, [onApply]);
+
+  return { pushUndo, undo, isApplyingRef };
 }

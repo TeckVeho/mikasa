@@ -93,7 +93,7 @@ export async function getAllProjectsProgress(tenantId: string, teamId?: string) 
     where: {
       tenantId,
       deletedAt: null,
-      ...(teamId ? { teamId } : {}),
+      ...(teamId ? { projectTeams: { some: { teamId } } } : {}),
     },
     select: { id: true, projectNumber: true, projectName: true },
   });

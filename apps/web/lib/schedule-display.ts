@@ -78,6 +78,14 @@ export function formatScheduleRangeLabel(month: string, months: number): string 
   return `${y}年${m}月〜${endY}年${endM}月`;
 }
 
+/** ローカル日付の YYYY-MM-DD（スケジュールの「今日」判定用） */
+export function todayDateString(now: Date = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 /** 表示範囲に今日が含まれるか */
 export function isTodayInScheduleRange(
   month: string,
