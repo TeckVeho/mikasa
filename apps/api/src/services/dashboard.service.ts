@@ -16,7 +16,7 @@ export async function getDashboardSummary(tenantId: string): Promise<DashboardSu
       deletedAt: null,
       status: { in: ["in_progress", "drawing_wait", "shipping_wait"] },
     },
-    include: { processRecords: true },
+    include: { processRecords: { where: { recordType: "actual" } } },
   });
 
   let delayedCount = 0;

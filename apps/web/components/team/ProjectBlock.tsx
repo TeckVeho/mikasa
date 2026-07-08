@@ -23,6 +23,7 @@ type Props = {
     processTypeId: string,
     date: string,
     hours: number,
+    recordType?: "planned" | "actual",
   ) => void;
   onBulkSave: (
     projectId: string,

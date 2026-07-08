@@ -117,12 +117,14 @@ function ScheduleContent({
     processTypeId: string,
     date: string,
     hours: number,
+    recordType: "planned" | "actual" = "actual",
   ) {
     const r = await saveScheduleCell(scheduleTeamId, {
       projectId,
       processTypeId,
       date,
       hours,
+      recordType,
     });
     if (!r.ok) {
       setMessage(r.message ?? r.error);
@@ -141,6 +143,7 @@ function ScheduleContent({
       const r = await saveScheduleCell(scheduleTeamId, {
         projectId,
         ...update,
+        recordType: update.recordType ?? "actual",
       });
       if (!r.ok) {
         setMessage(r.message ?? r.error);
@@ -204,13 +207,14 @@ function ScheduleContent({
                       dayCellWidth={dayCellWidth}
                       showMonthHeaders={showMonthHeaders}
                       scrollRef={assignScroll ? scheduleScrollRef : undefined}
-                      onSaveCell={(projectId, processTypeId, date, hours) =>
+                      onSaveCell={(projectId, processTypeId, date, hours, recordType) =>
                         handleSaveCell(
                           schedule.teamId,
                           projectId,
                           processTypeId,
                           date,
                           hours,
+                          recordType,
                         )
                       }
                       onBulkSave={(projectId, updates) =>

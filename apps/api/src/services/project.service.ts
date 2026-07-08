@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { ProjectListItemDto, ProjectStatus, Result } from "@logivoice/shared";
+import { UNASSIGNED_TEAM_ID } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
@@ -7,6 +8,7 @@ import { parseDateOnly, formatDateOnly } from "../utils/date.js";
 
 type ProjectFilters = {
   teamId?: string;
+  unassignedOnly?: boolean;
   status?: string;
   excludeShipped?: boolean;
   category?: string;
@@ -36,6 +38,7 @@ function mapProjectBase(
     setCount: number | null;
     detail: string | null;
     pastAverageHours: Prisma.Decimal | null;
+    scheduleStartDate: Date | null;
     productType?: { name: string } | null;
     team?: { name: string } | null;
   },
@@ -63,6 +66,9 @@ function mapProjectBase(
     setCount: p.setCount,
     detail: p.detail,
     pastAverageHours: toNumber(p.pastAverageHours),
+    scheduleStartDate: p.scheduleStartDate
+      ? formatDateOnly(p.scheduleStartDate)
+      : null,
     progressRate: extras?.progressRate,
     variance: extras?.variance,
   };
@@ -132,7 +138,11 @@ export async function listProjects(
   const where: Prisma.ProjectWhereInput = {
     tenantId,
     deletedAt: null,
-    ...(filters.teamId ? { teamId: filters.teamId } : {}),
+    ...(filters.unassignedOnly
+      ? { teamId: UNASSIGNED_TEAM_ID }
+      : filters.teamId
+        ? { teamId: filters.teamId }
+        : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.excludeShipped
       ? { status: { notIn: ["shipped", "completed"] } }
@@ -156,7 +166,7 @@ export async function listProjects(
       include: {
         productType: true,
         team: true,
-        processRecords: true,
+        processRecords: { where: { recordType: "actual" } },
       },
     }),
     prisma.processType.findMany({
@@ -174,7 +184,7 @@ export async function getProject(tenantId: string, id: string) {
     include: {
       productType: true,
       team: true,
-      processRecords: true,
+      processRecords: { where: { recordType: "actual" } },
     },
   });
   if (!p) return null;
@@ -206,6 +216,8 @@ export async function createProject(
     setCount?: number;
     detail?: string;
     pastAverageHours?: number;
+    scheduleStartDate?: string;
+    userId?: string;
   },
 ): Promise<Result<{ id: string }>> {
   const dup = await prisma.project.findFirst({
@@ -237,7 +249,7 @@ export async function createProject(
         data.plannedHours != null ? new Prisma.Decimal(data.plannedHours) : null,
       weldingRatio:
         data.weldingRatio != null ? new Prisma.Decimal(data.weldingRatio) : null,
-      teamId: data.teamId ?? null,
+      teamId: data.teamId ?? UNASSIGNED_TEAM_ID,
       status: data.status ?? (drawingReceivedAt ? "in_progress" : "drawing_wait"),
       category: data.category ?? null,
       setCount: data.setCount ?? null,
@@ -248,6 +260,19 @@ export async function createProject(
           : null,
     },
   });
+
+  if (data.scheduleStartDate) {
+    const { applyScheduleOnProjectCreate } = await import("./schedule-model.service.js");
+    const applyResult = await applyScheduleOnProjectCreate(tenantId, id, {
+      startDate: data.scheduleStartDate,
+      weight: data.weight,
+      memberLength: data.memberLength,
+      userId: data.userId,
+    });
+    if (!applyResult.ok) {
+      return applyResult;
+    }
+  }
 
   return { ok: true, data: { id } };
 }
@@ -298,6 +323,9 @@ export async function updateProject(
   if (typeof data.detail === "string") updateData.detail = data.detail;
   if (typeof data.pastAverageHours === "number") {
     updateData.pastAverageHours = new Prisma.Decimal(data.pastAverageHours);
+  }
+  if (typeof data.scheduleStartDate === "string") {
+    updateData.scheduleStartDate = parseDateOnly(data.scheduleStartDate);
   }
 
   await prisma.project.update({ where: { id }, data: updateData });

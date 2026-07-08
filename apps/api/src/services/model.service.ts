@@ -1,12 +1,16 @@
 import { Prisma } from "@prisma/client";
-import type { ModelRegressionSampleDto, ProjectModelPreviewDto, Result } from "@logivoice/shared";
+import type {
+  ModelRegressionSampleDto,
+  ProcessRatiosMap,
+  ProjectModelPreviewDto,
+  Result,
+} from "@logivoice/shared";
 import {
   buildProcessTargets,
   buildRegressionPoints,
   calculatePastAverageHours,
   computeProcessRatiosFromTotals,
   fitLinearRegression,
-  parseProcessRatios,
   round1,
   weldingRatioFromTargets,
 } from "@logivoice/shared";
@@ -252,45 +256,9 @@ export async function applyProjectModel(
   return preview;
 }
 
-type ProductTypeRow = {
-  processRatios: Prisma.JsonValue;
-};
-
-export function getProcessRatiosForProductType(
-  productType: Pick<ProductTypeRow, "processRatios"> | null | undefined,
-): ReturnType<typeof parseProcessRatios> {
-  if (!productType) return null;
-  return parseProcessRatios(productType.processRatios);
-}
-
-export async function loadProductRatiosByProjectIds(
+export async function loadTenantProcessRatios(
   tenantId: string,
-  productTypeIds: string[],
-): Promise<Map<string, ReturnType<typeof parseProcessRatios>>> {
-  const uniqueIds = [...new Set(productTypeIds.filter(Boolean))];
-  if (uniqueIds.length === 0) return new Map();
-
-  const rows = await prisma.productType.findMany({
-    where: { tenantId, id: { in: uniqueIds }, deletedAt: null },
-    select: { id: true, processRatios: true },
-  });
-
-  const map = new Map<string, ReturnType<typeof parseProcessRatios>>();
-  for (const row of rows) {
-    map.set(row.id, parseProcessRatios(row.processRatios));
-  }
-  return map;
-}
-
-export function resolveTargetHours(
-  plannedHours: number,
-  processName: string,
-  defaultRatio: number,
-  productRatios: ReturnType<typeof parseProcessRatios>,
-): number {
-  const ratio =
-    productRatios && processName in productRatios
-      ? productRatios[processName]!
-      : defaultRatio;
-  return round1(plannedHours * ratio);
+): Promise<ProcessRatiosMap | null> {
+  const historicalRows = await loadHistoricalRows(tenantId);
+  return buildProcessRatiosFromRows(historicalRows);
 }

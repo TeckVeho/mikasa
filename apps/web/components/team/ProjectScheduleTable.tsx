@@ -9,6 +9,10 @@ import {
 } from "@/lib/process-colors";
 import {
   getScheduleTableStyles,
+  SCHEDULE_GRID_BORDER,
+  SCHEDULE_ROW_BORDER_ACTUAL,
+  SCHEDULE_ROW_BORDER_PLANNED,
+  SCHEDULE_STICKY_DIVIDER,
   type ScheduleTableSize,
 } from "@/lib/schedule-table-size";
 import {
@@ -59,6 +63,7 @@ type Props = {
     processTypeId: string,
     date: string,
     hours: number,
+    recordType?: "planned" | "actual",
   ) => void;
   onBulkSave: (
     projectId: string,
@@ -84,9 +89,17 @@ export function ProjectScheduleTable({
     dayCellWidth != null
       ? { width: dayCellWidth, minWidth: dayCellWidth, maxWidth: dayCellWidth }
       : undefined;
-  const rowCount = project.processes.length;
   const colCount = dates.length;
+  const rowCount = project.processes.length * 2;
   const bounds = { rowCount, colCount };
+
+  function processIndexFromRow(row: number) {
+    return Math.floor(row / 2);
+  }
+
+  function isPlannedRow(row: number) {
+    return row % 2 === 0;
+  }
 
   const [focus, setFocus] = useState<GridCell | null>(null);
   const [anchor, setAnchor] = useState<GridCell | null>(null);
@@ -122,18 +135,21 @@ export function ProjectScheduleTable({
 
   const getHours = useCallback(
     (row: number, col: number) => {
-      const proc = project.processes[row];
+      const proc = project.processes[processIndexFromRow(row)];
       const date = dates[col];
       if (!proc || !date) return 0;
-      return proc.dailyHours[date] ?? 0;
+      return isPlannedRow(row)
+        ? proc.plannedDailyHours[date] ?? 0
+        : proc.actualDailyHours[date] ?? proc.dailyHours[date] ?? 0;
     },
     [project.processes, dates],
   );
 
   const resolveCell = useCallback(
     (row: number, col: number) => ({
-      processTypeId: project.processes[row]!.processTypeId,
+      processTypeId: project.processes[processIndexFromRow(row)]!.processTypeId,
       date: dates[col]!,
+      recordType: isPlannedRow(row) ? ("planned" as const) : ("actual" as const),
     }),
     [project.processes, dates],
   );
@@ -644,7 +660,7 @@ export function ProjectScheduleTable({
       className="team-schedule-scroll overflow-x-auto"
     >
       <table
-        className={cn(styles.table, "select-none")}
+        className={cn(styles.table, "select-none border-collapse")}
         style={
           dayCellWidth != null
             ? { minWidth: 268 + dayCellWidth * dates.length }
@@ -673,12 +689,12 @@ export function ProjectScheduleTable({
             </tr>
           )}
           <tr className={cn("border-b border-border bg-bg text-muted", styles.thead)}>
-            <th className={cn("sticky left-0 z-10 bg-bg text-left", styles.processSticky)}>
+            <th className={cn("sticky left-0 z-10 bg-bg text-left", styles.processSticky, SCHEDULE_STICKY_DIVIDER)}>
               工程
             </th>
-            <th className={styles.metricCell}>目標h</th>
-            <th className={styles.metricCell}>実績h</th>
-            <th className={styles.metricCell}>比率%</th>
+            <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>目標h</th>
+            <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>実績h</th>
+            <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>比率%</th>
             {dates.map((d) => {
               const day = Number(d.slice(8));
               const isToday = today === d;
@@ -690,6 +706,7 @@ export function ProjectScheduleTable({
                   style={dayWidthStyle}
                   className={cn(
                     "text-center font-normal",
+                    SCHEDULE_GRID_BORDER,
                     dayCellWidth == null && styles.dateTh,
                     holidays[d] ? "text-muted" : "",
                     isToday && "bg-amber-100 font-semibold text-amber-900",
@@ -703,33 +720,67 @@ export function ProjectScheduleTable({
           </tr>
         </thead>
         <tbody>
-          {project.processes.map((proc, rowIndex) => {
+          {project.processes.flatMap((proc, processIndex) => {
             const colors = getProcessRowColors(proc.processTypeName);
-            return (
-              <tr key={proc.processTypeId} className="border-b border-border/40">
+            const plannedRowIndex = processIndex * 2;
+            const actualRowIndex = processIndex * 2 + 1;
+
+            const renderRow = (
+              rowIndex: number,
+              label: string,
+              rowKind: "planned" | "actual",
+              options?: { metrics?: React.ReactNode; skipMetrics?: boolean },
+            ) => {
+              const rowCellBg =
+                rowKind === "planned" ? colors.plannedCell : colors.cell;
+              const rowStickyBg =
+                rowKind === "planned" ? colors.plannedSticky : colors.sticky;
+
+              return (
+              <tr
+                key={`${proc.processTypeId}-${rowKind}`}
+                className={
+                  rowKind === "planned"
+                    ? SCHEDULE_ROW_BORDER_PLANNED
+                    : SCHEDULE_ROW_BORDER_ACTUAL
+                }
+              >
                 <td
                   className={cn(
                     "sticky left-0 z-10",
                     styles.processSticky,
-                    colors.sticky,
+                    SCHEDULE_STICKY_DIVIDER,
+                    rowStickyBg,
                     colors.label,
                   )}
                 >
-                  {proc.processTypeName}
+                  <div className="font-medium">
+                    {rowKind === "planned" ? proc.processTypeName : ""}
+                  </div>
+                  <div
+                    className={cn(
+                      "text-[10px] font-normal opacity-80",
+                      rowKind === "planned" ? "" : "text-muted-foreground",
+                    )}
+                  >
+                    {label}
+                  </div>
                 </td>
-                <td className={cn("text-center", styles.metricCell, colors.cell)}>
-                  {proc.targetHours}
-                </td>
-                <td className={cn("text-center", styles.metricCell, colors.cell)}>
-                  {proc.actualHours}
-                </td>
-                <td className={cn("text-center", styles.metricCell, colors.cell)}>
-                  {proc.progressRate}%
-                </td>
+                {!options?.skipMetrics ? (
+                  options?.metrics ?? (
+                    <>
+                      <td className={cn("text-center", styles.metricCell, SCHEDULE_GRID_BORDER, rowCellBg)} />
+                      <td className={cn("text-center", styles.metricCell, SCHEDULE_GRID_BORDER, rowCellBg)} />
+                      <td className={cn("text-center", styles.metricCell, SCHEDULE_GRID_BORDER, rowCellBg)} />
+                    </>
+                  )
+                ) : null}
                 {dates.map((date, colIndex) => {
-                  const hours = proc.dailyHours[date] ?? 0;
-                  const isActive =
-                    focus?.row === rowIndex && focus?.col === colIndex;
+                  const hours =
+                    rowKind === "planned"
+                      ? proc.plannedDailyHours[date] ?? 0
+                      : proc.actualDailyHours[date] ?? proc.dailyHours[date] ?? 0;
+                  const isActive = focus?.row === rowIndex && focus?.col === colIndex;
                   const isSelected = isCellInSelection(
                     rowIndex,
                     colIndex,
@@ -738,12 +789,12 @@ export function ProjectScheduleTable({
                   );
                   return (
                     <DayCell
-                      key={date}
+                      key={`${rowKind}-${date}`}
                       date={date}
                       row={rowIndex}
                       col={colIndex}
                       hours={hours}
-                      rowBg={colors.cell}
+                      rowBg={rowCellBg}
                       size={size}
                       dayCellWidth={dayCellWidth}
                       showMonthDividers={showMonthHeaders}
@@ -769,31 +820,82 @@ export function ProjectScheduleTable({
                       onShiftEnter={handleShiftEnter}
                       onClear={() => void handleDelete()}
                       onSave={(h) =>
-                        onSaveCell(project.projectId, proc.processTypeId, date, h)
+                        onSaveCell(
+                          project.projectId,
+                          proc.processTypeId,
+                          date,
+                          h,
+                          rowKind,
+                        )
                       }
                     />
                   );
                 })}
               </tr>
             );
+            };
+
+            return [
+              renderRow(plannedRowIndex, "予定", "planned", {
+                metrics: (
+                  <>
+                    <td
+                      className={cn(
+                        "text-center",
+                        styles.metricCell,
+                        SCHEDULE_GRID_BORDER,
+                        colors.cell,
+                      )}
+                      rowSpan={2}
+                    >
+                      {proc.targetHours}
+                    </td>
+                    <td
+                      className={cn(
+                        "text-center",
+                        styles.metricCell,
+                        SCHEDULE_GRID_BORDER,
+                        colors.cell,
+                      )}
+                      rowSpan={2}
+                    >
+                      {proc.actualHours}
+                    </td>
+                    <td
+                      className={cn(
+                        "text-center",
+                        styles.metricCell,
+                        SCHEDULE_GRID_BORDER,
+                        colors.cell,
+                      )}
+                      rowSpan={2}
+                    >
+                      {proc.progressRate}%
+                    </td>
+                  </>
+                ),
+              }),
+              renderRow(actualRowIndex, "実績", "actual", { skipMetrics: true }),
+            ];
           })}
-          <tr className={cn("font-medium", PROCESS_SECTION_COLORS.forecast.cell)}>
+          <tr className={cn("border-t-2 border-border font-medium", PROCESS_SECTION_COLORS.forecast.cell)}>
             <td
               className={cn(
                 "sticky left-0 z-10",
                 styles.processSticky,
+                SCHEDULE_STICKY_DIVIDER,
                 PROCESS_SECTION_COLORS.forecast.sticky,
               )}
             >
               小計
             </td>
-            <td className={cn("text-center", styles.metricCell)}>
+            <td className={cn("text-center", styles.metricCell, SCHEDULE_GRID_BORDER)}>
               {project.plannedHours}
             </td>
-            <td className={cn("text-center", styles.metricCell)}>
+            <td className={cn("text-center", styles.metricCell, SCHEDULE_GRID_BORDER)}>
               {project.totalActualHours}
             </td>
-            <td className={cn("text-center", styles.metricCell)}>
+            <td className={cn("text-center", styles.metricCell, SCHEDULE_GRID_BORDER)}>
               {project.totalProgressRate}%
             </td>
             <td colSpan={dates.length} className={cn("text-muted", styles.metricCell, styles.hint)}>

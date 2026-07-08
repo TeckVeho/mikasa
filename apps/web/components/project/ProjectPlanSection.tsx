@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SlidePanel } from "@/components/ui/slide-panel";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 import { applyProjectModel, previewProjectModel } from "@/lib/load-api";
 import { formatTeamLabel } from "@/lib/team-label";
@@ -27,10 +28,14 @@ export function ProjectPlanSection({
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [weight, setWeight] = useState(project.weight?.toString() ?? "");
   const [memberLength, setMemberLength] = useState(
     project.memberLength?.toString() ?? "",
+  );
+  const [startDate, setStartDate] = useState(
+    project.scheduleStartDate ?? project.drawingReceivedAt ?? "",
   );
 
   const modelCreated = project.plannedHours != null;
@@ -38,7 +43,13 @@ export function ProjectPlanSection({
   useEffect(() => {
     setWeight(project.weight?.toString() ?? "");
     setMemberLength(project.memberLength?.toString() ?? "");
-  }, [project.weight, project.memberLength]);
+    setStartDate(project.scheduleStartDate ?? project.drawingReceivedAt ?? "");
+  }, [
+    project.weight,
+    project.memberLength,
+    project.scheduleStartDate,
+    project.drawingReceivedAt,
+  ]);
 
   const weightNum = weight ? Number(weight) : NaN;
   const memberLengthNum = memberLength ? Number(memberLength) : NaN;
@@ -68,19 +79,30 @@ export function ProjectPlanSection({
     const r = await applyProjectModel(project.id, {
       weight: weightNum,
       memberLength: memberLengthNum,
+      startDate: startDate || undefined,
     });
     setSaving(false);
     if (!r.ok) {
       setError(r.message ?? r.error);
-      showToast(r.message ?? r.error ?? "モデルの保存に失敗しました", "error");
+      showToast(r.message ?? r.error ?? "工程の保存に失敗しました", "error");
       return;
     }
     void queryClient.invalidateQueries({ queryKey: ["project", project.id] });
     void queryClient.invalidateQueries({ queryKey: ["project-progress", project.id] });
     void queryClient.invalidateQueries({ queryKey: ["projects"] });
+    void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
     onUpdated();
     onOpenChange(false);
-    showToast(modelCreated ? "モデルを更新しました" : "モデルを作成しました");
+    showToast(modelCreated ? "工程を更新しました" : "工程を作成しました");
+  }
+
+  function handleApplyClick() {
+    if (!canPreview) return;
+    if (modelCreated) {
+      setConfirmOpen(true);
+      return;
+    }
+    void handleApplyModel();
   }
 
   const panelDescription = modelCreated
@@ -91,7 +113,7 @@ export function ProjectPlanSection({
     <SlidePanel
       isOpen={open}
       onClose={() => onOpenChange(false)}
-      title="モデル作成（t・M 回帰）"
+      title="工程作成（t・M 回帰）"
       description={panelDescription}
       width="xl"
       footer={
@@ -103,9 +125,9 @@ export function ProjectPlanSection({
             type="button"
             disabled={saving || !canPreview || preview.isLoading || !preview.data}
             loading={saving}
-            onClick={() => void handleApplyModel()}
+            onClick={handleApplyClick}
           >
-            {modelCreated ? "モデルを再作成" : "モデル作成"}
+            {modelCreated ? "工程を再作成" : "工程作成"}
           </Button>
         </div>
       }
@@ -141,6 +163,17 @@ export function ProjectPlanSection({
               value={memberLength}
               onChange={(e) => setMemberLength(e.target.value)}
             />
+          </label>
+          <label className="block space-y-1 text-sm sm:col-span-2">
+            <span>工程開始日</span>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <span className="text-[12px] text-muted">
+              日次スケジュールの展開起点です。未入力の場合は目標時間のみ保存されます。
+            </span>
           </label>
         </div>
 
@@ -239,6 +272,20 @@ export function ProjectPlanSection({
 
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="工程の再作成"
+        description="工程を再作成すると、日次スケジュールの予定がモデルに基づいて再展開され、手動で編集した予定は上書きされます。続行しますか？"
+        confirmLabel="再作成する"
+        confirmVariant="danger"
+        isLoading={saving}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          void handleApplyModel();
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </SlidePanel>
   );
 }

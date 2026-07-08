@@ -153,7 +153,7 @@ export default function ProjectDetailPage({
             <ProjectStatusBadge status={p.status} />
             {modelCreated && (
               <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[12px] text-emerald-800">
-                モデル作成済（目標 {p.plannedHours} h）
+                工程作成済（目標 {p.plannedHours} h）
               </span>
             )}
           </span>
@@ -161,7 +161,7 @@ export default function ProjectDetailPage({
         action={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setModelPanelOpen(true)}>
-              {modelCreated ? "モデル編集" : "モデル作成"}
+              {modelCreated ? "工程編集" : "工程作成"}
             </Button>
             {!p.drawingReceivedAt && (
               <Button

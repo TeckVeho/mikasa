@@ -1,10 +1,11 @@
-import type { Result, TeamScheduleDto } from "@logivoice/shared";
-import { resolveProcessRatio } from "@logivoice/shared";
+import type { ProcessRecordType, Result, TeamScheduleDto } from "@logivoice/shared";
+import { resolveProcessRatio, round1 } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
 import { parseDateOnly, formatDateOnly } from "../utils/date.js";
-import { loadProductRatiosByProjectIds } from "./model.service.js";
+import { processRecordUniqueKey } from "../utils/process-record.js";
+import { loadTenantProcessRatios } from "./model.service.js";
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -32,6 +33,17 @@ function scheduleRange(
   return { start, end: endMonth, dates };
 }
 
+function buildDailyHoursMap(
+  records: { date: Date; hours: unknown }[],
+): Record<string, number> {
+  const dailyHours: Record<string, number> = {};
+  for (const rec of records) {
+    const dateStr = formatDateOnly(rec.date);
+    dailyHours[dateStr] = toNumber(rec.hours as never) ?? 0;
+  }
+  return dailyHours;
+}
+
 export async function getTeamSchedule(
   tenantId: string,
   teamId: string,
@@ -46,7 +58,8 @@ export async function getTeamSchedule(
   const span = clampScheduleMonths(months);
   const { start, end, dates } = scheduleRange(month, span);
 
-  const [projects, processTypes, calendarRows, records] = await Promise.all([
+  const [projects, processTypes, calendarRows, records, historicalRatios] =
+    await Promise.all([
     prisma.project.findMany({
       where: {
         tenantId,
@@ -69,6 +82,7 @@ export async function getTeamSchedule(
         project: { tenantId, teamId, deletedAt: null },
       },
     }),
+    loadTenantProcessRatios(tenantId),
   ]);
 
   const holidays: Record<string, boolean> = {};
@@ -82,34 +96,28 @@ export async function getTeamSchedule(
     }
   }
 
-  const productRatiosMap = await loadProductRatiosByProjectIds(
-    tenantId,
-    projects.map((p) => p.productTypeId).filter((id): id is string => !!id),
-  );
-
   const scheduleProjects = projects.map((project) => {
     const plannedHours = toNumber(project.plannedHours) ?? 0;
     const projectRecords = records.filter((r) => r.projectId === project.id);
-    const productRatios = project.productTypeId
-      ? productRatiosMap.get(project.productTypeId) ?? null
-      : null;
 
     const processes = processTypes.map((pt) => {
       const defaultRatio = toNumber(pt.defaultRatio) ?? 0;
-      const ratio = resolveProcessRatio(pt.name, productRatios, defaultRatio);
-      const targetHours = round2(plannedHours * ratio);
-      const ptRecords = projectRecords.filter((r) => r.processTypeId === pt.id);
+      const ratio = resolveProcessRatio(pt.name, historicalRatios, defaultRatio);
+      const targetHours = round1(plannedHours * ratio);
+      const actualRecords = projectRecords.filter(
+        (r) => r.processTypeId === pt.id && r.recordType === "actual",
+      );
+      const plannedRecords = projectRecords.filter(
+        (r) => r.processTypeId === pt.id && r.recordType === "planned",
+      );
       const actualHours = round2(
-        ptRecords.reduce((s, r) => s + (toNumber(r.hours) ?? 0), 0),
+        actualRecords.reduce((s, r) => s + (toNumber(r.hours) ?? 0), 0),
       );
       const progressRate =
         targetHours > 0 ? round2((actualHours / targetHours) * 100) : 0;
 
-      const dailyHours: Record<string, number> = {};
-      for (const rec of ptRecords) {
-        const dateStr = formatDateOnly(rec.date);
-        dailyHours[dateStr] = toNumber(rec.hours) ?? 0;
-      }
+      const actualDailyHours = buildDailyHoursMap(actualRecords);
+      const plannedDailyHours = buildDailyHoursMap(plannedRecords);
 
       return {
         processTypeId: pt.id,
@@ -117,7 +125,9 @@ export async function getTeamSchedule(
         targetHours,
         actualHours,
         progressRate,
-        dailyHours,
+        dailyHours: actualDailyHours,
+        plannedDailyHours,
+        actualDailyHours,
       };
     });
 
@@ -166,8 +176,10 @@ export async function moveScheduleRecord(
     fromDate: string;
     toDate: string;
     hours: number;
+    recordType?: ProcessRecordType;
   },
 ): Promise<Result<{ moved: boolean }>> {
+  const recordType = data.recordType ?? "actual";
   const project = await prisma.project.findFirst({
     where: { id: data.projectId, tenantId, teamId, deletedAt: null },
   });
@@ -184,17 +196,17 @@ export async function moveScheduleRecord(
         projectId: data.projectId,
         processTypeId: data.processTypeId,
         date: from,
+        recordType,
       },
     });
 
     const existing = await tx.processRecord.findUnique({
-      where: {
-        projectId_processTypeId_date: {
-          projectId: data.projectId,
-          processTypeId: data.processTypeId,
-          date: to,
-        },
-      },
+      where: processRecordUniqueKey(
+        data.projectId,
+        data.processTypeId,
+        to,
+        recordType,
+      ),
     });
 
     const newHours = existing
@@ -202,19 +214,19 @@ export async function moveScheduleRecord(
       : data.hours;
 
     await tx.processRecord.upsert({
-      where: {
-        projectId_processTypeId_date: {
-          projectId: data.projectId,
-          processTypeId: data.processTypeId,
-          date: to,
-        },
-      },
+      where: processRecordUniqueKey(
+        data.projectId,
+        data.processTypeId,
+        to,
+        recordType,
+      ),
       create: {
         id: newId(),
         projectId: data.projectId,
         processTypeId: data.processTypeId,
         date: to,
         hours: newHours,
+        recordType,
         recordedBy: userId,
       },
       update: {
@@ -236,8 +248,10 @@ export async function upsertScheduleCell(
     processTypeId: string;
     date: string;
     hours: number;
+    recordType?: ProcessRecordType;
   },
 ): Promise<Result<{ saved: boolean }>> {
+  const recordType = data.recordType ?? "actual";
   const project = await prisma.project.findFirst({
     where: { id: data.projectId, tenantId, teamId, deletedAt: null },
   });
@@ -253,25 +267,26 @@ export async function upsertScheduleCell(
         projectId: data.projectId,
         processTypeId: data.processTypeId,
         date,
+        recordType,
       },
     });
     return { ok: true, data: { saved: true } };
   }
 
   await prisma.processRecord.upsert({
-    where: {
-      projectId_processTypeId_date: {
-        projectId: data.projectId,
-        processTypeId: data.processTypeId,
-        date,
-      },
-    },
+    where: processRecordUniqueKey(
+      data.projectId,
+      data.processTypeId,
+      date,
+      recordType,
+    ),
     create: {
       id: newId(),
       projectId: data.projectId,
       processTypeId: data.processTypeId,
       date,
       hours: data.hours,
+      recordType,
       recordedBy: userId,
     },
     update: {

@@ -3,7 +3,10 @@
 import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { isArrowKey } from "@/lib/schedule-grid-selection";
-import type { ScheduleTableSize } from "@/lib/schedule-table-size";
+import {
+  type ScheduleTableSize,
+  SCHEDULE_GRID_BORDER,
+} from "@/lib/schedule-table-size";
 
 type Props = {
   date: string;
@@ -87,7 +90,10 @@ export function DayCell({
 
   function startEditing(initial = "") {
     setEditing(true);
-    setValue(initial || (hours > 0 ? String(hours) : ""));
+    setValue(
+      initial ||
+        (hours > 0 ? String(Math.round(hours)) : ""),
+    );
     requestAnimationFrame(() => {
       const el = inputRef.current;
       if (!el) return;
@@ -174,7 +180,9 @@ export function DayCell({
       data-schedule-col={col}
       style={widthStyle}
       className={cn(
-        "relative border border-border/30 text-center outline-none touch-none",
+        "relative",
+        SCHEDULE_GRID_BORDER,
+        "text-center outline-none touch-none",
         dayStyles.cell,
         defaultMinClass,
         !isHoliday && rowBg,
@@ -247,7 +255,7 @@ export function DayCell({
         />
       ) : (
         <span className="pointer-events-none block truncate px-0.5 tabular-nums leading-[inherit]">
-          {hours > 0 ? hours : ""}
+          {hours > 0 ? Math.round(hours) : ""}
         </span>
       )}
     </td>

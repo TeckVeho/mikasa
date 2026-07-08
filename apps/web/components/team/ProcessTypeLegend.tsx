@@ -11,8 +11,9 @@ export function ProcessTypeLegend({ className }: { className?: string }) {
         <span
           key={name}
           className={cn(
-            "inline-flex items-center rounded px-1.5 py-0.5 text-[11px]",
+            "inline-flex items-center rounded border border-border/65 px-1.5 py-0.5 text-[11px]",
             colors.cell,
+            colors.plannedSticky,
             colors.label,
           )}
         >

@@ -13,6 +13,13 @@ export type ScheduleCellUpdate = {
   processTypeId: string;
   date: string;
   hours: number;
+  recordType?: "planned" | "actual";
+};
+
+type ResolvedCell = {
+  processTypeId: string;
+  date: string;
+  recordType?: "planned" | "actual";
 };
 
 export type BlockDragPayload = {
@@ -70,7 +77,7 @@ export function computeBlockMoveUpdates(
   dropRow: number,
   dropCol: number,
   bounds: GridBounds,
-  resolveCell: (row: number, col: number) => { processTypeId: string; date: string },
+  resolveCell: (row: number, col: number) => ResolvedCell,
 ): { ok: true; updates: ScheduleCellUpdate[] } | { ok: false; reason: string } {
   const dRow = dropRow - payload.originRow;
   const dCol = dropCol - payload.originCol;
@@ -116,14 +123,14 @@ export function computeBlockMoveUpdates(
 export function computeClearSelectionUpdates(
   anchor: GridCell,
   focus: GridCell,
-  resolveCell: (row: number, col: number) => { processTypeId: string; date: string },
+  resolveCell: (row: number, col: number) => ResolvedCell,
   getHours: (row: number, col: number) => number,
 ): ScheduleCellUpdate[] {
   const updates: ScheduleCellUpdate[] = [];
   for (const { row, col } of enumerateSelection(anchor, focus)) {
     if (getHours(row, col) <= 0) continue;
-    const { processTypeId, date } = resolveCell(row, col);
-    updates.push({ processTypeId, date, hours: 0 });
+    const { processTypeId, date, recordType } = resolveCell(row, col);
+    updates.push({ processTypeId, date, hours: 0, recordType });
   }
   return updates;
 }
@@ -183,7 +190,7 @@ export function computePasteUpdates(
   startCol: number,
   bounds: GridBounds,
   holidays: Record<string, boolean>,
-  resolveCell: (row: number, col: number) => { processTypeId: string; date: string },
+  resolveCell: (row: number, col: number) => ResolvedCell,
 ): { ok: true; updates: ScheduleCellUpdate[] } | { ok: false; reason: string } {
   const updates: ScheduleCellUpdate[] = [];
 
@@ -193,11 +200,11 @@ export function computePasteUpdates(
       const col = startCol + c;
       if (row >= bounds.rowCount || col >= bounds.colCount) continue;
 
-      const { processTypeId, date } = resolveCell(row, col);
+      const { processTypeId, date, recordType } = resolveCell(row, col);
       if (holidays[date]) continue;
 
       const hours = clipboard.values[r]?.[c] ?? 0;
-      updates.push({ processTypeId, date, hours });
+      updates.push({ processTypeId, date, hours, recordType });
     }
   }
 
@@ -212,7 +219,7 @@ export function computeFillDownUpdates(
   anchor: GridCell,
   focus: GridCell,
   getHours: (row: number, col: number) => number,
-  resolveCell: (row: number, col: number) => { processTypeId: string; date: string },
+  resolveCell: (row: number, col: number) => ResolvedCell,
 ): ScheduleCellUpdate[] {
   const range = normalizeSelection(anchor, focus);
   const updates: ScheduleCellUpdate[] = [];
@@ -221,8 +228,8 @@ export function computeFillDownUpdates(
     const topValue = getHours(range.rowMin, col);
     for (let row = range.rowMin + 1; row <= range.rowMax; row++) {
       if (getHours(row, col) === topValue) continue;
-      const { processTypeId, date } = resolveCell(row, col);
-      updates.push({ processTypeId, date, hours: topValue });
+      const { processTypeId, date, recordType } = resolveCell(row, col);
+      updates.push({ processTypeId, date, hours: topValue, recordType });
     }
   }
 
@@ -233,7 +240,7 @@ export function computeFillRightUpdates(
   anchor: GridCell,
   focus: GridCell,
   getHours: (row: number, col: number) => number,
-  resolveCell: (row: number, col: number) => { processTypeId: string; date: string },
+  resolveCell: (row: number, col: number) => ResolvedCell,
 ): ScheduleCellUpdate[] {
   const range = normalizeSelection(anchor, focus);
   const updates: ScheduleCellUpdate[] = [];
@@ -242,8 +249,8 @@ export function computeFillRightUpdates(
     const leftValue = getHours(row, range.colMin);
     for (let col = range.colMin + 1; col <= range.colMax; col++) {
       if (getHours(row, col) === leftValue) continue;
-      const { processTypeId, date } = resolveCell(row, col);
-      updates.push({ processTypeId, date, hours: leftValue });
+      const { processTypeId, date, recordType } = resolveCell(row, col);
+      updates.push({ processTypeId, date, hours: leftValue, recordType });
     }
   }
 

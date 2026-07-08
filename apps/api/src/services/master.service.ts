@@ -1,6 +1,5 @@
 import { Prisma } from "@prisma/client";
 import type { Result } from "@logivoice/shared";
-import { parseProcessRatios } from "@logivoice/shared";
 import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
@@ -20,11 +19,7 @@ export async function listProductTypes(tenantId: string) {
     sortOrder: r.sortOrder,
     regressionA: toNumber(r.regressionA),
     regressionB: toNumber(r.regressionB),
-    processRatios: parseProcessRatios(r.processRatios),
-    hasModelConfig:
-      r.regressionA != null &&
-      r.regressionB != null &&
-      parseProcessRatios(r.processRatios) != null,
+    hasModelConfig: r.regressionA != null && r.regressionB != null,
   }));
 }
 

@@ -1,3 +1,5 @@
+import type { ProcessRecordType } from "../process-record.js";
+
 export type ProductCategory = "shinshuku" | "shinshuku_gai" | "kyotai";
 
 export type ProjectStatus =
@@ -8,6 +10,8 @@ export type ProjectStatus =
   | "shipped"
   | "completed";
 
+export type { ProcessRecordType } from "../process-record.js";
+
 export type ProductTypeDto = {
   id: string;
   name: string;
@@ -15,7 +19,6 @@ export type ProductTypeDto = {
   sortOrder: number;
   regressionA: number | null;
   regressionB: number | null;
-  processRatios: Record<string, number> | null;
   hasModelConfig: boolean;
 };
 
@@ -77,6 +80,7 @@ export type ProjectDto = {
   setCount: number | null;
   detail: string | null;
   pastAverageHours: number | null;
+  scheduleStartDate?: string | null;
   progressRate?: number;
   variance?: number;
 };
@@ -101,6 +105,7 @@ export type ProcessRecordDto = {
   processTypeName?: string;
   date: string;
   hours: number;
+  recordType: ProcessRecordType;
 };
 
 export type ProcessProgressDto = {
@@ -163,7 +168,10 @@ export type TeamScheduleProcessRowDto = {
   targetHours: number;
   actualHours: number;
   progressRate: number;
+  /** @deprecated use actualDailyHours */
   dailyHours: Record<string, number>;
+  plannedDailyHours: Record<string, number>;
+  actualDailyHours: Record<string, number>;
 };
 
 export type TeamScheduleProjectDto = {
@@ -282,6 +290,41 @@ export type ProjectModelPreviewDto = {
     processName: string;
     ratio: number;
     targetHours: number;
+  }[];
+};
+
+export type ScheduleModelDayDto = {
+  processTypeId: string;
+  processTypeName: string;
+  /** 着手日からの経過日数（0 = 1日目） */
+  dayOffset: number;
+  /** 工数ウェイト（% 値そのもの。例: 5.6% → 5.6） */
+  hoursRatio: number;
+};
+
+export type ScheduleModelDto = {
+  id: string;
+  totalDays: number;
+  dayPatterns: ScheduleModelDayDto[];
+  /** 全セルの % 合計 */
+  ratioSum: number;
+};
+
+export type ScheduleApplyPreviewDto = {
+  startDate: string;
+  endDate: string;
+  totalDays: number;
+  plannedHours: number;
+  dailySchedule: {
+    date: string;
+    processTypeId: string;
+    processTypeName: string;
+    hours: number;
+  }[];
+  processTotals: {
+    processTypeId: string;
+    processTypeName: string;
+    hours: number;
   }[];
 };
 

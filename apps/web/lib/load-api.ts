@@ -16,6 +16,9 @@ import type {
   TeamMemberDto,
   TeamScheduleDto,
   ProjectModelPreviewDto,
+  ScheduleModelDto,
+  ScheduleApplyPreviewDto,
+  ProcessRecordType,
 } from "@logivoice/shared";
 import { apiJson } from "./api";
 
@@ -55,6 +58,47 @@ export async function createProject(body: Record<string, unknown>) {
   });
 }
 
+export async function previewScheduleApply(
+  projectId: string,
+  body: { startDate: string; plannedHours: number },
+) {
+  return apiJson<ScheduleApplyPreviewDto>(`/v1/projects/${projectId}/schedule-preview`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function applyProjectSchedule(projectId: string, body: { startDate: string }) {
+  return apiJson<ScheduleApplyPreviewDto>(`/v1/projects/${projectId}/apply-schedule`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function fetchScheduleModel() {
+  return apiJson<ScheduleModelDto | null>("/v1/settings/schedule-model");
+}
+
+export async function saveScheduleModel(body: {
+  totalDays: number;
+  dayPatterns: { processTypeId: string; dayOffset: number; hoursRatio: number }[];
+}) {
+  return apiJson<ScheduleModelDto>("/v1/settings/schedule-model", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function previewScheduleForNewProject(body: {
+  startDate: string;
+  plannedHours: number;
+}) {
+  return apiJson<ScheduleApplyPreviewDto>("/v1/settings/schedule-model/preview", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function updateProject(id: string, body: Record<string, unknown>) {
   return apiJson<{ id: string }>(`/v1/projects/${id}`, {
     method: "PUT",
@@ -74,7 +118,7 @@ export async function previewProjectModel(
 
 export async function applyProjectModel(
   projectId: string,
-  body: { weight: number; memberLength: number },
+  body: { weight: number; memberLength: number; startDate?: string },
 ) {
   return apiJson<ProjectModelPreviewDto>(`/v1/projects/${projectId}/apply-model`, {
     method: "POST",
@@ -141,6 +185,7 @@ export async function moveScheduleRecord(
     fromDate: string;
     toDate: string;
     hours: number;
+    recordType?: ProcessRecordType;
   },
 ) {
   return apiJson<{ moved: boolean }>(
@@ -156,6 +201,7 @@ export async function saveScheduleCell(
     processTypeId: string;
     date: string;
     hours: number;
+    recordType?: ProcessRecordType;
   },
 ) {
   return apiJson<{ saved: boolean }>(
