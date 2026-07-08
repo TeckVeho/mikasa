@@ -3,13 +3,15 @@ import type { ProcessRecordType } from "@logivoice/shared";
 export function processRecordUniqueKey(
   projectId: string,
   processTypeId: string,
+  teamId: string,
   date: Date,
   recordType: ProcessRecordType = "actual",
 ) {
   return {
-    projectId_processTypeId_date_recordType: {
+    projectId_processTypeId_teamId_date_recordType: {
       projectId,
       processTypeId,
+      teamId,
       date,
       recordType,
     },

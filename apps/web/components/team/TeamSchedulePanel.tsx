@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TeamScheduleDto } from "@logivoice/shared";
 import { ProjectBlock } from "@/components/team/ProjectBlock";
@@ -8,7 +8,12 @@ import { ProcessTypeLegend } from "@/components/team/ProcessTypeLegend";
 import { ScheduleWidthResizer } from "@/components/team/ScheduleWidthResizer";
 import { ALL_TEAMS_TAB } from "@/components/team/TeamTabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useScheduleUndo } from "@/hooks/useScheduleUndo";
 import type { ScheduleCellUpdate } from "@/lib/schedule-grid-clipboard";
+import {
+  buildUndoSnapshot,
+  type ScheduleUndoEntry,
+} from "@/lib/schedule-grid-undo";
 import {
   measureDayCellWidth,
   SCHEDULE_STICKY_COLS_WIDTH,
@@ -65,6 +70,31 @@ function ScheduleContent({
   const scheduleScrollRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const [dayCellWidth, setDayCellWidth] = useState<number | undefined>(undefined);
+  const schedulesRef = useRef(schedules);
+  schedulesRef.current = schedules;
+
+  const applyUndo = useCallback(
+    async (entry: ScheduleUndoEntry) => {
+      for (const update of entry.restore) {
+        const r = await saveScheduleCell(entry.teamId, {
+          projectId: entry.projectId,
+          processTypeId: update.processTypeId,
+          date: update.date,
+          hours: update.hours,
+          recordType: update.recordType ?? "actual",
+        });
+        if (!r.ok) {
+          setMessage(r.message ?? r.error);
+          return;
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+    [queryClient],
+  );
+
+  const { pushUndo, undo, isApplyingRef } = useScheduleUndo(applyUndo);
 
   const hasProjects = schedules.some((s) => s.projects.length > 0);
   const dates = schedules[0]?.dates ?? [];
@@ -119,6 +149,13 @@ function ScheduleContent({
     hours: number,
     recordType: "planned" | "actual" = "actual",
   ) {
+    const restore =
+      !isApplyingRef.current
+        ? buildUndoSnapshot(schedulesRef.current, scheduleTeamId, projectId, [
+            { processTypeId, date, hours, recordType },
+          ])
+        : [];
+
     const r = await saveScheduleCell(scheduleTeamId, {
       projectId,
       processTypeId,
@@ -130,6 +167,9 @@ function ScheduleContent({
       setMessage(r.message ?? r.error);
       return;
     }
+    if (restore.length > 0) {
+      pushUndo({ teamId: scheduleTeamId, projectId, restore });
+    }
     void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
     void queryClient.invalidateQueries({ queryKey: ["projects"] });
   }
@@ -139,6 +179,11 @@ function ScheduleContent({
     projectId: string,
     updates: ScheduleCellUpdate[],
   ): Promise<boolean> {
+    const restore =
+      !isApplyingRef.current
+        ? buildUndoSnapshot(schedulesRef.current, scheduleTeamId, projectId, updates)
+        : [];
+
     for (const update of updates) {
       const r = await saveScheduleCell(scheduleTeamId, {
         projectId,
@@ -149,6 +194,9 @@ function ScheduleContent({
         setMessage(r.message ?? r.error);
         return false;
       }
+    }
+    if (restore.length > 0) {
+      pushUndo({ teamId: scheduleTeamId, projectId, restore });
     }
     void queryClient.invalidateQueries({ queryKey: ["team-schedule"] });
     void queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -220,6 +268,7 @@ function ScheduleContent({
                       onBulkSave={(projectId, updates) =>
                         handleBulkSave(schedule.teamId, projectId, updates)
                       }
+                      onUndo={() => void undo()}
                       anchorId={`project-${project.projectId}`}
                     />
                   );

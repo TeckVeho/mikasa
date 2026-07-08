@@ -14,6 +14,7 @@ import {
   isTodayInScheduleRange,
   readStoredVisibleMonths,
   storeVisibleMonths,
+  todayDateString,
   type ScheduleVisibleMonths,
 } from "@/lib/schedule-display";
 import { formatTeamLabel } from "@/lib/team-label";
@@ -24,7 +25,7 @@ function currentMonth(): string {
 }
 
 function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateString();
 }
 
 function parseMonth(value: string | null): string {

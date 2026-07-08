@@ -2,7 +2,11 @@
 
 import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { isArrowKey } from "@/lib/schedule-grid-selection";
+import {
+  buildSelectionEdgeShadow,
+  isArrowKey,
+  type SelectionEdges,
+} from "@/lib/schedule-grid-selection";
 import {
   type ScheduleTableSize,
   SCHEDULE_GRID_BORDER,
@@ -21,11 +25,14 @@ type Props = {
   isToday?: boolean;
   isActive?: boolean;
   isSelected?: boolean;
+  selectionEdges?: SelectionEdges;
   isDropTarget?: boolean;
   isBlockDragging?: boolean;
   canGrab?: boolean;
+  readOnly?: boolean;
   onSave: (hours: number) => void;
   onPointerDown?: (e: React.PointerEvent<HTMLTableCellElement>) => void;
+  onCancelBlockDrag?: () => void;
   onGridKeyDown?: (key: string, shiftKey: boolean) => void;
   onClear?: () => void;
   onCommitNavigate?: () => void;
@@ -55,11 +62,14 @@ export function DayCell({
   isToday = false,
   isActive = false,
   isSelected = false,
+  selectionEdges,
   isDropTarget = false,
   isBlockDragging = false,
   canGrab = false,
+  readOnly = false,
   onSave,
   onPointerDown,
+  onCancelBlockDrag,
   onGridKeyDown,
   onClear,
   onCommitNavigate,
@@ -109,12 +119,13 @@ export function DayCell({
   }
 
   function handleCellDoubleClick() {
-    if (editing) return;
+    if (readOnly || editing) return;
+    onCancelBlockDrag?.();
     startEditing();
   }
 
   function handleCellKeyDown(e: React.KeyboardEvent<HTMLTableCellElement>) {
-    if (editing) return;
+    if (readOnly || editing) return;
 
     if (isArrowKey(e.key)) {
       e.preventDefault();
@@ -171,6 +182,19 @@ export function DayCell({
 
   const isMonthStart = Number(date.slice(8)) === 1;
 
+  const showSelectionOutline =
+    isSelected && !isActive && !editing && !isDropTarget && selectionEdges;
+  const selectionShadow = showSelectionOutline
+    ? buildSelectionEdgeShadow(selectionEdges)
+    : undefined;
+  const cellStyle =
+    widthStyle || selectionShadow
+      ? {
+          ...widthStyle,
+          ...(selectionShadow ? { boxShadow: selectionShadow } : {}),
+        }
+      : undefined;
+
   return (
     <td
       ref={setCellRef}
@@ -178,7 +202,7 @@ export function DayCell({
       data-schedule-cell=""
       data-schedule-row={row}
       data-schedule-col={col}
-      style={widthStyle}
+      style={cellStyle}
       className={cn(
         "relative",
         SCHEDULE_GRID_BORDER,
@@ -190,18 +214,22 @@ export function DayCell({
         isHoliday && isSelected && "bg-primary/15 text-muted",
         isToday && !isSelected && "ring-1 ring-inset ring-amber-300/60",
         !isHoliday && isSelected && "bg-primary/15",
-        isActive && !editing && "ring-2 ring-inset ring-primary/60",
+        isActive &&
+          !editing &&
+          !isDropTarget &&
+          "ring-2 ring-inset ring-primary/60",
         isDropTarget && "bg-primary/20 ring-2 ring-inset ring-primary",
         isBlockDragging && "opacity-50",
         editing && "p-0 ring-2 ring-inset ring-primary/50",
         showMonthDividers && isMonthStart && "border-l-2 border-l-border",
-        canGrab && !editing && "cursor-grab",
-        !canGrab && !editing && "cursor-cell hover:bg-primary/5",
+        canGrab && !editing && !readOnly && "cursor-grab",
+        !canGrab && !editing && !readOnly && "cursor-cell hover:bg-primary/5",
+        readOnly && "cursor-default",
       )}
-      tabIndex={isActive ? 0 : -1}
-      onPointerDown={handleCellPointerDown}
-      onDoubleClick={handleCellDoubleClick}
-      onKeyDown={handleCellKeyDown}
+      tabIndex={readOnly ? -1 : isActive ? 0 : -1}
+      onPointerDown={readOnly ? undefined : handleCellPointerDown}
+      onDoubleClick={readOnly ? undefined : handleCellDoubleClick}
+      onKeyDown={readOnly ? undefined : handleCellKeyDown}
     >
       {editing ? (
         <input

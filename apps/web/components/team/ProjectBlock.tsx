@@ -30,6 +30,8 @@ type Props = {
     updates: ScheduleCellUpdate[],
   ) => Promise<boolean>;
   anchorId?: string;
+  actualReadOnly?: boolean;
+  onUndo?: () => void;
 };
 
 function ProjectHeader({
@@ -79,6 +81,8 @@ export function ProjectBlock({
   onSaveCell,
   onBulkSave,
   anchorId,
+  actualReadOnly = false,
+  onUndo,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -174,6 +178,8 @@ export function ProjectBlock({
                 scrollRef={expandedScrollRef}
                 onSaveCell={onSaveCell}
                 onBulkSave={onBulkSave}
+                actualReadOnly={actualReadOnly}
+                onUndo={onUndo}
               />
             </div>
             <p className="border-t border-border px-4 py-2 text-center text-[12px] text-muted">
@@ -207,6 +213,8 @@ export function ProjectBlock({
               scrollRef={scrollRef}
               onSaveCell={onSaveCell}
               onBulkSave={onBulkSave}
+              actualReadOnly={actualReadOnly}
+              onUndo={onUndo}
           />
         )}
       </div>

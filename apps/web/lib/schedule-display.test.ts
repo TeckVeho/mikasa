@@ -5,6 +5,7 @@ import {
   groupDatesByMonth,
   isTodayInScheduleRange,
   snapMonthsFromDrag,
+  todayDateString,
 } from "./schedule-display";
 
 describe("schedule-display", () => {
@@ -34,6 +35,10 @@ describe("schedule-display", () => {
     expect(snapMonthsFromDrag(2, -80, "left")).toBe(3);
     expect(snapMonthsFromDrag(2, 80, "left")).toBe(1);
     expect(snapMonthsFromDrag(2, 80, "right")).toBe(3);
+  });
+
+  it("todayDateString uses local calendar date", () => {
+    expect(todayDateString(new Date(2026, 6, 8, 23, 30))).toBe("2026-07-08");
   });
 
   it("isTodayInScheduleRange", () => {

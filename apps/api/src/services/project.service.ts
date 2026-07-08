@@ -5,6 +5,12 @@ import { prisma } from "../lib/prisma.js";
 import { newId } from "../utils/id.js";
 import { toNumber } from "../utils/decimal.js";
 import { parseDateOnly, formatDateOnly } from "../utils/date.js";
+import {
+  legacyTeamFields,
+  mapProjectTeams,
+  normalizeTeamIds,
+  syncProjectTeams,
+} from "../utils/project-team.js";
 
 type ProjectFilters = {
   teamId?: string;
@@ -41,9 +47,17 @@ function mapProjectBase(
     scheduleStartDate: Date | null;
     productType?: { name: string } | null;
     team?: { name: string } | null;
+    projectTeams?: {
+      id: string;
+      teamId: string;
+      sortOrder: number;
+      team: { name: string };
+    }[];
   },
   extras?: { progressRate?: number; variance?: number },
 ) {
+  const teams = mapProjectTeams(p.projectTeams ?? []);
+  const legacy = legacyTeamFields(teams);
   return {
     id: p.id,
     projectNumber: p.projectNumber,
@@ -59,8 +73,9 @@ function mapProjectBase(
       : null,
     plannedHours: toNumber(p.plannedHours),
     weldingRatio: toNumber(p.weldingRatio),
-    teamId: p.teamId,
-    teamName: p.team?.name ?? null,
+    teamId: legacy.teamId,
+    teamName: legacy.teamName ?? p.team?.name ?? null,
+    teams,
     status: p.status as ProjectStatus,
     category: p.category as "shinshuku" | "shinshuku_gai" | "kyotai" | null,
     setCount: p.setCount,
@@ -139,9 +154,9 @@ export async function listProjects(
     tenantId,
     deletedAt: null,
     ...(filters.unassignedOnly
-      ? { teamId: UNASSIGNED_TEAM_ID }
+      ? { projectTeams: { none: {} } }
       : filters.teamId
-        ? { teamId: filters.teamId }
+        ? { projectTeams: { some: { teamId: filters.teamId } } }
         : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.excludeShipped
@@ -166,6 +181,7 @@ export async function listProjects(
       include: {
         productType: true,
         team: true,
+        projectTeams: { include: { team: true } },
         processRecords: { where: { recordType: "actual" } },
       },
     }),
@@ -184,6 +200,7 @@ export async function getProject(tenantId: string, id: string) {
     include: {
       productType: true,
       team: true,
+      projectTeams: { include: { team: true } },
       processRecords: { where: { recordType: "actual" } },
     },
   });
@@ -211,6 +228,7 @@ export async function createProject(
     plannedHours?: number;
     weldingRatio?: number;
     teamId?: string;
+    teamIds?: string[];
     status?: string;
     category?: string;
     setCount?: number;
@@ -231,6 +249,7 @@ export async function createProject(
   const drawingReceivedAt = data.drawingReceivedAt
     ? parseDateOnly(data.drawingReceivedAt)
     : null;
+  const teamIds = normalizeTeamIds(data.teamId, data.teamIds);
 
   await prisma.project.create({
     data: {
@@ -249,7 +268,7 @@ export async function createProject(
         data.plannedHours != null ? new Prisma.Decimal(data.plannedHours) : null,
       weldingRatio:
         data.weldingRatio != null ? new Prisma.Decimal(data.weldingRatio) : null,
-      teamId: data.teamId ?? UNASSIGNED_TEAM_ID,
+      teamId: teamIds[0] ?? UNASSIGNED_TEAM_ID,
       status: data.status ?? (drawingReceivedAt ? "in_progress" : "drawing_wait"),
       category: data.category ?? null,
       setCount: data.setCount ?? null,
@@ -260,6 +279,10 @@ export async function createProject(
           : null,
     },
   });
+
+  if (teamIds.length > 0) {
+    await syncProjectTeams(id, teamIds);
+  }
 
   if (data.scheduleStartDate) {
     const { applyScheduleOnProjectCreate } = await import("./schedule-model.service.js");
@@ -314,9 +337,17 @@ export async function updateProject(
     updateData.weldingRatio = new Prisma.Decimal(data.weldingRatio);
   }
   if (typeof data.teamId === "string") {
-    updateData.team = { connect: { id: data.teamId } };
+    await syncProjectTeams(id, [data.teamId]);
   }
-  if (data.teamId === null) updateData.team = { disconnect: true };
+  if (Array.isArray(data.teamIds)) {
+    await syncProjectTeams(
+      id,
+      data.teamIds.filter((value): value is string => typeof value === "string"),
+    );
+  }
+  if (data.teamId === null) {
+    await syncProjectTeams(id, []);
+  }
   if (typeof data.status === "string") updateData.status = data.status;
   if (typeof data.category === "string") updateData.category = data.category;
   if (typeof data.setCount === "number") updateData.setCount = data.setCount;
@@ -388,6 +419,9 @@ export async function importProjects(
           category: row.category ?? existing.category,
         },
       });
+      if (row.teamId) {
+        await syncProjectTeams(existing.id, [row.teamId]);
+      }
       updated++;
     } else {
       const result = await createProject(tenantId, row);

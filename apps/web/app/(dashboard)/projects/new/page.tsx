@@ -19,6 +19,7 @@ import {
   previewScheduleForNewProject,
 } from "@/lib/load-api";
 import { formatTeamLabel } from "@/lib/team-label";
+import { cn } from "@/lib/utils";
 
 const selectClassName =
   "w-full rounded-md border border-border bg-white px-3 py-2 text-sm text-text outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50";
@@ -74,7 +75,7 @@ export default function NewProjectPage() {
     projectName: "",
     clientName: "",
     productTypeId: "",
-    teamId: "",
+    teamIds: [] as string[],
     deadline: "",
     weight: "",
     memberLength: "",
@@ -172,7 +173,7 @@ export default function NewProjectPage() {
       projectName: form.projectName,
       clientName: form.clientName || undefined,
       productTypeId: form.productTypeId || undefined,
-      teamId: form.teamId || undefined,
+      teamIds: form.teamIds.length > 0 ? form.teamIds : undefined,
       deadline: form.deadline || undefined,
       weight: form.weight ? Number(form.weight) : undefined,
       memberLength: form.memberLength ? Number(form.memberLength) : undefined,
@@ -275,24 +276,41 @@ export default function NewProjectPage() {
                 </div>
               ) : null}
             </div>
-            <div>
-              <FieldLabel htmlFor="teamId">製作班</FieldLabel>
-              <select
-                id="teamId"
-                className={selectClassName}
-                value={form.teamId}
-                disabled={teams.isLoading}
-                onChange={(e) => setForm({ ...form, teamId: e.target.value })}
-              >
-                <option value="">未定</option>
+            <div className="sm:col-span-2">
+              <FieldLabel>製作班</FieldLabel>
+              <div className="flex flex-wrap gap-2">
                 {teams.data
                   ?.filter((t) => t.name !== "製作班未定")
-                  .map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {formatTeamLabel(t.name)}
-                    </option>
-                  ))}
-              </select>
+                  .map((t) => {
+                    const active = form.teamIds.includes(t.id);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        disabled={teams.isLoading}
+                        onClick={() =>
+                          setForm((current) => ({
+                            ...current,
+                            teamIds: active
+                              ? current.teamIds.filter((id) => id !== t.id)
+                              : [...current.teamIds, t.id],
+                          }))
+                        }
+                        className={cn(
+                          "rounded-md border px-3 py-1.5 text-[13px] transition-colors",
+                          active
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-white text-muted hover:text-text",
+                        )}
+                      >
+                        {formatTeamLabel(t.name)}
+                      </button>
+                    );
+                  })}
+              </div>
+              <p className="mt-1.5 text-xs text-muted">
+                未選択の場合は班未定で登録されます
+              </p>
             </div>
           </div>
         </FormSection>

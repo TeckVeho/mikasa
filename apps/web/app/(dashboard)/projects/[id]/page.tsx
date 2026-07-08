@@ -7,6 +7,7 @@ import { ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ProjectPlanSection } from "@/components/project/ProjectPlanSection";
 import { ProjectScheduleSection } from "@/components/project/ProjectScheduleSection";
+import { ProjectTeamSection } from "@/components/project/ProjectTeamSection";
 import { ProgressBar } from "@/components/project/ProgressBar";
 import { VarianceDisplay } from "@/components/project/VarianceDisplay";
 import { ProjectStatusBadge } from "@/components/project/ProjectStatusBadge";
@@ -20,7 +21,7 @@ import {
   fetchProjectProgress,
   updateProject,
 } from "@/lib/load-api";
-import { formatTeamLabel } from "@/lib/team-label";
+import { formatTeamLabels } from "@/lib/team-label";
 import { getDeadlineInfo } from "@/lib/deadline";
 import { cn } from "@/lib/utils";
 
@@ -83,7 +84,8 @@ export default function ProjectDetailPage({
     },
   });
 
-  const teamId = project.data?.teamId ?? undefined;
+  const assignedTeams = project.data?.teams ?? [];
+  const activeTeamIds = assignedTeams.map((team) => team.teamId);
 
   async function handleDrawingReceived() {
     setActionLoading(true);
@@ -113,8 +115,13 @@ export default function ProjectDetailPage({
   }
 
   function handleDataUpdated() {
+    void project.refetch();
     void progress.refetch();
-    void queryClient.invalidateQueries({ queryKey: ["team-schedule", teamId, month] });
+    void queryClient.invalidateQueries({ queryKey: ["projects"] });
+    void queryClient.invalidateQueries({ queryKey: ["project-schedule", id, month] });
+    for (const teamId of activeTeamIds) {
+      void queryClient.invalidateQueries({ queryKey: ["team-schedule", teamId, month] });
+    }
   }
 
   if (project.isLoading) return <Skeleton className="h-64" />;
@@ -149,7 +156,7 @@ export default function ProjectDetailPage({
         title={`${p.projectNumber} ${p.projectName}`}
         description={
           <span className="flex flex-wrap items-center gap-2">
-            <span>{formatTeamLabel(p.teamName, "未割当")}</span>
+            <span>{formatTeamLabels(p.teams, "未割当")}</span>
             <ProjectStatusBadge status={p.status} />
             {modelCreated && (
               <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[12px] text-emerald-800">
@@ -290,6 +297,12 @@ export default function ProjectDetailPage({
         )}
       </div>
 
+      <ProjectTeamSection
+        projectId={id}
+        teams={p.teams}
+        onUpdated={handleDataUpdated}
+      />
+
       <ProjectPlanSection
         project={p}
         onUpdated={handleDataUpdated}
@@ -297,23 +310,13 @@ export default function ProjectDetailPage({
         onOpenChange={setModelPanelOpen}
       />
 
-      {teamId ? (
-        <ProjectScheduleSection
-          projectId={id}
-          teamId={teamId}
-          teamName={p.teamName ?? null}
-          month={month}
-          onMonthChange={setMonth}
-          onUpdated={handleDataUpdated}
-        />
-      ) : (
-        <div className="rounded-lg border border-border bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold">日次スケジュール</h2>
-          <p className="text-sm text-muted">
-            製作班が未割当のため、日次スケジュールを表示できません。班を割り当ててください。
-          </p>
-        </div>
-      )}
+      <ProjectScheduleSection
+        projectId={id}
+        teams={p.teams}
+        month={month}
+        onMonthChange={setMonth}
+        onUpdated={handleDataUpdated}
+      />
 
       {progress.data && (
         <div className="rounded-lg border border-border bg-white p-4">

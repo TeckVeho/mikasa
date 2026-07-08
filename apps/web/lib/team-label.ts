@@ -15,3 +15,18 @@ export function formatTeamShortLabel(teamName: string | null | undefined): strin
   if (label === "未定" || label === "—") return label;
   return label.replace(/班$/, "");
 }
+
+export function formatTeamShortLabels(
+  teams: { teamName: string }[] | null | undefined,
+): string {
+  if (!teams?.length) return "未定";
+  return teams.map((team) => formatTeamShortLabel(team.teamName)).join(", ");
+}
+
+export function formatTeamLabels(
+  teams: { teamName: string }[] | null | undefined,
+  fallback = "未割当",
+): string {
+  if (!teams?.length) return fallback;
+  return teams.map((team) => formatTeamLabel(team.teamName)).join(", ");
+}
