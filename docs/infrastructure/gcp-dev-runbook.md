@@ -20,11 +20,28 @@ Worker/Pub/Sub: **disabled** on dev (`enable_worker = false`).
 
 ## Prerequisites
 
-- GCP project `mikasa-load-management` with billing enabled
+- GCP project **`mikasa-load-management`** with **billing enabled** (required before Terraform / Cloud Build / WIF)
 - `gcloud auth login` + `gcloud config set project mikasa-load-management`
 - `terragrunt` + `terraform` installed
 - Firebase Web config + service account key for API
 - GitHub admin on `TeckVeho/mikasa` for Environment `develop`
+
+### Billing (blocker if missing)
+
+Verify:
+
+```bash
+gcloud billing projects describe mikasa-load-management
+# billingEnabled: true required
+```
+
+If `billingEnabled: false`, a billing admin must link an account (example — requires `billing.resourceAssociations.create`):
+
+```bash
+gcloud billing projects link mikasa-load-management --billing-account=BILLING_ACCOUNT_ID
+```
+
+Reference: `veho-evry` uses `billingAccounts/01E2FB-8D1F91-93EAA9`. Without billing, bootstrap apply fails on Artifact Registry / Cloud Build APIs.
 
 ## 1. Local tfvars (gitignored)
 
