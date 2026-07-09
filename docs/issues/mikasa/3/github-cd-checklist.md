@@ -2,6 +2,8 @@
 
 Run after GCP WIF script (`setup-github-actions-wif.sh`) and first Cloud Run deploy (for URLs).
 
+**Prerequisite:** GCP project **`mikasa-load-management`** must have **billing enabled** (`gcloud billing projects describe mikasa-load-management` → `billingEnabled: true`).
+
 ## 1. Create Environment `develop`
 
 Done via API or GitHub → Settings → Environments → New environment → `develop`.
