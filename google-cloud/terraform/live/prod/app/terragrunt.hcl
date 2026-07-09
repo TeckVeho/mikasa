@@ -20,7 +20,7 @@ dependencies {
 remote_state {
   backend = "gcs"
   config = {
-    bucket = "dx-logivoice-terraform-state"
+    bucket = "mikasa-lm-dev-terraform-state"
     prefix = "app/prod"
   }
   generate = {

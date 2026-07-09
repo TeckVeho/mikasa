@@ -2,7 +2,7 @@
 
 This guide explains how to create **`GCP_WORKLOAD_IDENTITY_PROVIDER`** and related resources so [`.github/workflows/cd-gcp.yml`](../../.github/workflows/cd-gcp.yml) can authenticate to Google Cloud **without** a long-lived JSON key.
 
-**Quick setup (single project `dx-logivoice`):** run [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) from a shell with `gcloud` authenticated as project admin. Use `--dry-run` to preview commands.
+**Quick setup (single project `mikasa-lm-dev`):** run [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) from a shell with `gcloud` authenticated as project admin. Use `--dry-run` to preview commands.
 
 ## What you are creating
 
@@ -18,7 +18,7 @@ This guide explains how to create **`GCP_WORKLOAD_IDENTITY_PROVIDER`** and relat
 
 - GCP project with billing enabled (if required by your org).
 - APIs enabled (enable if prompted): **IAM**, **IAM Credentials**, **Security Token Service** (often enabled automatically with Workload Identity Federation).
-- Your GitHub repo in the form `OWNER/REPO` (this document uses **`TeckVeho/logivoice`** as an example).
+- Your GitHub repo in the form `OWNER/REPO` (this document uses **`TeckVeho/mikasa`** as an example).
 - `gcloud` CLI authenticated as a user with permission to create pools, providers, and service accounts (`roles/owner` or equivalent).
 
 Set shell variables (adjust IDs to match your naming):
@@ -47,7 +47,7 @@ gcloud iam workload-identity-pools create "${POOL_ID}" \
 
 GitHub Actions requires an **OIDC** provider. For GitHub, Google **requires** an **`attribute-condition`** that references claims from the GitHub token (for example, restrict to a single repository).
 
-**Example: allow only the repository `TeckVeho/logivoice`:**
+**Example: allow only the repository `TeckVeho/mikasa`:**
 
 ```bash
 gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
@@ -57,7 +57,7 @@ gcloud iam workload-identity-pools providers create-oidc "${PROVIDER_ID}" \
   --display-name="GitHub OIDC" \
   --issuer-uri="https://token.actions.githubusercontent.com" \
   --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
-  --attribute-condition="assertion.repository == 'TeckVeho/LogiVoice'"
+  --attribute-condition="assertion.repository == 'TeckVeho/mikasa'"
 ```
 
 To restrict by **organization** instead, use something like:
@@ -91,11 +91,11 @@ That string is the value for **`GCP_WORKLOAD_IDENTITY_PROVIDER`** in GitHub **Se
 ## Step 4 — Create a dedicated service account (if you do not have one)
 
 ```bash
-export SA_ID="github-actions-logivoice"
+export SA_ID="github-actions-mikasa"
 
 gcloud iam service-accounts create "${SA_ID}" \
   --project="${PROJECT_ID}" \
-  --display-name="GitHub Actions LogiVoice"
+  --display-name="GitHub Actions Mikasa"
 ```
 
 Set the email:
@@ -119,16 +119,16 @@ Or in the [Google Cloud Console → IAM & Admin → Service accounts](https://co
 
 Bind **`roles/iam.workloadIdentityUser`** on the **service account** so the workload identity **principal** for your repo can assume it.
 
-For **`TeckVeho/logivoice`** and pool `github-pool`:
+For **`TeckVeho/mikasa`** and pool `github-pool`:
 
 ```bash
 gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
   --project="${PROJECT_ID}" \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/attribute.repository/TeckVeho/LogiVoice"
+  --member="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/attribute.repository/TeckVeho/mikasa"
 ```
 
-If you used a different `OWNER/REPO`, replace `TeckVeho/logivoice` in both the **attribute-condition** (Step 2) and this **`member`** path.
+If you used a different `OWNER/REPO`, replace `TeckVeho/mikasa` in both the **attribute-condition** (Step 2) and this **`member`** path.
 
 ---
 

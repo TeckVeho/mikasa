@@ -95,6 +95,12 @@ variable "enable_web" {
   description = "Create the Next.js Cloud Run service (kumu-web). Set false only to skip web in a disposable stack."
 }
 
+variable "enable_worker" {
+  type        = bool
+  default     = true
+  description = "Create the Cloud Run worker service. Set false when Pub/Sub worker is not used."
+}
+
 variable "env_suffix" {
   type        = string
   default     = "dev"

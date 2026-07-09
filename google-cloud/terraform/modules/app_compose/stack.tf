@@ -33,6 +33,7 @@ module "secrets" {
 }
 
 module "pubsub" {
+  count  = var.enable_worker ? 1 : 0
   source = "../pubsub"
 
   project_id                = var.project_id
@@ -69,7 +70,6 @@ module "cloud_run" {
     module.secrets,
     module.cloud_sql,
     module.gcs,
-    module.pubsub,
   ]
   allow_unauthenticated                 = var.allow_unauthenticated
   allow_unauthenticated_web             = var.allow_unauthenticated_web
@@ -87,6 +87,7 @@ module "cloud_run" {
   enable_gcs                            = var.enable_gcs
   enable_vertex_ai                      = var.enable_vertex_ai
   enable_web                            = var.enable_web
+  enable_worker                         = var.enable_worker
   env_suffix                            = var.env_suffix
   env_vars                              = var.env_vars
   network_remote_state_bucket           = var.network_remote_state_bucket
@@ -111,8 +112,8 @@ module "cloud_run" {
   cloud_run_service_account             = local.cloud_run_service_account
   runtime_service_account_email         = local.runtime_service_account_email
   cron_scheduler_service_account_email  = var.enable_cron_cloud_scheduler ? local.cron_api_sa_email : ""
-  pubsub_topic_call_completed           = module.pubsub.call_completed_topic_name
-  pubsub_subscription_id                = module.pubsub.summarize_subscription_id
+  pubsub_topic_call_completed           = var.enable_worker ? module.pubsub[0].call_completed_topic_name : ""
+  pubsub_subscription_id                = var.enable_worker ? module.pubsub[0].summarize_subscription_id : ""
   worker_cloud_run_service_name         = local.worker_cloud_run_service_name_effective
   worker_container_image                = local.worker_container_image_effective
   worker_dashboard_url                  = local.worker_dashboard_url_effective

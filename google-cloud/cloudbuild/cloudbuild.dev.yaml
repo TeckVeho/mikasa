@@ -1,6 +1,6 @@
-# Cloud Build — API + migrate job + web + worker (single submit = one build VM).
+# Cloud Build — dev API + migrate job + web (single submit = one build VM).
 #
-# Builds API, web, and worker images in parallel. Migrate job config is owned by Terraform.
+# Mikasa dev: API and Web only (no worker — enable_worker=false in Terraform).
 
 steps:
   - id: setup-buildx
@@ -11,9 +11,9 @@ steps:
       - |
         set -eo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx inspect logivoice-builder >/dev/null 2>&1 \
-          || docker buildx create --name logivoice-builder --driver docker-container --use
-        docker buildx use logivoice-builder
+        docker buildx inspect mikasa-builder >/dev/null 2>&1 \
+          || docker buildx create --name mikasa-builder --driver docker-container --use
+        docker buildx use mikasa-builder
     waitFor: ['-']
 
   - id: build-api
@@ -24,14 +24,14 @@ steps:
       - |
         set -eo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx use logivoice-builder
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG} || true
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:buildcache || true
+        docker buildx use mikasa-builder
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG} || true
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:buildcache || true
         docker buildx build -f apps/api/Dockerfile \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:buildcache \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG} \
-          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:buildcache,mode=max \
-          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG} \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:buildcache \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG} \
+          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:buildcache,mode=max \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG} \
           --push \
           .
     dir: '.'
@@ -45,40 +45,19 @@ steps:
       - |
         set -eo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx use logivoice-builder
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG} || true
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:buildcache || true
+        docker buildx use mikasa-builder
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:${_TAG} || true
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:buildcache || true
         docker buildx build -f apps/web/Dockerfile \
           --build-arg NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL} \
           --build-arg NEXT_PUBLIC_BASE_URL=${_NEXT_PUBLIC_BASE_URL} \
           --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY} \
           --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN} \
           --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID} \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:buildcache \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG} \
-          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:buildcache,mode=max \
-          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG} \
-          --push \
-          .
-    dir: '.'
-    waitFor: ['setup-buildx']
-
-  - id: build-worker
-    name: 'gcr.io/cloud-builders/docker'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        set -eo pipefail
-        export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx use logivoice-builder
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG} || true
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:buildcache || true
-        docker buildx build -f apps/worker/Dockerfile \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:buildcache \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG} \
-          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:buildcache,mode=max \
-          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG} \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:buildcache \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:${_TAG} \
+          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:buildcache,mode=max \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:${_TAG} \
           --push \
           .
     dir: '.'
@@ -91,11 +70,11 @@ steps:
       - 'run'
       - 'jobs'
       - 'update'
-      - 'dx-logivoice-migrate-dev'
+      - '${_MIGRATE_JOB_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--image'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG}'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG}'
       - '--region'
       - '${_REGION}'
     waitFor: ['build-api']
@@ -107,7 +86,7 @@ steps:
       - 'run'
       - 'jobs'
       - 'execute'
-      - 'dx-logivoice-migrate-dev'
+      - '${_MIGRATE_JOB_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--region'
@@ -121,11 +100,11 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'dx-logivoice-api-dev'
+      - '${_API_SERVICE_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--image'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG}'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG}'
       - '--region'
       - '${_REGION}'
       - '--timeout'
@@ -141,31 +120,15 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'dx-logivoice-web-dev'
+      - '${_WEB_SERVICE_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--image'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-web:${_TAG}'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:${_TAG}'
       - '--region'
       - '${_REGION}'
-      - '--no-allow-unauthenticated'
+      - '--allow-unauthenticated'
     waitFor: ['build-web']
-
-  - id: deploy-worker
-    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args:
-      - 'run'
-      - 'deploy'
-      - '${_WORKER_SERVICE_NAME}'
-      - '--project'
-      - '${_DEPLOY_PROJECT_ID}'
-      - '--image'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-worker:${_TAG}'
-      - '--region'
-      - '${_REGION}'
-      - '--no-allow-unauthenticated'
-    waitFor: ['build-worker']
 
 substitutions:
   _REGION: asia-northeast1
@@ -174,9 +137,11 @@ substitutions:
   _DEPLOY_PROJECT_ID: ''
   _API_TIMEOUT: '3600'
   _API_MEMORY: '512Mi'
-  _WORKER_SERVICE_NAME: dx-logivoice-worker-dev
-  _NEXT_PUBLIC_API_URL: 'https://dx-logivoice-api-dev-739321310569.asia-northeast1.run.app'
-  _NEXT_PUBLIC_BASE_URL: 'https://dx-logivoice-web-dev-739321310569.asia-northeast1.run.app'
+  _MIGRATE_JOB_NAME: mikasa-lm-dev-migrate-dev
+  _API_SERVICE_NAME: mikasa-lm-dev-api-dev
+  _WEB_SERVICE_NAME: mikasa-lm-dev-web-dev
+  _NEXT_PUBLIC_API_URL: ''
+  _NEXT_PUBLIC_BASE_URL: ''
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''
   _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''
   _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ''

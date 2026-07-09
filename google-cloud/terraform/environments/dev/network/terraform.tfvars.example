@@ -6,24 +6,16 @@
 #
 # Apply order:
 #   1. bootstrap (state bucket)
-#   2. live/dev/network  (Terragrunt) or this stack directly
+#   2. live/dev/network  (Terragrunt)
 #   3. live/dev/app
-#
-# Terragrunt loads this file from environments/dev/network/terraform.tfvars.
-# env_suffix is also set in tfvars here for standalone terraform apply.
 # =============================================================================
 
-project_id = "your-gcp-project-id"
+project_id = "mikasa-lm-dev"
 region     = "asia-northeast1"
 env_suffix = "dev"
 
-# VPC name. Empty → {project_id}-vpc-{env_suffix} (e.g. dx-logivoice-vpc-dev).
-network_name = "your-gcp-project-id-vpc-dev"
+network_name = "mikasa-lm-dev-vpc-dev"
 
-# Cloud Run Direct VPC egress subnet (must not overlap other envs in same project).
-# Defaults if omitted: dev 10.8.0.0/24, stg 10.9.0.0/24, prod 10.10.0.0/24.
 connector_subnet_cidr = "10.8.0.0/24"
 
-# Reserved /16 for Cloud SQL private IP (servicenetworking peering).
-# Defaults if omitted: dev 10.247.0.0/16, stg 10.248.0.0/16, prod 10.249.0.0/16.
 private_service_peering_cidr = "10.247.0.0"

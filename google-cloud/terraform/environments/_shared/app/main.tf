@@ -8,6 +8,7 @@ module "app_compose" {
   allow_unauthenticated              = var.allow_unauthenticated
   env_vars                           = var.env_vars
   enable_web                         = var.enable_web
+  enable_worker                      = var.enable_worker
   cloud_run_ingress                  = var.cloud_run_ingress
   web_cloud_run_ingress              = var.web_cloud_run_ingress
   env_iam_principals                 = var.env_iam_principals

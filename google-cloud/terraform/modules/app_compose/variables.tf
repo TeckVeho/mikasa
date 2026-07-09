@@ -44,6 +44,12 @@ variable "enable_web" {
   description = "Create the Next.js Cloud Run service (kumu-web). Set false only to skip web in a disposable stack."
 }
 
+variable "enable_worker" {
+  type        = bool
+  default     = true
+  description = "Create Pub/Sub + Cloud Run worker (LogiVoice summarize pipeline). Set false for API/Web-only stacks (e.g. mikasa dev)."
+}
+
 variable "cloud_run_ingress" {
   type        = string
   default     = "INGRESS_TRAFFIC_ALL"
