@@ -82,7 +82,7 @@ output "worker_cloud_run_service_name" {
 }
 
 output "pubsub_call_completed_topic" {
-  value = module.pubsub.call_completed_topic_name
+  value = var.enable_worker ? module.pubsub[0].call_completed_topic_name : null
 }
 
 output "sql_schedule_function_url" {

@@ -10,104 +10,73 @@
 # Images must exist in Artifact Registry before apply (Cloud Build or docker push).
 #
 # --- Auto-created (no tfvars needed) ---
-#   Cloud Run : {project_id}-api-dev, {project_id}-web-dev, {project_id}-worker-dev
+#   Cloud Run : {project_id}-api-dev, {project_id}-web-dev
 #   GCS       : {project_id}-uploads-dev
-#   Pub/Sub   : {project_id}-call-completed-dev → {project_id}-summarize-worker-dev
-#   Pub/Sub   : {project_id}-call-completed-dev → {project_id}-summarize-worker-dev
-#   KV cache  : MySQL kv_cache table (session/transfer); TTS cache in GCS tts-cache/
 #   Migrate job: {project_id}-migrate-dev
-#   Worker image: derived from container_image (logivoice-api → logivoice-worker)
 #   Firebase ADC: roles/firebaseauth.admin on runtime SA {project_id}-run-dev
-#   IAM custom roles: kumuDevDeployer* / kumuDevReadonly* (bind via env_iam_principals)
 # =============================================================================
 
-project_id = "your-gcp-project-id"
+project_id = "mikasa-load-management"
 env_suffix = "dev"
 region     = "asia-northeast1"
 
-# Sizing tier (wiki-aligned): tier3 → smaller Cloud Run / Cloud SQL on dev.
 resource_tier = "tier3"
 
-# Test call / Gemini Live WebSocket: tier default timeout (120s) cuts long sessions.
 cloud_run_api_timeout = "3600s"
 cloud_run_api_memory  = "512Mi"
 
 # --- Container images (tag must match Cloud Build _TAG, usually "dev") ---
-container_image     = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-api:dev"
-web_container_image = "asia-northeast1-docker.pkg.dev/your-gcp-project-id/your-gcp-project-id-docker/logivoice-web:dev"
+container_image     = "asia-northeast1-docker.pkg.dev/mikasa-load-management/mikasa-load-management-docker/mikasa-api:dev"
+web_container_image = "asia-northeast1-docker.pkg.dev/mikasa-load-management/mikasa-load-management-docker/mikasa-web:dev"
 
 container_port     = 8080
 web_container_port = 3000
 enable_web         = true
+enable_worker      = false
 
-# Cloud Run ingress: false = require authenticated invoker (IAP / IAM / load balancer).
+# Dev: allow public web; API stays IAM-protected (grant invoker to web SA or use dev auth headers).
 allow_unauthenticated     = false
-allow_unauthenticated_web = false
+allow_unauthenticated_web = true
 
-# --- API plain env (no secrets; use api_secret_env_from_sm below) ---
-# Do not set DATABASE_URL when enable_cloud_sql = true (injected from Secret Manager).
-# GCS_BUCKET_NAME is injected by Terraform from the uploads bucket.
 env_vars = {
-  NODE_ENV  = "production"
-  LOG_LEVEL = "info"
-
-  CORS_ORIGIN        = "https://app-dev.example.com"
-  API_PUBLIC_URL     = "https://api-dev.example.com"
-  TWILIO_WEBHOOK_URL = "https://api-dev.example.com/webhooks/twilio/voice"
-
-  FIREBASE_PROJECT_ID = "your-gcp-project-id"
-  TWILIO_ACCOUNT_SID  = "ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-  RESEND_FROM_EMAIL = "LogiVoice <noreply@example.com>"
+  NODE_ENV            = "production"
+  LOG_LEVEL           = "info"
+  CORS_ORIGIN         = "https://mikasa-load-management-web-dev-REPLACE.run.app"
+  API_PUBLIC_URL      = "https://mikasa-load-management-api-dev-REPLACE.run.app"
+  FIREBASE_PROJECT_ID = "mikasa-load-management"
 }
 
-# --- Web plain env ---
-# NEXT_PUBLIC_* are also baked at docker build time — keep Cloud Build substitutions aligned.
 web_env_vars = {
   NODE_ENV = "production"
 
-  NEXT_PUBLIC_API_URL  = "https://api-dev.example.com"
-  NEXT_PUBLIC_BASE_URL = "https://app-dev.example.com"
+  NEXT_PUBLIC_API_URL  = "https://mikasa-load-management-api-dev-REPLACE.run.app"
+  NEXT_PUBLIC_BASE_URL = "https://mikasa-load-management-web-dev-REPLACE.run.app"
 
   NEXT_PUBLIC_FIREBASE_API_KEY     = "your-firebase-web-api-key"
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "your-gcp-project-id.firebaseapp.com"
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID  = "your-gcp-project-id"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "mikasa-load-management.firebaseapp.com"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID  = "mikasa-load-management"
 
   NEXT_PUBLIC_USE_MOCK     = "false"
-  NEXT_PUBLIC_USE_DEV_AUTH = "false"
+  NEXT_PUBLIC_USE_DEV_AUTH = "true"
   NEXT_PUBLIC_DEV_TENANT_ID = "01HZXEXAMPLE00000000000000"
 }
 
-# --- Secret Manager → Cloud Run env (create secrets in GCP first) ---
+# Create secrets in GCP Secret Manager before apply (values not in git).
 api_secret_env_from_sm = [
-  { env_name = "TWILIO_AUTH_TOKEN", secret_id = "logivoice-twilio-auth-token-dev", version = "latest" },
-  { env_name = "OPENAI_API_KEY",    secret_id = "logivoice-openai-dev",            version = "latest" },
-  { env_name = "GEMINI_API_KEY",    secret_id = "logivoice-gemini-api-key-dev",    version = "latest" },
-  { env_name = "AMIVOICE_APP_KEY",  secret_id = "logivoice-amivoice-dev",          version = "latest" },
-  { env_name = "FORM_TOKEN_SECRET", secret_id = "logivoice-form-token-dev",        version = "latest" },
-  { env_name = "RESEND_API_KEY",    secret_id = "logivoice-resend-dev",            version = "latest" },
+  { env_name = "FIREBASE_PRIVATE_KEY", secret_id = "mikasa-firebase-private-key-dev", version = "latest" },
+  { env_name = "FIREBASE_CLIENT_EMAIL", secret_id = "mikasa-firebase-client-email-dev", version = "latest" },
 ]
 
-# Worker uses logivoice-openai-{env} and logivoice-resend-{env} automatically (same secret ids).
+# --- Custom domains (optional; leave empty to use default *.run.app URLs) ---
+api_custom_domain = ""
+web_custom_domain = ""
 
-# --- Custom domains (optional; creates Cloud Run domain mappings) ---
-api_custom_domain = "api-dev.example.com"
-web_custom_domain = "app-dev.example.com"
-
-# --- Cloud SQL + network remote state (required for MySQL private IP) ---
 enable_cloud_sql = true
 
-network_remote_state_bucket = "your-gcp-project-id-terraform-state"
+network_remote_state_bucket = "mikasa-load-management-terraform-state"
 network_remote_state_prefix = "network/dev"
 
-# Dev cost savings: stop Cloud SQL on weekday evenings (JST). Worker/API need SQL when stopped.
 enable_sql_night_weekend_schedule = true
 sql_schedule_timezone             = "Asia/Tokyo"
-sql_schedule_start_cron           = "0 8 * * 1-5"   # Mon–Fri 08:00 start
-sql_schedule_stop_cron            = "0 22 * * 1-5"  # Mon–Fri 22:00 stop
-
-# --- IAM: bind groups/users to env custom roles (roles are always created) ---
-# env_iam_principals = {
-#   deployers = ["group:gcp-dev-developers@example.com"]
-#   readonly  = ["group:gcp-dev-readonly@example.com"]
-# }
+sql_schedule_start_cron           = "0 8 * * 1-5"
+sql_schedule_stop_cron            = "0 22 * * 1-5"

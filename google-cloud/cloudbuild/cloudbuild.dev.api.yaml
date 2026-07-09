@@ -1,13 +1,13 @@
 # Cloud Build — dev API only (faster when frontend unchanged)
 #
-# Builds+pushes logivoice-api image, runs prisma migrations via dx-logivoice-migrate-dev job,
-# then deploys dx-logivoice-api-dev Cloud Run service.
+# Builds+pushes mikasa-api image, runs prisma migrations via mikasa-load-management-migrate-dev job,
+# then deploys mikasa-load-management-api-dev Cloud Run service.
 #
 # Migrate job config (VPC, Cloud SQL, secrets) is owned by Terraform — CI only updates image.
 #
-# Submit from LogiVoice monorepo root:
+# Submit from mikasa monorepo root:
 #   gcloud builds submit --config=google-cloud/cloudbuild/cloudbuild.dev.api.yaml \
-#     --substitutions=_AR_PROJECT_ID=your-common-project,_DEPLOY_PROJECT_ID=your-dev-project .
+#     --substitutions=_AR_PROJECT_ID=mikasa-load-management,_DEPLOY_PROJECT_ID=mikasa-load-management .
 
 steps:
   - name: 'gcr.io/cloud-builders/docker'
@@ -17,16 +17,16 @@ steps:
       - |
         set -eo pipefail
         export DOCKER_CLI_EXPERIMENTAL=enabled
-        docker buildx inspect logivoice-builder >/dev/null 2>&1 \
-          || docker buildx create --name logivoice-builder --driver docker-container --use
-        docker buildx use logivoice-builder
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG} || true
-        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:buildcache || true
+        docker buildx inspect mikasa-builder >/dev/null 2>&1 \
+          || docker buildx create --name mikasa-builder --driver docker-container --use
+        docker buildx use mikasa-builder
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG} || true
+        docker pull ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:buildcache || true
         docker buildx build -f apps/api/Dockerfile \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:buildcache \
-          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG} \
-          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:buildcache,mode=max \
-          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG} \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:buildcache \
+          --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG} \
+          --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:buildcache,mode=max \
+          -t ${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG} \
           --push \
           .
     dir: '.'
@@ -37,11 +37,11 @@ steps:
       - 'run'
       - 'jobs'
       - 'update'
-      - 'dx-logivoice-migrate-dev'
+      - '${_MIGRATE_JOB_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--image'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG}'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG}'
       - '--region'
       - '${_REGION}'
 
@@ -51,7 +51,7 @@ steps:
       - 'run'
       - 'jobs'
       - 'execute'
-      - 'dx-logivoice-migrate-dev'
+      - '${_MIGRATE_JOB_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--region'
@@ -63,11 +63,11 @@ steps:
     args:
       - 'run'
       - 'deploy'
-      - 'dx-logivoice-api-dev'
+      - '${_API_SERVICE_NAME}'
       - '--project'
       - '${_DEPLOY_PROJECT_ID}'
       - '--image'
-      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/logivoice-api:${_TAG}'
+      - '${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-api:${_TAG}'
       - '--region'
       - '${_REGION}'
       - '--timeout'
@@ -83,6 +83,8 @@ substitutions:
   _DEPLOY_PROJECT_ID: ''
   _API_TIMEOUT: '3600'
   _API_MEMORY: '512Mi'
+  _MIGRATE_JOB_NAME: mikasa-load-management-migrate-dev
+  _API_SERVICE_NAME: mikasa-load-management-api-dev
 
 options:
   logging: CLOUD_LOGGING_ONLY

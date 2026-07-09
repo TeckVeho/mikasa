@@ -1,6 +1,6 @@
 # Terragrunt Live Layout
 
-Single GCP project (`veho-kumu`); environments separated by `env_suffix` in tfvars.
+Single GCP project (`mikasa-load-management`); environments separated by `env_suffix` in tfvars.
 
 ## Stack mapping
 
@@ -32,6 +32,6 @@ terragrunt plan
 
 ## Notes
 
-- Remote state bucket: `veho-kumu-terraform-state` (in `live/*/terragrunt.hcl`).
-- Keep `project_id` in `terraform.tfvars` aligned with `GCP_PROJECT_ID` in `load-env.sh` (`veho-kumu`).
+- Remote state bucket: `mikasa-load-management-terraform-state` (in `live/*/terragrunt.hcl`).
+- Keep `project_id` in `terraform.tfvars` aligned with `GCP_PROJECT_ID` in CI (`mikasa-load-management`).
 - Terragrunt cache is ignored via `**/.terragrunt-cache/`.

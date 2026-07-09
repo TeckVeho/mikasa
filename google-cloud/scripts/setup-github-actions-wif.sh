@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Setup Workload Identity Federation + IAM for GitHub Actions CD (single GCP project).
 #
-# Target layout: dx-logivoice (build + Artifact Registry + Cloud Run deploy in one project).
+# Target layout: mikasa-load-management (build + Artifact Registry + Cloud Run deploy in one project).
 # Implements: google-cloud/cloudbuild/GITHUB_ACTIONS_WIF.md
 #
 # Prerequisites:
@@ -11,7 +11,7 @@
 # Usage:
 #   ./google-cloud/scripts/setup-github-actions-wif.sh
 #   ./google-cloud/scripts/setup-github-actions-wif.sh --dry-run
-#   GITHUB_REPO=TeckVeho/LogiVoice ./google-cloud/scripts/setup-github-actions-wif.sh
+#   GITHUB_REPO=TeckVeho/mikasa ./google-cloud/scripts/setup-github-actions-wif.sh
 #
 # Override defaults via environment:
 #   PROJECT_ID, REGION, GITHUB_REPO, POOL_ID, PROVIDER_ID, SA_ID, ARTIFACT_REPO_ID
@@ -20,13 +20,13 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# --- Defaults (dx-logivoice single-project) ---
-PROJECT_ID="${PROJECT_ID:-dx-logivoice}"
+# --- Defaults (mikasa-load-management single-project) ---
+PROJECT_ID="${PROJECT_ID:-mikasa-load-management}"
 REGION="${REGION:-asia-northeast1}"
-GITHUB_REPO="${GITHUB_REPO:-TeckVeho/LogiVoice}"
+GITHUB_REPO="${GITHUB_REPO:-TeckVeho/mikasa}"
 POOL_ID="${POOL_ID:-github-pool}"
 PROVIDER_ID="${PROVIDER_ID:-github-provider}"
-SA_ID="${SA_ID:-github-actions-logivoice}"
+SA_ID="${SA_ID:-github-actions-mikasa}"
 ARTIFACT_REPO_ID="${ARTIFACT_REPO_ID:-${PROJECT_ID}-docker}"
 
 DRY_RUN=false
@@ -36,9 +36,9 @@ usage() {
   echo
   echo "Options:"
   echo "  --dry-run          Print commands without executing"
-  echo "  --project-id ID    GCP project (default: dx-logivoice)"
-  echo "  --github-repo O/R  GitHub repo for WIF (default: TeckVeho/LogiVoice)"
-  echo "  --sa-id ID         Service account id (default: github-actions-logivoice)"
+  echo "  --project-id ID    GCP project (default: mikasa-load-management)"
+  echo "  --github-repo O/R  GitHub repo for WIF (default: TeckVeho/mikasa)"
+  echo "  --sa-id ID         Service account id (default: github-actions-mikasa)"
   echo "  -h, --help         Show this help"
 }
 
@@ -243,13 +243,13 @@ fi
 log "Step 4 — Service account: $SA_EMAIL"
 if [[ "$DRY_RUN" == true ]]; then
   run gcloud iam service-accounts create "$SA_ID" \
-    --project="$PROJECT_ID" --display-name="GitHub Actions LogiVoice"
+    --project="$PROJECT_ID" --display-name="GitHub Actions Mikasa"
 else
   if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
     log "Service account already exists: $SA_EMAIL"
   else
     gcloud iam service-accounts create "$SA_ID" \
-      --project="$PROJECT_ID" --display-name="GitHub Actions LogiVoice"
+      --project="$PROJECT_ID" --display-name="GitHub Actions Mikasa"
   fi
 fi
 
@@ -312,12 +312,12 @@ Secrets (per environment):
 Variables (single-project — leave AR/DEPLOY empty or set both to ${PROJECT_ID}):
   GCP_AR_PROJECT_ID=${PROJECT_ID}          # optional; omit for workflow default
   GCP_DEPLOY_PROJECT_ID=${PROJECT_ID}      # optional; omit for workflow default
-  GCP_NEXT_PUBLIC_API_URL=<api-origin-only>   # e.g. https://logivoice-api.example.com (no /api/v1 suffix)
+  GCP_NEXT_PUBLIC_API_URL=<api-origin-only>   # e.g. https://mikasa-load-management-api-dev-xxx.run.app
   GCP_NEXT_PUBLIC_BASE_URL=<your-web-url>
   GCP_NEXT_PUBLIC_FIREBASE_API_KEY=<...>
   GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${PROJECT_ID}.firebaseapp.com
   GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${PROJECT_ID}
-  GCP_WORKER_SERVICE_NAME=dx-logivoice-worker-dev   # develop env only
+  # GCP_WORKER_SERVICE_NAME=   # optional; mikasa dev has enable_worker=false (no worker deploy)
 
 Cloud Build execution SA used: ${CLOUDBUILD_SA}
 If builds fail with storage/run errors, verify in Console: Cloud Build → Settings.

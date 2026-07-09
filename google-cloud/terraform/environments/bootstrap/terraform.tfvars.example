@@ -5,28 +5,21 @@
 # Creates: Terraform state bucket, Docker Artifact Registry, Cloud Build bucket.
 #
 # Apply:
-#   cd google-cloud/terraform/environments/bootstrap
-#   terraform init && terraform apply
-#
-# Values should match GCP_PROJECT_ID, GCP_REGION, GCP_STATE_BUCKET in CI / load-env.sh.
+#   cd google-cloud/terraform/live/bootstrap
+#   terragrunt init && terragrunt apply
 # =============================================================================
 
-project_id = "your-gcp-project-id"
+project_id = "mikasa-load-management"
 region     = "asia-northeast1"
 
-# Explicit bucket name (recommended). Empty → {project_id}-terraform-state via naming module.
-state_bucket_name = "your-gcp-project-id-terraform-state"
+state_bucket_name = "mikasa-load-management-terraform-state"
 
-# Docker Artifact Registry repository id.
-# Empty → default {project_id}-docker (e.g. dx-logivoice-docker).
+# Empty → default {project_id}-docker (e.g. mikasa-load-management-docker).
 # artifact_repo_id = ""
 
-# Registry cleanup policies (keep tagged dev/stg/prod; delete old untagged images).
 artifact_cleanup_keep_count                 = 10
 artifact_cleanup_keep_tag_prefixes          = ["prod", "stg", "dev"]
 artifact_cleanup_delete_untagged_after_days = 7
 
-# Resource Manager lien — blocks project deletion via Console / gcloud / API / Terraform.
 # enable_project_delete_lien = true
-# project_delete_lien_origin = "logivoice-terraform-bootstrap"
-# project_delete_lien_reason = "Prevent accidental project deletion — remove lien only when decommissioning."
+# project_delete_lien_origin = "mikasa-terraform-bootstrap"

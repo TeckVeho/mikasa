@@ -11,15 +11,15 @@ locals {
   pubsub_topic_name_effective = substr("${local.name_prefix}-call-completed-${var.env_suffix}", 0, 63)
   pubsub_sub_name_effective   = substr("${local.name_prefix}-summarize-worker-${var.env_suffix}", 0, 63)
 
-  # Derive worker image from API image (same registry, tag, repo; logivoice-worker instead of logivoice-api).
-  worker_container_image_effective = replace(var.container_image, "logivoice-api", "logivoice-worker")
+  # Derive worker image from API image (same registry, tag, repo; mikasa-worker instead of mikasa-api).
+  worker_container_image_effective = var.enable_worker ? replace(var.container_image, "mikasa-api", "mikasa-worker") : ""
 
   worker_dashboard_url_effective = trimspace(var.web_custom_domain) != "" ? "https://${trimspace(var.web_custom_domain)}" : ""
 
-  worker_secret_env_from_sm_effective = [
+  worker_secret_env_from_sm_effective = var.enable_worker ? [
     { env_name = "OPENAI_API_KEY", secret_id = "logivoice-openai-${var.env_suffix}", version = "latest" },
     { env_name = "RESEND_API_KEY", secret_id = "logivoice-resend-${var.env_suffix}", version = "latest" },
-  ]
+  ] : []
 
   network_stack_required = var.enable_cloud_sql
 
@@ -53,7 +53,7 @@ locals {
     cloud_run_services = compact([
       local.cloud_run_service_name_effective,
       var.enable_web ? local.web_cloud_run_service_name_effective : "",
-      local.worker_cloud_run_service_name_effective,
+      var.enable_worker ? local.worker_cloud_run_service_name_effective : "",
     ])
     cloud_sql_instances = var.enable_cloud_sql ? [local.sql_instance_name_effective] : []
     secret_ids = distinct(compact(concat(

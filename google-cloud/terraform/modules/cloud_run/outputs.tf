@@ -35,10 +35,10 @@ output "cloud_run_migrate_job_name" {
 }
 
 output "worker_cloud_run_uri" {
-  value = google_cloud_run_v2_service.worker.uri
+  value = var.enable_worker ? google_cloud_run_v2_service.worker[0].uri : null
 }
 
 output "worker_cloud_run_service_name" {
-  value = google_cloud_run_v2_service.worker.name
+  value = var.enable_worker ? google_cloud_run_v2_service.worker[0].name : null
 }
 

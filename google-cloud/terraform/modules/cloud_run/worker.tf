@@ -21,6 +21,7 @@ locals {
 }
 
 resource "google_cloud_run_v2_service" "worker" {
+  count    = var.enable_worker ? 1 : 0
   name     = var.worker_cloud_run_service_name
   location = var.region
 
