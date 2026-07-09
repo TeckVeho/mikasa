@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TeamScheduleDto } from "@logivoice/shared";
-import { ProjectBlock } from "@/components/team/ProjectBlock";
+import { TeamProjectScheduleList } from "@/components/team/TeamProjectScheduleList";
 import { ProcessTypeLegend } from "@/components/team/ProcessTypeLegend";
 import { ScheduleWidthResizer } from "@/components/team/ScheduleWidthResizer";
 import { ALL_TEAMS_TAB } from "@/components/team/TeamTabs";
@@ -100,7 +100,7 @@ function ScheduleContent({
   const dates = schedules[0]?.dates ?? [];
   const dayCount = dates.length;
   const showMonthHeaders = visibleMonths > 1;
-  let firstBlockAssigned = false;
+  let firstListAssigned = false;
 
   useEffect(() => {
     const el = frameRef.current;
@@ -229,50 +229,33 @@ function ScheduleContent({
         months={visibleMonths}
         onMonthsChange={onVisibleMonthsChange}
       >
-        <div ref={frameRef} className="space-y-4">
-          {schedules.map((schedule) => {
+        <div ref={frameRef} className="space-y-6">
+          {schedules.map((schedule, scheduleIndex) => {
             if (schedule.projects.length === 0) return null;
 
+            const assignScroll = !firstListAssigned;
+            if (assignScroll) firstListAssigned = true;
+
             return (
-              <div key={schedule.teamId} className="space-y-3">
+              <div key={schedule.teamId} className="space-y-2">
                 {showTeamHeaders && (
                   <h2 className="text-sm font-semibold text-text">
                     {formatTeamLabel(schedule.teamName)}
                   </h2>
                 )}
-                {schedule.projects.map((project) => {
-                  const assignScroll = !firstBlockAssigned;
-                  if (assignScroll) firstBlockAssigned = true;
-
-                  return (
-                    <ProjectBlock
-                      key={project.projectId}
-                      teamId={schedule.teamId}
-                      project={project}
-                      dates={schedule.dates}
-                      holidays={schedule.holidays}
-                      today={today}
-                      dayCellWidth={dayCellWidth}
-                      showMonthHeaders={showMonthHeaders}
-                      scrollRef={assignScroll ? scheduleScrollRef : undefined}
-                      onSaveCell={(projectId, processTypeId, date, hours, recordType) =>
-                        handleSaveCell(
-                          schedule.teamId,
-                          projectId,
-                          processTypeId,
-                          date,
-                          hours,
-                          recordType,
-                        )
-                      }
-                      onBulkSave={(projectId, updates) =>
-                        handleBulkSave(schedule.teamId, projectId, updates)
-                      }
-                      onUndo={() => void undo()}
-                      anchorId={`project-${project.projectId}`}
-                    />
-                  );
-                })}
+                <TeamProjectScheduleList
+                  schedules={[schedule]}
+                  dates={schedule.dates}
+                  holidays={schedule.holidays}
+                  today={today}
+                  dayCellWidth={dayCellWidth}
+                  showMonthHeaders={showMonthHeaders}
+                  scrollRef={assignScroll ? scheduleScrollRef : undefined}
+                  onSaveCell={handleSaveCell}
+                  onBulkSave={handleBulkSave}
+                  onUndo={() => void undo()}
+                  showControls={scheduleIndex === 0}
+                />
               </div>
             );
           })}

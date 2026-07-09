@@ -45,9 +45,9 @@ import {
   selectAllCells,
 } from "@/lib/schedule-grid-navigation";
 import { findScheduleCellFromPoint } from "@/lib/schedule-grid-pointer";
-import { groupDatesByMonth } from "@/lib/schedule-display";
 import { cn } from "@/lib/utils";
 import { DayCell } from "./DayCell";
+import { ScheduleTableHeader } from "./ScheduleTableHeader";
 
 const BLOCK_DRAG_THRESHOLD = 5;
 const DOUBLE_CLICK_MS = 400;
@@ -74,6 +74,7 @@ type Props = {
   ) => Promise<boolean>;
   onUndo?: () => void;
   actualReadOnly?: boolean;
+  hideHeader?: boolean;
 };
 
 export function ProjectScheduleTable({
@@ -89,13 +90,9 @@ export function ProjectScheduleTable({
   onBulkSave,
   onUndo,
   actualReadOnly = false,
+  hideHeader = false,
 }: Props) {
   const styles = getScheduleTableStyles(size);
-  const monthGroups = showMonthHeaders ? groupDatesByMonth(dates) : [];
-  const dayWidthStyle =
-    dayCellWidth != null
-      ? { width: dayCellWidth, minWidth: dayCellWidth, maxWidth: dayCellWidth }
-      : undefined;
   const colCount = dates.length;
   const rowCount = project.processes.length * 2;
   const bounds = { rowCount, colCount };
@@ -717,58 +714,16 @@ export function ProjectScheduleTable({
             : undefined
         }
       >
-        <thead>
-          {showMonthHeaders && monthGroups.length > 1 && (
-            <tr className={cn("border-b border-border/60 bg-bg text-muted", styles.thead)}>
-              <th
-                colSpan={4}
-                className={cn("sticky left-0 z-10 bg-bg", styles.processSticky)}
-              />
-              {monthGroups.map((group, groupIndex) => (
-                <th
-                  key={group.monthKey}
-                  colSpan={group.dates.length}
-                  className={cn(
-                    "px-1 py-1 text-center font-medium",
-                    groupIndex > 0 && "border-l-2 border-l-border",
-                  )}
-                >
-                  {group.label}
-                </th>
-              ))}
-            </tr>
-          )}
-          <tr className={cn("border-b border-border bg-bg text-muted", styles.thead)}>
-            <th className={cn("sticky left-0 z-10 bg-bg text-left", styles.processSticky, SCHEDULE_STICKY_DIVIDER)}>
-              工程
-            </th>
-            <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>目標h</th>
-            <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>実績h</th>
-            <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>比率%</th>
-            {dates.map((d) => {
-              const day = Number(d.slice(8));
-              const isToday = today === d;
-              const isMonthStart = day === 1;
-              return (
-                <th
-                  key={d}
-                  data-date={d}
-                  style={dayWidthStyle}
-                  className={cn(
-                    "text-center font-normal",
-                    SCHEDULE_GRID_BORDER,
-                    dayCellWidth == null && styles.dateTh,
-                    holidays[d] ? "text-muted" : "",
-                    isToday && "bg-amber-100 font-semibold text-amber-900",
-                    showMonthHeaders && isMonthStart && "border-l-2 border-l-border",
-                  )}
-                >
-                  {day}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
+        {!hideHeader && (
+          <ScheduleTableHeader
+            dates={dates}
+            holidays={holidays}
+            today={today}
+            size={size}
+            dayCellWidth={dayCellWidth}
+            showMonthHeaders={showMonthHeaders}
+          />
+        )}
         <tbody>
           {project.processes.flatMap((proc, processIndex) => {
             const colors = getProcessRowColors(proc.processTypeName);
