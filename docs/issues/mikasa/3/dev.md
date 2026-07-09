@@ -5,7 +5,7 @@
 
 ## Summary
 
-Adapted LogiVoice GCP template for mikasa dev (`mikasa-lm-dev`): Terraform `enable_worker` toggle, mikasa naming in tfvars examples / Terragrunt / Cloud Build dev YAMLs, WIF script defaults, runbook.
+Adapted LogiVoice GCP template for mikasa dev (`mikasa-load-management`): Terraform `enable_worker` toggle, mikasa naming in tfvars examples / Terragrunt / Cloud Build dev YAMLs, WIF script defaults, runbook.
 
 ## Changes (committed in branch)
 
@@ -14,7 +14,7 @@ Adapted LogiVoice GCP template for mikasa dev (`mikasa-lm-dev`): Terraform `enab
 | Issue docs | `docs/issues/mikasa/3/issue.md`, `plan.md` |
 | Runbook | `docs/infrastructure/gcp-dev-runbook.md` |
 | `enable_worker` | `modules/app_compose/*`, `modules/cloud_run/worker.tf`, `outputs.tf`, `_shared/app/main.tf` |
-| Terragrunt state | `live/*/terragrunt.hcl` → `mikasa-lm-dev-terraform-state` |
+| Terragrunt state | `live/*/terragrunt.hcl` → `mikasa-load-management-terraform-state` |
 | tfvars examples | `environments/bootstrap`, `dev/network`, `dev/app` |
 | Cloud Build dev | `cloudbuild.dev.api.yaml`, `cloudbuild.dev.web.yaml` |
 | WIF | `scripts/setup-github-actions-wif.sh`, `GITHUB_ACTIONS_WIF.md` |

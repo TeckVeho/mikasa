@@ -16,7 +16,7 @@
 #   Firebase ADC: roles/firebaseauth.admin on runtime SA {project_id}-run-dev
 # =============================================================================
 
-project_id = "mikasa-lm-dev"
+project_id = "mikasa-load-management"
 env_suffix = "dev"
 region     = "asia-northeast1"
 
@@ -26,8 +26,8 @@ cloud_run_api_timeout = "3600s"
 cloud_run_api_memory  = "512Mi"
 
 # --- Container images (tag must match Cloud Build _TAG, usually "dev") ---
-container_image     = "asia-northeast1-docker.pkg.dev/mikasa-lm-dev/mikasa-lm-dev-docker/mikasa-api:dev"
-web_container_image = "asia-northeast1-docker.pkg.dev/mikasa-lm-dev/mikasa-lm-dev-docker/mikasa-web:dev"
+container_image     = "asia-northeast1-docker.pkg.dev/mikasa-load-management/mikasa-load-management-docker/mikasa-api:dev"
+web_container_image = "asia-northeast1-docker.pkg.dev/mikasa-load-management/mikasa-load-management-docker/mikasa-web:dev"
 
 container_port     = 8080
 web_container_port = 3000
@@ -41,20 +41,20 @@ allow_unauthenticated_web = true
 env_vars = {
   NODE_ENV            = "production"
   LOG_LEVEL           = "info"
-  CORS_ORIGIN         = "https://mikasa-lm-dev-web-dev-REPLACE.run.app"
-  API_PUBLIC_URL      = "https://mikasa-lm-dev-api-dev-REPLACE.run.app"
-  FIREBASE_PROJECT_ID = "mikasa-lm-dev"
+  CORS_ORIGIN         = "https://mikasa-load-management-web-dev-REPLACE.run.app"
+  API_PUBLIC_URL      = "https://mikasa-load-management-api-dev-REPLACE.run.app"
+  FIREBASE_PROJECT_ID = "mikasa-load-management"
 }
 
 web_env_vars = {
   NODE_ENV = "production"
 
-  NEXT_PUBLIC_API_URL  = "https://mikasa-lm-dev-api-dev-REPLACE.run.app"
-  NEXT_PUBLIC_BASE_URL = "https://mikasa-lm-dev-web-dev-REPLACE.run.app"
+  NEXT_PUBLIC_API_URL  = "https://mikasa-load-management-api-dev-REPLACE.run.app"
+  NEXT_PUBLIC_BASE_URL = "https://mikasa-load-management-web-dev-REPLACE.run.app"
 
   NEXT_PUBLIC_FIREBASE_API_KEY     = "your-firebase-web-api-key"
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "mikasa-lm-dev.firebaseapp.com"
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID  = "mikasa-lm-dev"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "mikasa-load-management.firebaseapp.com"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID  = "mikasa-load-management"
 
   NEXT_PUBLIC_USE_MOCK     = "false"
   NEXT_PUBLIC_USE_DEV_AUTH = "true"
@@ -73,7 +73,7 @@ web_custom_domain = ""
 
 enable_cloud_sql = true
 
-network_remote_state_bucket = "mikasa-lm-dev-terraform-state"
+network_remote_state_bucket = "mikasa-load-management-terraform-state"
 network_remote_state_prefix = "network/dev"
 
 enable_sql_night_weekend_schedule = true

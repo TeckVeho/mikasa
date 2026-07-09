@@ -2,7 +2,7 @@
 
 This guide explains how to create **`GCP_WORKLOAD_IDENTITY_PROVIDER`** and related resources so [`.github/workflows/cd-gcp.yml`](../../.github/workflows/cd-gcp.yml) can authenticate to Google Cloud **without** a long-lived JSON key.
 
-**Quick setup (single project `mikasa-lm-dev`):** run [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) from a shell with `gcloud` authenticated as project admin. Use `--dry-run` to preview commands.
+**Quick setup (single project `mikasa-load-management`):** run [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) from a shell with `gcloud` authenticated as project admin. Use `--dry-run` to preview commands.
 
 ## What you are creating
 

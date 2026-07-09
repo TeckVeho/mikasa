@@ -10,11 +10,11 @@
 #   3. live/dev/app
 # =============================================================================
 
-project_id = "mikasa-lm-dev"
+project_id = "mikasa-load-management"
 region     = "asia-northeast1"
 env_suffix = "dev"
 
-network_name = "mikasa-lm-dev-vpc-dev"
+network_name = "mikasa-load-management-vpc-dev"
 
 connector_subnet_cidr = "10.8.0.0/24"
 

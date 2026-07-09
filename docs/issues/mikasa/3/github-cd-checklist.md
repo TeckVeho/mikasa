@@ -11,22 +11,22 @@ Done via API or GitHub → Settings → Environments → New environment → `de
 | Secret | Source |
 |--------|--------|
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | WIF script output |
-| `GCP_SERVICE_ACCOUNT` | `github-actions-mikasa@mikasa-lm-dev.iam.gserviceaccount.com` |
-| `GCP_PROJECT_ID` | `mikasa-lm-dev` |
+| `GCP_SERVICE_ACCOUNT` | `github-actions-mikasa@mikasa-load-management.iam.gserviceaccount.com` |
+| `GCP_PROJECT_ID` | `mikasa-load-management` |
 
 Set with `gh` (replace placeholders):
 
 ```bash
 gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER --env develop --repo TeckVeho/mikasa --body "projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
-gh secret set GCP_SERVICE_ACCOUNT --env develop --repo TeckVeho/mikasa --body "github-actions-mikasa@mikasa-lm-dev.iam.gserviceaccount.com"
-gh secret set GCP_PROJECT_ID --env develop --repo TeckVeho/mikasa --body "mikasa-lm-dev"
+gh secret set GCP_SERVICE_ACCOUNT --env develop --repo TeckVeho/mikasa --body "github-actions-mikasa@mikasa-load-management.iam.gserviceaccount.com"
+gh secret set GCP_PROJECT_ID --env develop --repo TeckVeho/mikasa --body "mikasa-load-management"
 ```
 
 ## 3. Variables (Environment `develop`)
 
 ```bash
-gh variable set GCP_AR_PROJECT_ID --env develop --repo TeckVeho/mikasa --body "mikasa-lm-dev"
-gh variable set GCP_DEPLOY_PROJECT_ID --env develop --repo TeckVeho/mikasa --body "mikasa-lm-dev"
+gh variable set GCP_AR_PROJECT_ID --env develop --repo TeckVeho/mikasa --body "mikasa-load-management"
+gh variable set GCP_DEPLOY_PROJECT_ID --env develop --repo TeckVeho/mikasa --body "mikasa-load-management"
 gh variable set GCP_IMAGE_TAG --env develop --repo TeckVeho/mikasa --body "dev"
 gh variable set GCP_NEXT_PUBLIC_API_URL --env develop --repo TeckVeho/mikasa --body "https://YOUR-API-URL"
 gh variable set GCP_NEXT_PUBLIC_BASE_URL --env develop --repo TeckVeho/mikasa --body "https://YOUR-WEB-URL"

@@ -18,27 +18,37 @@ tests_path:
 
 ## Summary
 
-Stand up **mikasa** on **GCP dev** (`mikasa-lm-dev`): Terraform bootstrap → network → app, Cloud Build API/Web deploy, GitHub Actions WIF on `develop`, migrate + seed, runbook.
+Stand up **mikasa** on **GCP dev** in project **`mikasa-load-management`**: Terraform bootstrap → network → app, Cloud Build API/Web deploy, GitHub Actions WIF on `develop`, migrate + seed, runbook.
+
+## GCP naming (confirmed)
+
+| Layer | Pattern | Dev example |
+|-------|---------|-------------|
+| GCP project ID | `mikasa-load-management` | single project for dev/stg/prod |
+| Cloud Run API | `mikasa-load-management-api-{env}` | `mikasa-load-management-api-dev` |
+| Cloud Run Web | `mikasa-load-management-web-{env}` | `mikasa-load-management-web-dev` |
+| Migrate job | `mikasa-load-management-migrate-{env}` | `mikasa-load-management-migrate-dev` |
 
 ## Scope
 
-- Dev only (`mikasa-lm-dev`)
+- Dev only (resources with `-dev` suffix in project `mikasa-load-management`)
 - API + Web; `enable_worker = false` on dev
 - Template cleanup: LogiVoice → mikasa naming
-- No npm `@logivoice` rename, no stg/prod, no custom prod domain
+- No npm `@logivoice` rename, no stg/prod deploy, no custom prod domain
 
 ## Dependencies
 
-- GCP project `mikasa-LM-dev` with billing
+- GCP project `mikasa-load-management` with billing
 - Firebase project + Web API key
 - GitHub Actions secrets on `TeckVeho/mikasa` (Environment `develop`)
 
 ## Acceptance criteria
 
-- [ ] Bootstrap + dev network/app Terraform applied on `mikasa-lm-dev`
-- [ ] API/Web images in Artifact Registry; Cloud Run running
-- [ ] Migrate job applied schema to Cloud SQL
+- [ ] Bootstrap + dev network/app Terraform applied on `mikasa-load-management`
+- [ ] Cloud Run dev (`mikasa-load-management-api-dev`, `mikasa-load-management-web-dev`) running from AR images
+- [ ] Migrate job applied schema to Cloud SQL dev
 - [ ] Web dashboard reachable (Firebase or dev auth bypass)
 - [ ] API health responds on dev
 - [ ] Redeploy via `cd-gcp.yml` from `develop`
-- [ ] Runbook in repo
+- [ ] Runbook documents project ID, dev resource names, URLs, secrets
+- [ ] No stg/prod resources built in this issue

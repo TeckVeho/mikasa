@@ -16,7 +16,7 @@ terraform {
 remote_state {
   backend = "gcs"
   config = {
-    bucket = "mikasa-lm-dev-terraform-state"
+    bucket = "mikasa-load-management-terraform-state"
     prefix = "network/dev"
   }
   generate = {

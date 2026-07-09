@@ -1,6 +1,6 @@
 # Cloud Build — dev web only (faster when backend unchanged)
 #
-# Builds+pushes mikasa-web image, then deploys mikasa-lm-dev-web-dev Cloud Run service.
+# Builds+pushes mikasa-web image, then deploys mikasa-load-management-web-dev Cloud Run service.
 
 steps:
   - name: 'gcr.io/cloud-builders/docker'
@@ -48,7 +48,7 @@ substitutions:
   _TAG: dev
   _AR_PROJECT_ID: ''
   _DEPLOY_PROJECT_ID: ''
-  _WEB_SERVICE_NAME: mikasa-lm-dev-web-dev
+  _WEB_SERVICE_NAME: mikasa-load-management-web-dev
   _NEXT_PUBLIC_API_URL: ''
   _NEXT_PUBLIC_BASE_URL: ''
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''

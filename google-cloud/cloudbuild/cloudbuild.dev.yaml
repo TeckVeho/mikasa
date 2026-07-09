@@ -137,9 +137,9 @@ substitutions:
   _DEPLOY_PROJECT_ID: ''
   _API_TIMEOUT: '3600'
   _API_MEMORY: '512Mi'
-  _MIGRATE_JOB_NAME: mikasa-lm-dev-migrate-dev
-  _API_SERVICE_NAME: mikasa-lm-dev-api-dev
-  _WEB_SERVICE_NAME: mikasa-lm-dev-web-dev
+  _MIGRATE_JOB_NAME: mikasa-load-management-migrate-dev
+  _API_SERVICE_NAME: mikasa-load-management-api-dev
+  _WEB_SERVICE_NAME: mikasa-load-management-web-dev
   _NEXT_PUBLIC_API_URL: ''
   _NEXT_PUBLIC_BASE_URL: ''
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''

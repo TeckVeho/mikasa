@@ -9,12 +9,12 @@
 #   terragrunt init && terragrunt apply
 # =============================================================================
 
-project_id = "mikasa-lm-dev"
+project_id = "mikasa-load-management"
 region     = "asia-northeast1"
 
-state_bucket_name = "mikasa-lm-dev-terraform-state"
+state_bucket_name = "mikasa-load-management-terraform-state"
 
-# Empty → default {project_id}-docker (e.g. mikasa-lm-dev-docker).
+# Empty → default {project_id}-docker (e.g. mikasa-load-management-docker).
 # artifact_repo_id = ""
 
 artifact_cleanup_keep_count                 = 10

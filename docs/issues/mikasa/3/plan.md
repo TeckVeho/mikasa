@@ -2,7 +2,7 @@
 
 ## Overview
 
-Adapt LogiVoice Terraform/Cloud Build template for mikasa on `mikasa-lm-dev`, disable worker on dev, apply infra, wire GitHub CD on `develop`, first deploy + runbook.
+Adapt LogiVoice Terraform/Cloud Build template for mikasa on `mikasa-load-management`, disable worker on dev, apply infra, wire GitHub CD on `develop`, first deploy + runbook.
 
 ## Order of work
 
@@ -27,8 +27,10 @@ Adapt LogiVoice Terraform/Cloud Build template for mikasa on `mikasa-lm-dev`, di
 | CD workflow | `.github/workflows/cd-gcp.yml` |
 | WIF script | `google-cloud/scripts/setup-github-actions-wif.sh` |
 
-## Cloud Run naming (project `mikasa-lm-dev`)
+## GCP naming (project `mikasa-load-management`)
 
-- API: `mikasa-lm-dev-api-dev`
-- Web: `mikasa-lm-dev-web-dev`
-- Migrate job: `mikasa-lm-dev-migrate-dev`
+- Project ID: `mikasa-load-management` (single project; env on resources)
+- API: `mikasa-load-management-api-dev`
+- Web: `mikasa-load-management-web-dev`
+- Migrate job: `mikasa-load-management-migrate-dev`
+- State bucket: `mikasa-load-management-terraform-state`

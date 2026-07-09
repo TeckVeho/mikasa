@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Setup Workload Identity Federation + IAM for GitHub Actions CD (single GCP project).
 #
-# Target layout: mikasa-lm-dev (build + Artifact Registry + Cloud Run deploy in one project).
+# Target layout: mikasa-load-management (build + Artifact Registry + Cloud Run deploy in one project).
 # Implements: google-cloud/cloudbuild/GITHUB_ACTIONS_WIF.md
 #
 # Prerequisites:
@@ -20,8 +20,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# --- Defaults (mikasa-lm-dev single-project) ---
-PROJECT_ID="${PROJECT_ID:-mikasa-lm-dev}"
+# --- Defaults (mikasa-load-management single-project) ---
+PROJECT_ID="${PROJECT_ID:-mikasa-load-management}"
 REGION="${REGION:-asia-northeast1}"
 GITHUB_REPO="${GITHUB_REPO:-TeckVeho/mikasa}"
 POOL_ID="${POOL_ID:-github-pool}"
@@ -36,7 +36,7 @@ usage() {
   echo
   echo "Options:"
   echo "  --dry-run          Print commands without executing"
-  echo "  --project-id ID    GCP project (default: mikasa-lm-dev)"
+  echo "  --project-id ID    GCP project (default: mikasa-load-management)"
   echo "  --github-repo O/R  GitHub repo for WIF (default: TeckVeho/mikasa)"
   echo "  --sa-id ID         Service account id (default: github-actions-mikasa)"
   echo "  -h, --help         Show this help"
@@ -312,7 +312,7 @@ Secrets (per environment):
 Variables (single-project — leave AR/DEPLOY empty or set both to ${PROJECT_ID}):
   GCP_AR_PROJECT_ID=${PROJECT_ID}          # optional; omit for workflow default
   GCP_DEPLOY_PROJECT_ID=${PROJECT_ID}      # optional; omit for workflow default
-  GCP_NEXT_PUBLIC_API_URL=<api-origin-only>   # e.g. https://mikasa-lm-dev-api-dev-xxx.run.app
+  GCP_NEXT_PUBLIC_API_URL=<api-origin-only>   # e.g. https://mikasa-load-management-api-dev-xxx.run.app
   GCP_NEXT_PUBLIC_BASE_URL=<your-web-url>
   GCP_NEXT_PUBLIC_FIREBASE_API_KEY=<...>
   GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${PROJECT_ID}.firebaseapp.com
