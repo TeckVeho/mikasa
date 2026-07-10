@@ -16,7 +16,7 @@ import {
 } from "@/lib/schedule-grid-undo";
 import {
   measureDayCellWidth,
-  SCHEDULE_STICKY_COLS_WIDTH,
+  SCHEDULE_SUMMARY_STICKY_WIDTH,
   type ScheduleVisibleMonths,
 } from "@/lib/schedule-display";
 import {
@@ -111,7 +111,7 @@ function ScheduleContent({
         measureDayCellWidth(
           el.clientWidth,
           dayCount,
-          SCHEDULE_STICKY_COLS_WIDTH.normal,
+          SCHEDULE_SUMMARY_STICKY_WIDTH,
         ),
       );
     };

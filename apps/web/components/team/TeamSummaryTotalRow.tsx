@@ -6,8 +6,11 @@ import { cn } from "@/lib/utils";
 import {
   getScheduleTableStyles,
   SCHEDULE_GRID_BORDER,
+  SCHEDULE_ROW_BORDER_ACTUAL,
+  SCHEDULE_ROW_BORDER_PLANNED,
   SCHEDULE_STICKY_DIVIDER,
 } from "@/lib/schedule-table-size";
+import { SummaryRowKindCell } from "./SummaryRowKindCell";
 
 type Props = {
   totals: TeamSummaryTotals;
@@ -73,21 +76,12 @@ export function TeamSummaryTotalRow({
 }: Props) {
   const styles = getScheduleTableStyles("normal");
 
-  return (
-    <tr className="border-t-2 border-border font-semibold">
+  const metricCells = (
+    <>
       <td
+        rowSpan={2}
         className={cn(
-          "sticky left-0 z-10",
-          styles.processSticky,
-          SCHEDULE_STICKY_DIVIDER,
-          PROCESS_SECTION_COLORS.forecast.sticky,
-        )}
-      >
-        {label}
-      </td>
-      <td
-        className={cn(
-          "text-center",
+          "text-center align-middle",
           styles.metricCell,
           SCHEDULE_GRID_BORDER,
           PROCESS_SECTION_COLORS.forecast.cell,
@@ -96,8 +90,9 @@ export function TeamSummaryTotalRow({
         {totals.plannedHours}
       </td>
       <td
+        rowSpan={2}
         className={cn(
-          "text-center",
+          "text-center align-middle",
           styles.metricCell,
           SCHEDULE_GRID_BORDER,
           PROCESS_SECTION_COLORS.forecast.cell,
@@ -106,8 +101,9 @@ export function TeamSummaryTotalRow({
         {totals.totalActualHours}
       </td>
       <td
+        rowSpan={2}
         className={cn(
-          "text-center",
+          "text-center align-middle",
           styles.metricCell,
           SCHEDULE_GRID_BORDER,
           PROCESS_SECTION_COLORS.forecast.cell,
@@ -115,17 +111,69 @@ export function TeamSummaryTotalRow({
       >
         {totals.progressRate}%
       </td>
-      {dates.map((date) => (
-        <TotalDayCell
-          key={date}
-          hours={totals.dailyTotals[date] ?? 0}
-          date={date}
-          dayCellWidth={dayCellWidth}
-          isHoliday={!!holidays[date]}
-          isToday={today === date}
-          showMonthDividers={showMonthHeaders}
-        />
+    </>
+  );
+
+  const rows: Array<{
+    recordType: "planned" | "actual";
+    rowLabel: string;
+    rowBorder: string;
+    dailyTotals: Record<string, number>;
+  }> = [
+    {
+      recordType: "planned",
+      rowLabel: "予定",
+      rowBorder: SCHEDULE_ROW_BORDER_PLANNED,
+      dailyTotals: totals.dailyPlannedTotals,
+    },
+    {
+      recordType: "actual",
+      rowLabel: "実績",
+      rowBorder: SCHEDULE_ROW_BORDER_ACTUAL,
+      dailyTotals: totals.dailyActualTotals,
+    },
+  ];
+
+  return (
+    <>
+      {rows.map((rowDef, rowIndex) => (
+        <tr
+          key={rowDef.recordType}
+          className={cn("border-t-2 border-border font-semibold", rowDef.rowBorder)}
+        >
+          {rowIndex === 0 && (
+            <>
+              <td
+                rowSpan={2}
+                className={cn(
+                  "sticky left-0 z-10",
+                  styles.processSticky,
+                  SCHEDULE_STICKY_DIVIDER,
+                  PROCESS_SECTION_COLORS.forecast.sticky,
+                )}
+              >
+                <div>{label}</div>
+              </td>
+              {metricCells}
+            </>
+          )}
+          <SummaryRowKindCell
+            label={rowDef.rowLabel}
+            className={PROCESS_SECTION_COLORS.forecast.cell}
+          />
+          {dates.map((date) => (
+            <TotalDayCell
+              key={date}
+              hours={rowDef.dailyTotals[date] ?? 0}
+              date={date}
+              dayCellWidth={dayCellWidth}
+              isHoliday={!!holidays[date]}
+              isToday={today === date}
+              showMonthDividers={showMonthHeaders}
+            />
+          ))}
+        </tr>
       ))}
-    </tr>
+    </>
   );
 }
