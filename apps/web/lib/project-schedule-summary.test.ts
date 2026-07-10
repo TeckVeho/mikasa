@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { TeamScheduleProjectDto } from "@logivoice/shared";
 import {
   computeTeamSummaryTotals,
+  getDayPlannedProcessSegments,
   getDayProcessSegments,
   getDayTotalActualHours,
+  getDayTotalPlannedHours,
 } from "./project-schedule-summary";
 
 const project: TeamScheduleProjectDto = {
@@ -27,7 +29,7 @@ const project: TeamScheduleProjectDto = {
       targetHours: 50,
       actualHours: 20,
       progressRate: 40,
-      plannedDailyHours: {},
+      plannedDailyHours: { "2026-01-05": 5 },
       actualDailyHours: { "2026-01-05": 4 },
       dailyHours: {},
     },
@@ -37,7 +39,7 @@ const project: TeamScheduleProjectDto = {
       targetHours: 50,
       actualHours: 10,
       progressRate: 20,
-      plannedDailyHours: {},
+      plannedDailyHours: { "2026-01-05": 3 },
       actualDailyHours: { "2026-01-05": 2 },
       dailyHours: {},
     },
@@ -53,6 +55,21 @@ const project: TeamScheduleProjectDto = {
     },
   ],
 };
+
+describe("getDayPlannedProcessSegments", () => {
+  it("returns only processes with planned hours on the date", () => {
+    const segments = getDayPlannedProcessSegments(project, "2026-01-05");
+    expect(segments).toHaveLength(2);
+    expect(segments[0]).toMatchObject({
+      processTypeName: "組立",
+      hours: 5,
+    });
+    expect(segments[1]).toMatchObject({
+      processTypeName: "溶接",
+      hours: 3,
+    });
+  });
+});
 
 describe("getDayProcessSegments", () => {
   it("returns only processes with hours on the date", () => {
@@ -89,6 +106,12 @@ describe("getDayProcessSegments", () => {
   });
 });
 
+describe("getDayTotalPlannedHours", () => {
+  it("sums planned segment hours", () => {
+    expect(getDayTotalPlannedHours(project, "2026-01-05")).toBe(8);
+  });
+});
+
 describe("getDayTotalActualHours", () => {
   it("sums segment hours", () => {
     expect(getDayTotalActualHours(project, "2026-01-05")).toBe(6);
@@ -107,6 +130,7 @@ describe("computeTeamSummaryTotals", () => {
       processes: [
         {
           ...project.processes[0]!,
+          plannedDailyHours: { "2026-01-05": 5 },
           actualDailyHours: { "2026-01-05": 3 },
         },
       ],
@@ -117,6 +141,8 @@ describe("computeTeamSummaryTotals", () => {
     expect(totals.plannedHours).toBe(150);
     expect(totals.totalActualHours).toBe(40);
     expect(totals.progressRate).toBe(27);
+    expect(totals.dailyPlannedTotals["2026-01-05"]).toBe(13);
+    expect(totals.dailyActualTotals["2026-01-05"]).toBe(9);
     expect(totals.dailyTotals["2026-01-05"]).toBe(9);
   });
 });

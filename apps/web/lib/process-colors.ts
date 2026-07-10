@@ -92,6 +92,31 @@ const PROCESS_NAME_ALIASES: Record<string, ProcessColumnName> = {
   歪取: "歪取り",
 };
 
+/** 折りたたみサマリー日次セル用の工程略称（Excel「表」シート準拠） */
+const PROCESS_ABBREVIATIONS: Record<ProcessColumnName, string> = {
+  組立前: "組前",
+  組立: "組",
+  溶接: "溶",
+  歪取り: "歪",
+  塗装: "塗",
+  仕上げ: "仕",
+};
+
+export function formatProcessAbbrev(processTypeName: string): string {
+  const key = resolveProcessColumnName(processTypeName);
+  if (key) return PROCESS_ABBREVIATIONS[key];
+  return processTypeName.slice(0, 2);
+}
+
+export function formatProcessSegmentLabel(
+  processTypeName: string,
+  hours: number | string,
+): string {
+  const h = hours === "" ? "" : String(hours);
+  if (!h) return "";
+  return `${formatProcessAbbrev(processTypeName)}${h}`;
+}
+
 export function resolveProcessColumnName(name: string): ProcessColumnName | null {
   if ((PROCESS_COLUMNS as readonly string[]).includes(name)) {
     return name as ProcessColumnName;

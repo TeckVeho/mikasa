@@ -3,7 +3,11 @@ import type { GridBounds, GridCell } from "./schedule-grid-selection";
 import { normalizeSelection } from "./schedule-grid-selection";
 import type { ScheduleCellUpdate } from "./schedule-grid-clipboard";
 import { enumerateSelection } from "./schedule-grid-clipboard";
-import { getDayProcessSegments } from "./project-schedule-summary";
+import {
+  getDayProcessSegmentsByRecordType,
+  summaryProjectIndexFromRow,
+  summaryRecordTypeFromRow,
+} from "./project-schedule-summary";
 
 export type SummaryProcessHours = {
   processTypeId: string;
@@ -19,43 +23,51 @@ export type SummaryGridCell = {
 export type SummaryBlockDragPayload = {
   projectId: string;
   originCol: number;
+  recordType: "planned" | "actual";
   cells: SummaryGridCell[];
 };
 
 export type SummaryProcessClipboard = {
   rows: number;
   cols: number;
+  recordType: "planned" | "actual";
   cells: SummaryProcessHours[][][];
 };
-
-const ACTUAL = "actual" as const;
 
 export function getSummaryProcessHours(
   project: TeamScheduleProjectDto,
   date: string,
+  recordType: "planned" | "actual",
 ): SummaryProcessHours[] {
-  return getDayProcessSegments(project, date).map((seg) => ({
-    processTypeId: seg.processTypeId,
-    hours: seg.hours,
-  }));
+  return getDayProcessSegmentsByRecordType(project, date, recordType).map(
+    (seg) => ({
+      processTypeId: seg.processTypeId,
+      hours: seg.hours,
+    }),
+  );
 }
 
 export function getSummaryCellTotalHours(
   project: TeamScheduleProjectDto,
   col: number,
   dates: string[],
+  recordType: "planned" | "actual",
 ): number {
   const date = dates[col];
   if (!date) return 0;
-  return getSummaryProcessHours(project, date).reduce((sum, p) => sum + p.hours, 0);
+  return getSummaryProcessHours(project, date, recordType).reduce(
+    (sum, p) => sum + p.hours,
+    0,
+  );
 }
 
 export function summaryCellHasData(
   project: TeamScheduleProjectDto,
   col: number,
   dates: string[],
+  recordType: "planned" | "actual",
 ): boolean {
-  return getSummaryCellTotalHours(project, col, dates) > 0;
+  return getSummaryCellTotalHours(project, col, dates, recordType) > 0;
 }
 
 export function buildSummaryBlockDragPayload(
@@ -64,6 +76,7 @@ export function buildSummaryBlockDragPayload(
   dates: string[],
   anchor: GridCell,
   focus: GridCell,
+  recordType: "planned" | "actual",
 ): SummaryBlockDragPayload | null {
   const range = normalizeSelection(anchor, focus);
   const cells: SummaryGridCell[] = [];
@@ -71,7 +84,7 @@ export function buildSummaryBlockDragPayload(
   for (const { col } of enumerateSelection(anchor, focus)) {
     const date = dates[col];
     if (!date) continue;
-    const processHours = getSummaryProcessHours(project, date);
+    const processHours = getSummaryProcessHours(project, date, recordType);
     cells.push({ col, date, processHours });
   }
 
@@ -82,6 +95,7 @@ export function buildSummaryBlockDragPayload(
   return {
     projectId,
     originCol: range.colMin,
+    recordType,
     cells,
   };
 }
@@ -128,7 +142,7 @@ export function computeSummaryBlockMoveUpdates(
       processTypeId,
       date,
       hours,
-      recordType: ACTUAL,
+      recordType: payload.recordType,
     });
   }
 
@@ -140,17 +154,18 @@ export function computeSummaryClearUpdates(
   dates: string[],
   anchor: GridCell,
   focus: GridCell,
+  recordType: "planned" | "actual",
 ): ScheduleCellUpdate[] {
   const updates: ScheduleCellUpdate[] = [];
   for (const { col } of enumerateSelection(anchor, focus)) {
     const date = dates[col];
     if (!date) continue;
-    for (const ph of getSummaryProcessHours(project, date)) {
+    for (const ph of getSummaryProcessHours(project, date, recordType)) {
       updates.push({
         processTypeId: ph.processTypeId,
         date,
         hours: 0,
-        recordType: ACTUAL,
+        recordType,
       });
     }
   }
@@ -162,6 +177,7 @@ export function buildSummaryClipboard(
   dates: string[],
   anchor: GridCell,
   focus: GridCell,
+  recordType: "planned" | "actual",
 ): SummaryProcessClipboard {
   const range = normalizeSelection(anchor, focus);
   const cells: SummaryProcessHours[][][] = [];
@@ -170,7 +186,7 @@ export function buildSummaryClipboard(
     const line: SummaryProcessHours[][] = [];
     for (let col = range.colMin; col <= range.colMax; col++) {
       const date = dates[col];
-      line.push(date ? getSummaryProcessHours(project, date) : []);
+      line.push(date ? getSummaryProcessHours(project, date, recordType) : []);
     }
     cells.push(line);
   }
@@ -178,6 +194,7 @@ export function buildSummaryClipboard(
   return {
     rows: range.rowMax - range.rowMin + 1,
     cols: range.colMax - range.colMin + 1,
+    recordType,
     cells,
   };
 }
@@ -191,6 +208,7 @@ export function computeSummaryPasteUpdates(
   holidays: Record<string, boolean>,
 ): { ok: true; updates: ScheduleCellUpdate[] } | { ok: false; reason: string } {
   const updates: ScheduleCellUpdate[] = [];
+  const recordType = clipboard.recordType;
 
   for (let r = 0; r < clipboard.rows; r++) {
     for (let c = 0; c < clipboard.cols; c++) {
@@ -201,7 +219,9 @@ export function computeSummaryPasteUpdates(
 
       const sourceCells = clipboard.cells[r]?.[c] ?? [];
       const existing = new Set(
-        getSummaryProcessHours(project, date).map((p) => p.processTypeId),
+        getSummaryProcessHours(project, date, recordType).map(
+          (p) => p.processTypeId,
+        ),
       );
       for (const ph of sourceCells) {
         existing.delete(ph.processTypeId);
@@ -209,7 +229,7 @@ export function computeSummaryPasteUpdates(
           processTypeId: ph.processTypeId,
           date,
           hours: ph.hours,
-          recordType: ACTUAL,
+          recordType,
         });
       }
       for (const processTypeId of existing) {
@@ -217,7 +237,7 @@ export function computeSummaryPasteUpdates(
           processTypeId,
           date,
           hours: 0,
-          recordType: ACTUAL,
+          recordType,
         });
       }
     }
@@ -235,22 +255,24 @@ export function computeSummaryFillRightUpdates(
   dates: string[],
   anchor: GridCell,
   focus: GridCell,
+  recordType: "planned" | "actual",
 ): ScheduleCellUpdate[] {
   const range = normalizeSelection(anchor, focus);
   const updates: ScheduleCellUpdate[] = [];
   const sourceDate = dates[range.colMin];
   if (!sourceDate) return updates;
-  const sourceHours = getSummaryProcessHours(project, sourceDate);
+  const sourceHours = getSummaryProcessHours(project, sourceDate, recordType);
 
   for (let col = range.colMin + 1; col <= range.colMax; col++) {
     const date = dates[col];
     if (!date) continue;
-    const current = getSummaryProcessHours(project, date);
+    const current = getSummaryProcessHours(project, date, recordType);
     const same =
       current.length === sourceHours.length &&
-      current.every((c, i) =>
-        c.processTypeId === sourceHours[i]?.processTypeId &&
-        c.hours === sourceHours[i]?.hours,
+      current.every(
+        (c, i) =>
+          c.processTypeId === sourceHours[i]?.processTypeId &&
+          c.hours === sourceHours[i]?.hours,
       );
     if (same) continue;
 
@@ -259,7 +281,7 @@ export function computeSummaryFillRightUpdates(
         processTypeId: ph.processTypeId,
         date,
         hours: 0,
-        recordType: ACTUAL,
+        recordType,
       });
     }
     for (const ph of sourceHours) {
@@ -267,7 +289,7 @@ export function computeSummaryFillRightUpdates(
         processTypeId: ph.processTypeId,
         date,
         hours: ph.hours,
-        recordType: ACTUAL,
+        recordType,
       });
     }
   }
@@ -280,8 +302,9 @@ export function buildSummaryCellSaveUpdate(
   processTypeId: string,
   date: string,
   hours: number,
+  recordType: "planned" | "actual",
 ): ScheduleCellUpdate {
-  return { processTypeId, date, hours, recordType: ACTUAL };
+  return { processTypeId, date, hours, recordType };
 }
 
 /** 空セル編集時のデフォルト工程（先頭工程） */
@@ -291,7 +314,7 @@ export function getDefaultSummaryProcessTypeId(
   return project.processes[0]?.processTypeId ?? null;
 }
 
-/** 選択範囲が単一工事行に収まる場合、その行 index を返す */
+/** 選択範囲が単一サマリー行に収まる場合、その行 index を返す */
 export function getSingleSelectionRow(
   anchor: GridCell,
   focus: GridCell,
@@ -310,13 +333,14 @@ export function buildSummaryBlockDragPayloadForRow(
   row: number,
 ): SummaryBlockDragPayload | null {
   const range = normalizeSelection(anchor, focus);
+  const recordType = summaryRecordTypeFromRow(row);
   const cells: SummaryGridCell[] = [];
 
   for (const { row: r, col } of enumerateSelection(anchor, focus)) {
     if (r !== row) continue;
     const date = dates[col];
     if (!date) continue;
-    const processHours = getSummaryProcessHours(project, date);
+    const processHours = getSummaryProcessHours(project, date, recordType);
     cells.push({ col, date, processHours });
   }
 
@@ -327,6 +351,7 @@ export function buildSummaryBlockDragPayloadForRow(
   return {
     projectId,
     originCol: range.colMin,
+    recordType,
     cells,
   };
 }
@@ -339,17 +364,18 @@ export function computeListSummaryClearUpdates(
 ): Map<number, ScheduleCellUpdate[]> {
   const result = new Map<number, ScheduleCellUpdate[]>();
   for (const { row, col } of enumerateSelection(anchor, focus)) {
-    const project = projects[row];
+    const project = projects[summaryProjectIndexFromRow(row)];
     if (!project) continue;
     const date = dates[col];
     if (!date) continue;
-    for (const ph of getSummaryProcessHours(project, date)) {
+    const recordType = summaryRecordTypeFromRow(row);
+    for (const ph of getSummaryProcessHours(project, date, recordType)) {
       const list = result.get(row) ?? [];
       list.push({
         processTypeId: ph.processTypeId,
         date,
         hours: 0,
-        recordType: ACTUAL,
+        recordType,
       });
       result.set(row, list);
     }
@@ -364,15 +390,19 @@ export function buildListSummaryClipboard(
   focus: GridCell,
 ): SummaryProcessClipboard {
   const range = normalizeSelection(anchor, focus);
+  const recordType = summaryRecordTypeFromRow(range.rowMin);
   const cells: SummaryProcessHours[][][] = [];
 
   for (let row = range.rowMin; row <= range.rowMax; row++) {
-    const project = projects[row];
+    const project = projects[summaryProjectIndexFromRow(row)];
+    const rowRecordType = summaryRecordTypeFromRow(row);
     const line: SummaryProcessHours[][] = [];
     for (let col = range.colMin; col <= range.colMax; col++) {
       const date = dates[col];
       line.push(
-        project && date ? getSummaryProcessHours(project, date) : [],
+        project && date
+          ? getSummaryProcessHours(project, date, rowRecordType)
+          : [],
       );
     }
     cells.push(line);
@@ -381,6 +411,7 @@ export function buildListSummaryClipboard(
   return {
     rows: range.rowMax - range.rowMin + 1,
     cols: range.colMax - range.colMin + 1,
+    recordType,
     cells,
   };
 }
@@ -403,13 +434,16 @@ export function computeListSummaryPasteUpdates(
       if (row < 0 || row >= bounds.rowCount || col < 0 || col >= bounds.colCount) {
         continue;
       }
-      const project = projects[row];
+      const project = projects[summaryProjectIndexFromRow(row)];
       const date = dates[col];
       if (!project || !date || holidays[date]) continue;
 
+      const recordType = summaryRecordTypeFromRow(row);
       const sourceCells = clipboard.cells[r]?.[c] ?? [];
       const existing = new Set(
-        getSummaryProcessHours(project, date).map((p) => p.processTypeId),
+        getSummaryProcessHours(project, date, recordType).map(
+          (p) => p.processTypeId,
+        ),
       );
       const list = result.get(row) ?? [];
 
@@ -419,7 +453,7 @@ export function computeListSummaryPasteUpdates(
           processTypeId: ph.processTypeId,
           date,
           hours: ph.hours,
-          recordType: ACTUAL,
+          recordType,
         });
       }
       for (const processTypeId of existing) {
@@ -427,7 +461,7 @@ export function computeListSummaryPasteUpdates(
           processTypeId,
           date,
           hours: 0,
-          recordType: ACTUAL,
+          recordType,
         });
       }
       result.set(row, list);
@@ -443,7 +477,12 @@ export function summaryCellHasDataAt(
   row: number,
   col: number,
 ): boolean {
-  const project = projects[row];
+  const project = projects[summaryProjectIndexFromRow(row)];
   if (!project) return false;
-  return summaryCellHasData(project, col, dates);
+  return summaryCellHasData(
+    project,
+    col,
+    dates,
+    summaryRecordTypeFromRow(row),
+  );
 }

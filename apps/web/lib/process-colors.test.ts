@@ -1,26 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
-  getProcessRowColors,
-  PROCESS_TYPE_ROW_COLORS,
-  resolveProcessColumnName,
+  formatProcessAbbrev,
+  formatProcessSegmentLabel,
 } from "./process-colors";
 
-describe("process-colors", () => {
-  it("resolveProcessColumnName", () => {
-    expect(resolveProcessColumnName("溶接")).toBe("溶接");
-    expect(resolveProcessColumnName("歪取")).toBe("歪取り");
-    expect(resolveProcessColumnName("unknown")).toBeNull();
+describe("formatProcessAbbrev", () => {
+  it("returns Excel-style abbreviations for known processes", () => {
+    expect(formatProcessAbbrev("組立前")).toBe("組前");
+    expect(formatProcessAbbrev("組立")).toBe("組");
+    expect(formatProcessAbbrev("溶接")).toBe("溶");
+    expect(formatProcessAbbrev("歪取り")).toBe("歪");
+    expect(formatProcessAbbrev("塗装")).toBe("塗");
+    expect(formatProcessAbbrev("仕上げ")).toBe("仕");
   });
 
-  it("getProcessRowColors returns distinct colors per process", () => {
-    const prep = getProcessRowColors("組立前");
-    const weld = getProcessRowColors("溶接");
-    expect(prep.cell).not.toBe(weld.cell);
-    expect(prep).toEqual(PROCESS_TYPE_ROW_COLORS["組立前"]);
+  it("falls back to first two characters for unknown processes", () => {
+    expect(formatProcessAbbrev("検査")).toBe("検査");
   });
+});
 
-  it("getProcessRowColors falls back for unknown process", () => {
-    const colors = getProcessRowColors("その他");
-    expect(colors.cell).toContain("emerald");
+describe("formatProcessSegmentLabel", () => {
+  it("combines abbrev and hours", () => {
+    expect(formatProcessSegmentLabel("組立", 4)).toBe("組4");
+    expect(formatProcessSegmentLabel("溶接", "")).toBe("");
   });
 });

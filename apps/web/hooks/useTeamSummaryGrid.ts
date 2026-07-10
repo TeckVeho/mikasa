@@ -18,6 +18,10 @@ import {
   type SummaryProcessClipboard,
 } from "@/lib/project-summary-grid";
 import {
+  summaryProjectIndexFromRow,
+  summaryRecordTypeFromRow,
+} from "@/lib/project-schedule-summary";
+import {
   jumpToDataEdge,
   jumpToRowEdge,
   jumpToSheetCorner,
@@ -52,6 +56,7 @@ type Options = {
     processTypeId: string,
     date: string,
     hours: number,
+    recordType: "planned" | "actual",
   ) => void;
   onBulkSave: (
     teamId: string,
@@ -71,7 +76,7 @@ export function useTeamSummaryGrid({
   onUndo,
 }: Options) {
   const projectDtos = projects.map((p) => p.project);
-  const rowCount = projects.length;
+  const rowCount = projects.length * 2;
   const colCount = dates.length;
   const bounds = { rowCount, colCount };
 
@@ -109,7 +114,7 @@ export function useTeamSummaryGrid({
   }, []);
 
   const getEntry = useCallback(
-    (row: number) => projects[row] ?? null,
+    (row: number) => projects[summaryProjectIndexFromRow(row)] ?? null,
     [projects],
   );
 
@@ -504,11 +509,13 @@ export function useTeamSummaryGrid({
     if (row == null) return;
     const entry = getEntry(row);
     if (!entry) return;
+    const recordType = summaryRecordTypeFromRow(row);
     const fillUpdates = computeSummaryFillRightUpdates(
       entry.project,
       dates,
       anchor,
       focus,
+      recordType,
     );
     if (fillUpdates.length === 0) return;
     await onBulkSave(entry.teamId, entry.project.projectId, fillUpdates);
@@ -543,9 +550,11 @@ export function useTeamSummaryGrid({
           ? getDefaultSummaryProcessTypeId(defaultEntry.project)
           : null;
         if (!defaultProcessId) return;
+        const recordType = summaryRecordTypeFromRow(active.row);
         clip = {
           rows: values.length,
           cols,
+          recordType,
           cells: values.map((row) =>
             row.map((hours) =>
               hours > 0
@@ -590,10 +599,23 @@ export function useTeamSummaryGrid({
   ]);
 
   const saveProcessCell = useCallback(
-    (row: number, processTypeId: string, date: string, hours: number) => {
+    (
+      row: number,
+      processTypeId: string,
+      date: string,
+      hours: number,
+      recordType: "planned" | "actual",
+    ) => {
       const entry = getEntry(row);
       if (!entry) return;
-      onSaveCell(entry.teamId, entry.project.projectId, processTypeId, date, hours);
+      onSaveCell(
+        entry.teamId,
+        entry.project.projectId,
+        processTypeId,
+        date,
+        hours,
+        recordType,
+      );
     },
     [getEntry, onSaveCell],
   );
@@ -611,6 +633,7 @@ export function useTeamSummaryGrid({
         processTypeId,
         date,
         hours,
+        summaryRecordTypeFromRow(row),
       );
     },
     [dates, getEntry, onSaveCell],

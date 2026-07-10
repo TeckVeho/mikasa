@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { DayProcessSegment } from "@/lib/project-schedule-summary";
-import { getProcessRowColors } from "@/lib/process-colors";
+import { getProcessRowColors, formatProcessAbbrev } from "@/lib/process-colors";
 import {
   buildSelectionEdgeShadow,
   isArrowKey,
@@ -17,6 +17,8 @@ type Props = {
   date: string;
   row: number;
   col: number;
+  recordType: "planned" | "actual";
+  rowLabel: string;
   segments: DayProcessSegment[];
   dayCellWidth?: number;
   showMonthDividers?: boolean;
@@ -47,10 +49,45 @@ function parseHours(raw: string): number | null {
   return n;
 }
 
+function formatSegmentDisplayHours(
+  hours: number,
+  recordType: "planned" | "actual",
+): string | number {
+  if (hours <= 0) return "";
+  return recordType === "planned" ? Math.round(hours) : hours;
+}
+
+function VerticalSegmentLabel({
+  processTypeName,
+  hours,
+  recordType,
+}: {
+  processTypeName: string;
+  hours: number;
+  recordType: "planned" | "actual";
+}) {
+  const displayHours = formatSegmentDisplayHours(hours, recordType);
+  if (displayHours === "") return null;
+  const chars = [...formatProcessAbbrev(processTypeName)];
+
+  return (
+    <div className="flex flex-col items-center justify-center leading-none">
+      {chars.map((char, index) => (
+        <span key={`${char}-${index}`} className="text-[8px]">
+          {char}
+        </span>
+      ))}
+      <span className="text-[9px] tabular-nums">{displayHours}</span>
+    </div>
+  );
+}
+
 export function SummaryInteractiveDayCell({
   date,
   row,
   col,
+  recordType,
+  rowLabel,
   segments,
   dayCellWidth,
   showMonthDividers = false,
@@ -98,6 +135,24 @@ export function SummaryInteractiveDayCell({
           ...(selectionShadow ? { boxShadow: selectionShadow } : {}),
         }
       : undefined;
+
+  const visibleSegments = segments.filter(
+    (seg) => formatSegmentDisplayHours(seg.hours, recordType) !== "",
+  );
+  const singleSegment =
+    visibleSegments.length === 1 ? visibleSegments[0]! : null;
+  const singleColors = singleSegment
+    ? getProcessRowColors(singleSegment.processTypeName)
+    : null;
+  const hasSegmentData = visibleSegments.length > 0;
+  const useSingleCellFill =
+    hasSegmentData &&
+    singleSegment != null &&
+    !isEditing &&
+    !isHoliday &&
+    !isSelected &&
+    !isActive &&
+    !isDropTarget;
 
   function cancelEditing() {
     setEditingProcessId(null);
@@ -220,12 +275,23 @@ export function SummaryInteractiveDayCell({
       className={cn(
         "relative p-0 align-middle outline-none touch-none",
         SCHEDULE_GRID_BORDER,
-        "h-7 text-[11px] text-center",
+        "min-h-7 text-[11px] text-center",
         dayCellWidth == null && "min-w-[36px]",
-        isHoliday && !isSelected && "bg-bg/60",
+        useSingleCellFill && singleColors?.cell,
+        useSingleCellFill && singleColors?.label,
+        !useSingleCellFill &&
+          isHoliday &&
+          !isSelected &&
+          recordType === "planned" &&
+          "bg-bg/40",
+        !useSingleCellFill &&
+          isHoliday &&
+          !isSelected &&
+          recordType === "actual" &&
+          "bg-bg/60",
         isHoliday && isSelected && "bg-primary/15",
         isToday && !isSelected && !isDropTarget && "ring-1 ring-inset ring-amber-300/60",
-        !isHoliday && isSelected && "bg-primary/15",
+        !useSingleCellFill && !isHoliday && isSelected && "bg-primary/15",
         isActive &&
           !isEditing &&
           !isDropTarget &&
@@ -235,12 +301,24 @@ export function SummaryInteractiveDayCell({
         isEditing && "ring-2 ring-inset ring-primary/50",
         showMonthDividers && isMonthStart && "border-l-2 border-l-border",
         canGrab && !isEditing && "cursor-grab",
-        !canGrab && !isEditing && "cursor-cell hover:bg-primary/5",
+        !canGrab &&
+          !isEditing &&
+          hasSegmentData &&
+          "cursor-cell",
+        !canGrab &&
+          !isEditing &&
+          !hasSegmentData &&
+          "cursor-cell hover:bg-primary/5",
       )}
       tabIndex={isActive ? 0 : -1}
       title={
         segments.length > 0
-          ? segments.map((s) => `${s.processTypeName}: ${s.hours}h`).join(" / ")
+          ? segments
+              .map(
+                (s) =>
+                  `${s.processTypeName}: ${formatSegmentDisplayHours(s.hours, recordType) || 0}h`,
+              )
+              .join(" / ")
           : undefined
       }
       onPointerDown={handleCellPointerDown}
@@ -254,7 +332,7 @@ export function SummaryInteractiveDayCell({
           inputMode="decimal"
           autoComplete="off"
           spellCheck={false}
-          aria-label={`${date} の実績時間`}
+          aria-label={`${date} の${rowLabel}時間`}
           className="absolute inset-0 h-full w-full select-text border-0 bg-white/95 px-0.5 text-center text-[11px] tabular-nums outline-none"
           value={value}
           onChange={(e) => {
@@ -290,24 +368,34 @@ export function SummaryInteractiveDayCell({
         />
       ) : segments.length === 0 ? (
         <span className="block min-h-[22px]" />
+      ) : visibleSegments.length === 1 ? (
+        <VerticalSegmentLabel
+          processTypeName={visibleSegments[0]!.processTypeName}
+          hours={visibleSegments[0]!.hours}
+          recordType={recordType}
+        />
       ) : (
-        <div className="flex min-h-[22px] flex-col">
-          {segments.map((seg) => {
+        <div className="absolute inset-0 flex min-h-[22px] flex-row items-stretch">
+          {visibleSegments.map((seg) => {
             const colors = getProcessRowColors(seg.processTypeName);
             return (
               <div
                 key={seg.processTypeId}
                 className={cn(
-                  "flex flex-1 items-center justify-center text-[9px] font-medium leading-none",
-                  colors.cell,
-                  colors.label,
+                  "flex min-w-0 flex-1 items-center justify-center",
+                  !isHoliday && !isSelected && colors.cell,
+                  !isHoliday && !isSelected && colors.label,
+                  isHoliday && "bg-bg/50 text-muted",
                 )}
-                style={{ minHeight: segments.length > 1 ? 10 : 22 }}
                 onDoubleClick={(e) =>
                   handleSegmentDoubleClick(e, seg.processTypeId, seg.hours)
                 }
               >
-                {seg.hours}
+                <VerticalSegmentLabel
+                  processTypeName={seg.processTypeName}
+                  hours={seg.hours}
+                  recordType={recordType}
+                />
               </div>
             );
           })}

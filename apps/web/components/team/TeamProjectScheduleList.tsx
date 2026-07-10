@@ -14,6 +14,7 @@ import {
   readExpandedProjectIds,
   storeExpandedProjectIds,
 } from "@/lib/project-schedule-summary";
+import { SCHEDULE_SUMMARY_STICKY_WIDTH } from "@/lib/schedule-display";
 import { TeamSummaryTotalRow } from "@/components/team/TeamSummaryTotalRow";
 import {
   getScheduleTableStyles,
@@ -196,7 +197,7 @@ export function TeamProjectScheduleList({
   const [fullscreenProjectId, setFullscreenProjectId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const styles = getScheduleTableStyles("normal");
-  const colSpan = 4 + dates.length;
+  const colSpan = 5 + dates.length;
 
   useEffect(() => {
     setExpandedIds(readExpandedProjectIds());
@@ -263,8 +264,8 @@ export function TeamProjectScheduleList({
     dates,
     holidays,
     tableRootRef,
-    onSaveCell: (teamId, projectId, processTypeId, date, hours) =>
-      onSaveCell(teamId, projectId, processTypeId, date, hours, "actual"),
+    onSaveCell: (teamId, projectId, processTypeId, date, hours, recordType) =>
+      onSaveCell(teamId, projectId, processTypeId, date, hours, recordType),
     onBulkSave: (teamId, projectId, updates) =>
       onBulkSave(teamId, projectId, updates),
     onUndo,
@@ -313,7 +314,7 @@ export function TeamProjectScheduleList({
           className={cn(styles.table, "w-full border-collapse")}
           style={
             dayCellWidth != null
-              ? { minWidth: 268 + dayCellWidth * dates.length }
+              ? { minWidth: SCHEDULE_SUMMARY_STICKY_WIDTH + dayCellWidth * dates.length }
               : undefined
           }
         >
@@ -324,6 +325,7 @@ export function TeamProjectScheduleList({
             dayCellWidth={dayCellWidth}
             showMonthHeaders={showMonthHeaders}
             stickyLabel="工事"
+            showRowKindColumn
           />
           <tbody>
             {projects.map(({ teamId, project }, projectIndex) => {
@@ -340,7 +342,7 @@ export function TeamProjectScheduleList({
                     dayCellWidth={dayCellWidth}
                     showMonthHeaders={showMonthHeaders}
                     isExpanded={isExpanded}
-                    gridRow={projectIndex}
+                    gridProjectIndex={projectIndex}
                     grid={summaryGrid}
                     onToggle={() => toggleProject(project.projectId)}
                   />

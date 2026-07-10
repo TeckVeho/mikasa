@@ -99,11 +99,17 @@ export function isTodayInScheduleRange(
   return today >= start && today <= endStr;
 }
 
+export const SCHEDULE_ROW_KIND_COL_WIDTH = 18;
+
 /** 固定列（工程+指標）の概算幅 */
 export const SCHEDULE_STICKY_COLS_WIDTH = {
   normal: 268,
   expanded: 360,
 } as const;
+
+/** 班別サマリー表（行種別列あり）の固定列概算幅 */
+export const SCHEDULE_SUMMARY_STICKY_WIDTH =
+  SCHEDULE_STICKY_COLS_WIDTH.normal + SCHEDULE_ROW_KIND_COL_WIDTH;
 
 export function measureDayCellWidth(
   frameWidth: number,
