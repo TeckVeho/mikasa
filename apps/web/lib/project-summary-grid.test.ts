@@ -29,7 +29,7 @@ const project: TeamScheduleProjectDto = {
       targetHours: 50,
       actualHours: 6,
       progressRate: 12,
-      plannedDailyHours: {},
+      plannedDailyHours: { "2026-01-05": 6 },
       actualDailyHours: { "2026-01-05": 4, "2026-01-06": 2 },
       dailyHours: {},
     },
@@ -39,7 +39,7 @@ const project: TeamScheduleProjectDto = {
       targetHours: 50,
       actualHours: 4,
       progressRate: 8,
-      plannedDailyHours: {},
+      plannedDailyHours: { "2026-01-05": 2 },
       actualDailyHours: { "2026-01-05": 4 },
       dailyHours: {},
     },
@@ -49,9 +49,10 @@ const project: TeamScheduleProjectDto = {
 const dates = ["2026-01-05", "2026-01-06", "2026-01-07"];
 
 describe("getSummaryCellTotalHours", () => {
-  it("sums all process hours on a date", () => {
-    expect(getSummaryCellTotalHours(project, 0, dates)).toBe(8);
-    expect(getSummaryCellTotalHours(project, 1, dates)).toBe(2);
+  it("sums all process hours on a date by record type", () => {
+    expect(getSummaryCellTotalHours(project, 0, dates, "actual")).toBe(8);
+    expect(getSummaryCellTotalHours(project, 1, dates, "actual")).toBe(2);
+    expect(getSummaryCellTotalHours(project, 0, dates, "planned")).toBe(8);
   });
 });
 
@@ -61,9 +62,9 @@ describe("computeSummaryBlockMoveUpdates", () => {
       "p1",
       project,
       dates,
-      { row: 0, col: 0 },
-      { row: 0, col: 0 },
-      0,
+      { row: 1, col: 0 },
+      { row: 1, col: 0 },
+      1,
     );
     expect(payload).not.toBeNull();
 
@@ -94,30 +95,31 @@ describe("computeListSummaryClearUpdates", () => {
       projects,
       dates,
       { row: 0, col: 0 },
-      { row: 1, col: 1 },
+      { row: 2, col: 1 },
     );
     expect(updates.get(0)).toEqual(
       expect.arrayContaining([
-        { processTypeId: "pt1", date: "2026-01-05", hours: 0, recordType: "actual" },
-        { processTypeId: "pt2", date: "2026-01-05", hours: 0, recordType: "actual" },
+        { processTypeId: "pt1", date: "2026-01-05", hours: 0, recordType: "planned" },
+        { processTypeId: "pt2", date: "2026-01-05", hours: 0, recordType: "planned" },
       ]),
     );
-    expect(updates.get(1)).toEqual(
+    expect(updates.get(2)).toEqual(
       expect.arrayContaining([
-        { processTypeId: "pt1", date: "2026-01-06", hours: 0, recordType: "actual" },
+        { processTypeId: "pt1", date: "2026-01-05", hours: 0, recordType: "planned" },
+        { processTypeId: "pt2", date: "2026-01-05", hours: 0, recordType: "planned" },
       ]),
     );
   });
 });
 
 describe("getSingleSelectionRow", () => {
-  it("returns row when selection is on one project", () => {
+  it("returns row when selection is on one summary row", () => {
     expect(
       getSingleSelectionRow({ row: 2, col: 1 }, { row: 2, col: 4 }),
     ).toBe(2);
   });
 
-  it("returns null when selection spans multiple projects", () => {
+  it("returns null when selection spans multiple summary rows", () => {
     expect(
       getSingleSelectionRow({ row: 0, col: 1 }, { row: 2, col: 4 }),
     ).toBeNull();

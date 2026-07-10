@@ -17,6 +17,8 @@ type Props = {
   dayCellWidth?: number;
   showMonthHeaders?: boolean;
   stickyLabel?: string;
+  /** 折りたたみサマリー: 予定/実績の縦ラベル列 */
+  showRowKindColumn?: boolean;
 };
 
 export function ScheduleTableHeader({
@@ -27,9 +29,11 @@ export function ScheduleTableHeader({
   dayCellWidth,
   showMonthHeaders = false,
   stickyLabel = "工程",
+  showRowKindColumn = false,
 }: Props) {
   const styles = getScheduleTableStyles(size);
   const monthGroups = showMonthHeaders ? groupDatesByMonth(dates) : [];
+  const stickyColSpan = showRowKindColumn ? 5 : 4;
   const dayWidthStyle =
     dayCellWidth != null
       ? { width: dayCellWidth, minWidth: dayCellWidth, maxWidth: dayCellWidth }
@@ -40,7 +44,7 @@ export function ScheduleTableHeader({
       {showMonthHeaders && monthGroups.length > 1 && (
         <tr className={cn("border-b border-border/60 bg-bg text-muted", styles.thead)}>
           <th
-            colSpan={4}
+            colSpan={stickyColSpan}
             className={cn("sticky left-0 z-10 bg-bg", styles.processSticky)}
           />
           {monthGroups.map((group, groupIndex) => (
@@ -70,6 +74,15 @@ export function ScheduleTableHeader({
         <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>目標h</th>
         <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>実績h</th>
         <th className={cn(styles.metricCell, SCHEDULE_GRID_BORDER)}>比率%</th>
+        {showRowKindColumn && (
+          <th
+            className={cn(
+              "w-[18px] min-w-[18px] max-w-[18px] p-0",
+              SCHEDULE_GRID_BORDER,
+            )}
+            aria-hidden
+          />
+        )}
         {dates.map((d) => {
           const day = Number(d.slice(8));
           const isToday = today === d;
