@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { Suspense, use, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function TeamDetailRedirectPage({
+function TeamDetailRedirectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -23,4 +23,16 @@ export default function TeamDetailRedirectPage({
   }, [id, router, searchParams]);
 
   return <Skeleton className="h-64" />;
+}
+
+export default function TeamDetailRedirectPageWithSuspense({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<Skeleton className="h-64" />}>
+      <TeamDetailRedirectPage params={params} />
+    </Suspense>
+  );
 }
