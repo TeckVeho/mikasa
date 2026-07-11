@@ -112,7 +112,6 @@ jobs:
             docker:
               - 'apps/api/Dockerfile'
               - 'apps/web/Dockerfile'
-              - 'apps/worker/Dockerfile'
 
       - id: decide
         env:
@@ -157,7 +156,6 @@ jobs:
               if [ "$ROOT" = "true" ] || [ "$SHARED" = "true" ] || [ "$CI_META" = "true" ] || [ "$DOCKER_META" = "true" ]; then
                 run_api=true
                 run_web=true
-                run_worker=true
               else
                 if [ "$API" = "true" ]; then run_api=true; fi
                 if [ "$WEB" = "true" ]; then run_web=true; fi

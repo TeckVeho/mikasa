@@ -9,7 +9,6 @@ COPY package.json package-lock.json turbo.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-COPY apps/worker/package.json apps/worker/
 RUN npm ci
 
 FROM node:22-bookworm-slim AS builder
