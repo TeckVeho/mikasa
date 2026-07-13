@@ -7,6 +7,7 @@ import { ArrowRight, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { loginWithEmailPassword } from "@/lib/auth";
+import { shouldUseDevAuth } from "@/lib/dev-auth";
 import { cn } from "@/lib/utils";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -120,7 +121,7 @@ export default function LoginPage() {
     if (!validateForm()) return;
 
     setLoading(true);
-    if (process.env.NEXT_PUBLIC_USE_DEV_AUTH === "true") {
+    if (shouldUseDevAuth()) {
       await queryClient.invalidateQueries({ queryKey: ["current-user"] });
       router.push("/dashboard");
       setLoading(false);
@@ -249,7 +250,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {process.env.NEXT_PUBLIC_USE_DEV_AUTH === "true" && (
+          {shouldUseDevAuth() && (
             <div className="mt-5 rounded-md border border-border bg-bg px-3 py-2 text-center">
               <p className="text-xs text-muted">
                 開発モード: Firebase なしでダッシュボードへ進めます
