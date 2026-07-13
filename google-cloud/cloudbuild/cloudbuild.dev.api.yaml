@@ -74,6 +74,8 @@ steps:
       - '${_API_TIMEOUT}'
       - '--memory'
       - '${_API_MEMORY}'
+      - '--update-env-vars'
+      - 'ALLOW_DEV_AUTH=true'
       - '--no-allow-unauthenticated'
 
 substitutions:

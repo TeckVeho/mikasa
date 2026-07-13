@@ -41,8 +41,7 @@ allow_unauthenticated_web = true
 env_vars = {
   NODE_ENV            = "production"
   LOG_LEVEL           = "info"
-  CORS_ORIGIN         = "https://mikasa-load-management-web-dev-REPLACE.run.app"
-  API_PUBLIC_URL      = "https://mikasa-load-management-api-dev-REPLACE.run.app"
+  ALLOW_DEV_AUTH      = "true"
   FIREBASE_PROJECT_ID = "mikasa-load-management"
 }
 
