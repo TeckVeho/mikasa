@@ -1,0 +1,91 @@
+# Issue #13 — set GCP_NEXT_PUBLIC_FIREBASE_API_KEY on develop and redeploy web.
+# Fetches Web API key from Firebase Management API via WIF, or uses workflow_dispatch input.
+
+name: Ops · Issue 13 Firebase API key
+
+on:
+  workflow_dispatch:
+    inputs:
+      firebase_api_key:
+        description: >-
+          Optional manual Firebase Web API key (skip auto-fetch). Leave empty to read from Firebase Console via WIF.
+        required: false
+        type: string
+      skip_redeploy:
+        description: Set true to only update GitHub variable (no CD web run)
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+  actions: write
+
+jobs:
+  configure-and-redeploy:
+    runs-on: ubuntu-latest
+    environment: develop
+
+    steps:
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Resolve Firebase Web API key
+        id: key
+        env:
+          MANUAL_KEY: ${{ inputs.firebase_api_key }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -n "${MANUAL_KEY:-}" ]; then
+            echo "source=manual" >> "$GITHUB_OUTPUT"
+            echo "api_key=${MANUAL_KEY}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PROJECT="${GCP_PROJECT_ID:-mikasa-load-management}"
+          TOKEN="$(gcloud auth print-access-token)"
+          APPS_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps")"
+          APP_ID="$(echo "${APPS_JSON}" | jq -r '.apps[0].appId // empty')"
+          if [ -z "${APP_ID}" ]; then
+            echo "No Firebase web app found in project ${PROJECT}" >&2
+            exit 1
+          fi
+          CFG_JSON="$(curl -fsSL \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps/${APP_ID}/config")"
+          API_KEY="$(echo "${CFG_JSON}" | jq -r '.apiKey // empty')"
+          if [ -z "${API_KEY}" ]; then
+            echo "Firebase web app config missing apiKey" >&2
+            exit 1
+          fi
+          echo "source=firebase_api" >> "$GITHUB_OUTPUT"
+          echo "api_key=${API_KEY}" >> "$GITHUB_OUTPUT"
+
+      - name: Set GitHub Environment variable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_KEY: ${{ steps.key.outputs.api_key }}
+        run: |
+          set -euo pipefail
+          gh variable set GCP_NEXT_PUBLIC_FIREBASE_API_KEY \
+            --env develop \
+            --repo "${{ github.repository }}" \
+            --body "${API_KEY}"
+          echo "Set GCP_NEXT_PUBLIC_FIREBASE_API_KEY (source: ${{ steps.key.outputs.source }})"
+
+      - name: Trigger web redeploy
+        if: inputs.skip_redeploy != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "CD · GCP (Cloud Build)" \
+            --repo "${{ github.repository }}" \
+            --ref develop \
+            -f deploy_scope=web
