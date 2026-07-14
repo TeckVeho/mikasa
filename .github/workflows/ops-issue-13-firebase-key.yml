@@ -34,6 +34,8 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
+      - uses: google-github-actions/setup-gcloud@v2
+
       - name: Resolve Firebase Web API key
         id: key
         env:
@@ -49,23 +51,71 @@ jobs:
 
           PROJECT="${GCP_PROJECT_ID:-mikasa-load-management}"
           TOKEN="$(gcloud auth print-access-token)"
-          APPS_JSON="$(curl -fsSL \
-            -H "Authorization: Bearer ${TOKEN}" \
-            "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps")"
-          APP_ID="$(echo "${APPS_JSON}" | jq -r '.apps[0].appId // empty')"
-          if [ -z "${APP_ID}" ]; then
-            echo "No Firebase web app found in project ${PROJECT}" >&2
+
+          fetch_firebase_web_key() {
+            local resp http_code
+            resp="$(curl -sS -w '\n%{http_code}' \
+              -H "Authorization: Bearer ${TOKEN}" \
+              "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps")"
+            http_code="${resp##*$'\n'}"
+            body="${resp%$'\n'*}"
+            echo "firebase webApps HTTP ${http_code}"
+            if [ "${http_code}" != "200" ]; then
+              echo "${body}" | head -c 500 >&2 || true
+              return 1
+            fi
+            APP_ID="$(echo "${body}" | jq -r '.apps[0].appId // empty')"
+            if [ -z "${APP_ID}" ]; then
+              echo "No Firebase web app in project ${PROJECT}" >&2
+              return 1
+            fi
+            resp="$(curl -sS -w '\n%{http_code}' \
+              -H "Authorization: Bearer ${TOKEN}" \
+              "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps/${APP_ID}/config")"
+            http_code="${resp##*$'\n'}"
+            body="${resp%$'\n'*}"
+            echo "firebase config HTTP ${http_code} appId=${APP_ID}"
+            if [ "${http_code}" != "200" ]; then
+              echo "${body}" | head -c 500 >&2 || true
+              return 1
+            fi
+            echo "${body}" | jq -r '.apiKey // empty'
+          }
+
+          fetch_apikeys_browser_key() {
+            gcloud services enable apikeys.googleapis.com --project="${PROJECT}" >/dev/null 2>&1 || true
+            local keys key_name key_detail
+            keys="$(gcloud services apikeys list --project="${PROJECT}" --format='value(name)' 2>/dev/null || true)"
+            if [ -z "${keys}" ]; then
+              echo "No API keys listed via apikeys.googleapis.com" >&2
+              return 1
+            fi
+            while IFS= read -r key_name; do
+              [ -n "${key_name}" ] || continue
+              key_detail="$(gcloud services apikeys get-key-string "${key_name}" --project="${PROJECT}" --format='value(keyString)' 2>/dev/null || true)"
+              if [[ "${key_detail}" == AIza* ]]; then
+                echo "${key_detail}"
+                return 0
+              fi
+            done <<< "${keys}"
+            return 1
+          }
+
+          API_KEY=""
+          if API_KEY="$(fetch_firebase_web_key)"; then
+            echo "source=firebase_api" >> "$GITHUB_OUTPUT"
+          elif API_KEY="$(fetch_apikeys_browser_key)"; then
+            echo "source=gcp_apikeys" >> "$GITHUB_OUTPUT"
+          else
+            echo "Could not resolve Firebase Web API key automatically." >&2
+            echo "Re-run with workflow_dispatch input firebase_api_key (from Firebase Console)." >&2
             exit 1
           fi
-          CFG_JSON="$(curl -fsSL \
-            -H "Authorization: Bearer ${TOKEN}" \
-            "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps/${APP_ID}/config")"
-          API_KEY="$(echo "${CFG_JSON}" | jq -r '.apiKey // empty')"
+
           if [ -z "${API_KEY}" ]; then
-            echo "Firebase web app config missing apiKey" >&2
+            echo "Resolved empty API key" >&2
             exit 1
           fi
-          echo "source=firebase_api" >> "$GITHUB_OUTPUT"
           echo "api_key=${API_KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Set GitHub Environment variable
