@@ -53,7 +53,20 @@ jobs:
           TOKEN="$(gcloud auth print-access-token)"
 
           fetch_firebase_web_key() {
-            local resp http_code
+            local resp http_code body
+            # Ensure Firebase is linked to the GCP project (idempotent).
+            resp="$(curl -sS -w '\n%{http_code}' -X POST \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}:addFirebase" || true)"
+            http_code="${resp##*$'\n'}"
+            body="${resp%$'\n'*}"
+            echo "addFirebase HTTP ${http_code}"
+            if [ "${http_code}" != "200" ] && [ "${http_code}" != "409" ]; then
+              echo "${body}" | head -c 500 >&2 || true
+            fi
+
             resp="$(curl -sS -w '\n%{http_code}' \
               -H "Authorization: Bearer ${TOKEN}" \
               "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps")"
@@ -65,6 +78,22 @@ jobs:
               return 1
             fi
             APP_ID="$(echo "${body}" | jq -r '.apps[0].appId // empty')"
+            if [ -z "${APP_ID}" ]; then
+              echo "No Firebase web app — creating mikasa-web"
+              resp="$(curl -sS -w '\n%{http_code}' -X POST \
+                -H "Authorization: Bearer ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d '{"displayName":"mikasa-web"}' \
+                "https://firebase.googleapis.com/v1beta1/projects/${PROJECT}/webApps")"
+              http_code="${resp##*$'\n'}"
+              body="${resp%$'\n'*}"
+              echo "create webApp HTTP ${http_code}"
+              if [ "${http_code}" != "200" ]; then
+                echo "${body}" | head -c 500 >&2 || true
+                return 1
+              fi
+              APP_ID="$(echo "${body}" | jq -r '.appId // empty')"
+            fi
             if [ -z "${APP_ID}" ]; then
               echo "No Firebase web app in project ${PROJECT}" >&2
               return 1
