@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +33,7 @@ function parseMonth(value: string | null): string {
   return currentMonth();
 }
 
-export default function TeamsPage() {
+function TeamsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const today = todayDate();
@@ -166,5 +166,13 @@ export default function TeamsPage() {
         today={today}
       />
     </div>
+  );
+}
+
+export default function TeamsPageWithSuspense() {
+  return (
+    <Suspense fallback={<Skeleton className="h-64 w-full" />}>
+      <TeamsPage />
+    </Suspense>
   );
 }

@@ -14,7 +14,10 @@ export async function requireAuth(
 
   // Dev bypass: X-Dev-Tenant-Id + optional X-Dev-User-Id (no Firebase)
   const devTenant = req.headers["x-dev-tenant-id"];
-  if (process.env.NODE_ENV !== "production" && typeof devTenant === "string") {
+  const allowDevAuth =
+    process.env.ALLOW_DEV_AUTH === "true" ||
+    process.env.NODE_ENV !== "production";
+  if (allowDevAuth && typeof devTenant === "string") {
     const devUserId = (req.headers["x-dev-user-id"] as string) ?? "dev-user";
     const devUser = await prisma.user.findUnique({
       where: { id: devUserId },

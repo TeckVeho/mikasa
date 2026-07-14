@@ -21,6 +21,8 @@ steps:
           --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=${_NEXT_PUBLIC_FIREBASE_API_KEY} \
           --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN} \
           --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=${_NEXT_PUBLIC_FIREBASE_PROJECT_ID} \
+          --build-arg NEXT_PUBLIC_USE_DEV_AUTH=${_NEXT_PUBLIC_USE_DEV_AUTH} \
+          --build-arg NEXT_PUBLIC_DEV_TENANT_ID=${_NEXT_PUBLIC_DEV_TENANT_ID} \
           --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:buildcache \
           --cache-from=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:${_TAG} \
           --cache-to=type=registry,ref=${_REGION}-docker.pkg.dev/${_AR_PROJECT_ID}/${_AR_PROJECT_ID}-docker/mikasa-web:buildcache,mode=max \
@@ -54,6 +56,8 @@ substitutions:
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''
   _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''
   _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ''
+  _NEXT_PUBLIC_USE_DEV_AUTH: 'true'
+  _NEXT_PUBLIC_DEV_TENANT_ID: '01HZXEXAMPLE00000000000000'
 
 options:
   logging: CLOUD_LOGGING_ONLY

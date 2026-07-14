@@ -9,7 +9,6 @@ COPY package.json package-lock.json turbo.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-COPY apps/worker/package.json apps/worker/
 RUN npm ci
 
 FROM node:22-bookworm-slim AS builder
@@ -21,11 +20,15 @@ ARG NEXT_PUBLIC_BASE_URL=http://localhost:3000
 ARG NEXT_PUBLIC_FIREBASE_API_KEY=
 ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
 ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+ARG NEXT_PUBLIC_USE_DEV_AUTH=false
+ARG NEXT_PUBLIC_DEV_TENANT_ID=01HZXEXAMPLE00000000000000
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_BASE_URL=${NEXT_PUBLIC_BASE_URL}
 ENV NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
 ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
 ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+ENV NEXT_PUBLIC_USE_DEV_AUTH=${NEXT_PUBLIC_USE_DEV_AUTH}
+ENV NEXT_PUBLIC_DEV_TENANT_ID=${NEXT_PUBLIC_DEV_TENANT_ID}
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json /app/package-lock.json /app/turbo.json ./

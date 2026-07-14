@@ -112,7 +112,6 @@ jobs:
             docker:
               - 'apps/api/Dockerfile'
               - 'apps/web/Dockerfile'
-              - 'apps/worker/Dockerfile'
 
       - id: decide
         env:
@@ -157,7 +156,6 @@ jobs:
               if [ "$ROOT" = "true" ] || [ "$SHARED" = "true" ] || [ "$CI_META" = "true" ] || [ "$DOCKER_META" = "true" ]; then
                 run_api=true
                 run_web=true
-                run_worker=true
               else
                 if [ "$API" = "true" ]; then run_api=true; fi
                 if [ "$WEB" = "true" ]; then run_web=true; fi
@@ -234,6 +232,8 @@ jobs:
       GCP_NEXT_PUBLIC_FIREBASE_API_KEY: ${{ vars.GCP_NEXT_PUBLIC_FIREBASE_API_KEY }}
       GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
       GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ vars.GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+      GCP_NEXT_PUBLIC_USE_DEV_AUTH: ${{ vars.GCP_NEXT_PUBLIC_USE_DEV_AUTH }}
+      GCP_NEXT_PUBLIC_DEV_TENANT_ID: ${{ vars.GCP_NEXT_PUBLIC_DEV_TENANT_ID }}
       GCP_IMAGE_TAG: ${{ vars.GCP_IMAGE_TAG }}
 
     steps:
@@ -263,6 +263,8 @@ jobs:
           [ -n "${GCP_NEXT_PUBLIC_FIREBASE_API_KEY:-}" ] && parts+=("_NEXT_PUBLIC_FIREBASE_API_KEY=${GCP_NEXT_PUBLIC_FIREBASE_API_KEY}")
           [ -n "${GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-}" ] && parts+=("_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}")
           [ -n "${GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}" ] && parts+=("_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID}")
+          [ -n "${GCP_NEXT_PUBLIC_USE_DEV_AUTH:-}" ] && parts+=("_NEXT_PUBLIC_USE_DEV_AUTH=${GCP_NEXT_PUBLIC_USE_DEV_AUTH}")
+          [ -n "${GCP_NEXT_PUBLIC_DEV_TENANT_ID:-}" ] && parts+=("_NEXT_PUBLIC_DEV_TENANT_ID=${GCP_NEXT_PUBLIC_DEV_TENANT_ID}")
           joined=$(IFS=','; echo "${parts[*]}")
           CFG="${{ needs.plan.outputs.cfg_web }}"
           gcloud builds submit \
