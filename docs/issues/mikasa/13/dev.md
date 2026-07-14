@@ -6,72 +6,47 @@
 
 ## Pre-check (done)
 
-```bash
-gh variable list --env develop --repo TeckVeho/mikasa
-```
+| Variable | Before | After |
+|----------|--------|-------|
+| `GCP_NEXT_PUBLIC_FIREBASE_API_KEY` | missing | set (`AIzaSyC0Lo...`) |
+| `GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `mikasa-load-management.firebaseapp.com` | `mikasa-load-management-94ddf.firebaseapp.com` |
+| `GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `mikasa-load-management` | `mikasa-load-management-94ddf` |
 
-| Variable | Status |
-|----------|--------|
-| `GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | `mikasa-load-management.firebaseapp.com` |
-| `GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID` | `mikasa-load-management` |
-| `GCP_NEXT_PUBLIC_FIREBASE_API_KEY` | **missing** |
+**Bundle before fix:** `apiKey:""` (`page-21bd4831541346ca.js`).
 
-**Bundle before fix:** `apiKey:""` in `/login` JS chunk (`page-21bd4831541346ca.js`).
+## Firebase project (confirmed)
 
-## Automation attempts
+| Field | Value |
+|-------|-------|
+| Project name | `mikasa-load-management` |
+| Project ID | `mikasa-load-management-94ddf` |
+| Web app nickname | `veho-mikasa-web` |
 
-| Run | Result | Finding |
-|-----|--------|---------|
-| [29303017722](https://github.com/TeckVeho/mikasa/actions/runs/29303017722) | fail | Firebase `webApps` HTTP 404 |
-| [29303072496](https://github.com/TeckVeho/mikasa/actions/runs/29303072496) | fail | `Firebase project 980857788409 not found` |
-| [29303114930](https://github.com/TeckVeho/mikasa/actions/runs/29303114930) | fail | `addFirebase` HTTP 403 — `github-actions-mikasa@...` lacks Firebase admin |
+## Completed (2026-07-14)
 
-**Root cause:** Firebase is **not linked** to GCP project `mikasa-load-management` (or no web app). GitHub Actions WIF SA cannot enable Firebase without extra IAM (`roles/firebase.admin` or owner).
+1. Set GitHub Environment `develop` variables (API key + updated AUTH_DOMAIN / PROJECT_ID)
+2. CD web redeploy: [run 29311672361](https://github.com/TeckVeho/mikasa/actions/runs/29311672361) — **success**
+3. Verify:
+   - `GET https://mikasa.vw-dev.com/login` → **200**
+   - Login chunk `page-4c9351a9886d47f8.js` contains `apiKey:"AIzaSyC0Lo..."` and `mikasa-load-management-94ddf`
 
-Local `gcloud` / ADC for `ngo.hong.son@veho-works.com` also expired (`Reauthentication is needed`).
+## Acceptance criteria
 
-## Deliverables (done)
+- [x] Web API key set on GitHub `develop`
+- [x] CD web redeploy green
+- [x] Web image bundle has valid Firebase API key
+- [x] AUTH_DOMAIN / PROJECT_ID aligned with Firebase Web app (`-94ddf`)
 
-- [x] `docs/issues/mikasa/13/issue.md`, `plan.md`
-- [x] `.github/workflows/ops-issue-13-firebase-key.yml` — auto-fetch or manual `firebase_api_key` input + set var + trigger CD web
+## Notes
 
-## Remaining (blocked on Firebase key)
+- `mikasa.vw-dev.com` still uses **dev auth bypass** (`*.vw-dev.com`) — login form may skip Firebase; ops AC met via baked client config.
+- Admin SDK JSON (`veho-mikasa`) is **separate** — for API Secret Manager later, not this issue.
+- Earlier auto-fetch workflow runs failed (Firebase not linked / WIF 403) until Web app was created manually in Console.
 
-- [ ] Obtain Web API key (Firebase Console or after `addFirebase` + web app)
-- [ ] Set `GCP_NEXT_PUBLIC_FIREBASE_API_KEY` on GitHub `develop`
-- [ ] CD web redeploy green
-- [ ] Verify bundle `apiKey:"AIza..."` non-empty
-- [ ] Close #13
+## Automation attempts (historical)
 
-## How to finish (manual)
-
-### Option A — Vững / GCP admin (recommended)
-
-1. [Firebase Console](https://console.firebase.google.com/) → add project `mikasa-load-management` (if not linked)
-2. Project settings → Your apps → Web app → copy **Web API Key**
-3. Either:
-   ```bash
-   gh variable set GCP_NEXT_PUBLIC_FIREBASE_API_KEY \
-     --env develop --repo TeckVeho/mikasa --body "<KEY>"
-   gh workflow run "CD · GCP (Cloud Build)" --repo TeckVeho/mikasa --ref develop -f deploy_scope=web
-   ```
-   Or GitHub Actions → **Ops · Issue 13 Firebase API key** → Run workflow → paste key in `firebase_api_key`
-
-### Option B — Grant WIF SA Firebase access (optional, for auto workflow)
-
-```bash
-gcloud projects add-iam-policy-binding mikasa-load-management \
-  --member="serviceAccount:github-actions-mikasa@mikasa-load-management.iam.gserviceaccount.com" \
-  --role="roles/firebase.admin"
-```
-
-Then re-run **Ops · Issue 13 Firebase API key** without manual input.
-
-### Verify
-
-```bash
-curl -sS "https://mikasa.vw-dev.com/_next/static/chunks/app/(auth)/login/page-*.js" | rg 'apiKey:"AIza'
-curl -sS -o /dev/null -w "%{http_code}" https://mikasa.vw-dev.com/login
-```
-
-**Note:** `mikasa.vw-dev.com` uses dev auth bypass (`*.vw-dev.com`); Firebase login on that host is not required for ops AC — verify baked key in JS bundle.
+| Run | Result |
+|-----|--------|
+| [29303017722](https://github.com/TeckVeho/mikasa/actions/runs/29303017722) | fail — webApps 404 |
+| [29303072496](https://github.com/TeckVeho/mikasa/actions/runs/29303072496) | fail — Firebase project not found |
+| [29303114930](https://github.com/TeckVeho/mikasa/actions/runs/29303114930) | fail — addFirebase 403 |
