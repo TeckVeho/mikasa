@@ -34,4 +34,5 @@ npm test  # monorepo: 79 passed
 ### PR
 
 - Branch: `feature/18-api-supertest`
-- Closes #18
+- PR: https://github.com/TeckVeho/mikasa/pull/20 — Closes #18
+- CI: Turbo test pass (2026-07-22)
