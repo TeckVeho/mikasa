@@ -34,7 +34,14 @@ cd apps/web && npm run test:e2e:only
 
 Local E2E blocked when MySQL not running (Docker/Laragon). `npm test` — 79 passed (Vitest, e2e excluded).
 
+**CI (PR #21, 2026-07-23):**
+
+| Job | Result |
+|-----|--------|
+| Turbo test (Vitest) | pass — 79 tests |
+| Playwright E2E | pass — 6 tests |
+
 ### PR
 
 - Branch: `19-feat-e2e-playwright`
-- Closes #19
+- PR: https://github.com/TeckVeho/mikasa/pull/21 — Closes #19

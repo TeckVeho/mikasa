@@ -37,5 +37,5 @@ Add Playwright E2E for mikasa load calculation: login → projects → project d
 
 ## Acceptance criteria
 
-- [ ] E2E login → project detail passes
-- [ ] CI has E2E job
+- [x] E2E login → project detail passes
+- [x] CI has E2E job
