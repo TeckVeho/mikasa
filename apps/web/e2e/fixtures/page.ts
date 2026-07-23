@@ -8,7 +8,7 @@ export async function waitForLoginForm(page: Page): Promise<void> {
   ).toBeVisible();
   await expect(page.locator('input[type="email"]')).toBeVisible();
   // Dev-mode panel appears only after client hydration (shouldUseDevAuth).
-  await expect(page.getByText("開発モード", { exact: true })).toBeVisible({
+  await expect(page.getByText(/開発モード/)).toBeVisible({
     timeout: 30_000,
   });
 }
