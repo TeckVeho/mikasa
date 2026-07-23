@@ -34,5 +34,11 @@ npm test  # monorepo: 79 passed
 ### PR
 
 - Branch: `feature/18-api-supertest`
-- PR: https://github.com/TeckVeho/mikasa/pull/20 — Closes #18
+- PR: https://github.com/TeckVeho/mikasa/pull/20 — merged to `develop` (2026-07-23)
 - CI: Turbo test pass (2026-07-22)
+
+## Done
+
+- [x] PR #20 merged → `develop`
+- [x] Issue #18 closed
+- [x] AC checkboxes updated in `issue.md`

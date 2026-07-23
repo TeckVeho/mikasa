@@ -33,6 +33,6 @@ mikasa has 12 unit tests but zero HTTP feature tests. Add Supertest coverage for
 
 ## Acceptance criteria
 
-- [ ] Feature tests for auth, projects, dashboard, master routes
-- [ ] CI passes (`npm test`)
-- [ ] No regression in existing 12 unit tests
+- [x] Feature tests for auth, projects, dashboard, master routes
+- [x] CI passes (`npm test`)
+- [x] No regression in existing 12 unit tests
