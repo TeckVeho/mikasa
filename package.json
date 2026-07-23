@@ -15,6 +15,7 @@
     "dev:app": "turbo run dev --filter=@logivoice/shared --filter=@logivoice/api --filter=@logivoice/web",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:e2e": "npm run test:e2e -w @logivoice/web",
     "typecheck": "turbo run typecheck",
     "prepare": "husky"
   },
