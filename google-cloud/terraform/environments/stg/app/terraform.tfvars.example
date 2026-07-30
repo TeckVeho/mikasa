@@ -73,8 +73,11 @@ enable_cloud_sql = true
 network_remote_state_bucket = "your-gcp-project-id-terraform-state"
 network_remote_state_prefix = "network/stg"
 
-# Staging: optional SQL schedule (same as dev) or leave off for 24/7 SQL.
-enable_sql_night_weekend_schedule = false
+# Staging: SQL schedule + no backup (same as dev).
+enable_sql_night_weekend_schedule = true
+sql_schedule_timezone             = "Asia/Tokyo"
+sql_schedule_start_cron           = "0 8 * * 1-5"
+sql_schedule_stop_cron            = "0 22 * * 1-5"
 
 # env_iam_principals = {
 #   deployers = ["group:gcp-stg-deployers@example.com"]
