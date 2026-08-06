@@ -78,4 +78,4 @@ network_remote_state_prefix = "network/dev"
 enable_sql_night_weekend_schedule = true
 sql_schedule_timezone             = "Asia/Tokyo"
 sql_schedule_start_cron           = "0 8 * * 1-5"
-sql_schedule_stop_cron            = "0 22 * * 1-5"
+sql_schedule_stop_cron            = "0 20 * * 1-5"

@@ -55,8 +55,8 @@ variable "sql_schedule_start_cron" {
 
 variable "sql_schedule_stop_cron" {
   type        = string
-  default     = "0 22 * * 1-5"
-  description = "Cron for stopping SQL (Mon–Fri evening). Default 22:00 in sql_schedule_timezone; Fri 22:00 → Mon 08:00 stays off."
+  default     = "0 20 * * 1-5"
+  description = "Cron for stopping SQL (Mon–Fri evening). Default 20:00 in sql_schedule_timezone; Fri 20:00 → Mon 08:00 stays off."
 }
 
 variable "sql_schedule_timezone" {
