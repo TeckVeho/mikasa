@@ -41,6 +41,11 @@ module "app_compose" {
   enable_vertex_ai                   = var.enable_vertex_ai
   vertex_ai_location                 = var.vertex_ai_location
   enable_cloud_sql                   = var.enable_cloud_sql
+  cloud_sql_source                   = var.cloud_sql_source
+  external_connection_name           = var.external_connection_name
+  external_database_url              = var.external_database_url
+  cloud_sql_vpc_network              = var.cloud_sql_vpc_network
+  cloud_sql_vpc_subnet               = var.cloud_sql_vpc_subnet
   sql_instance_name                  = var.sql_instance_name
   sql_tier                           = var.sql_tier
   sql_disk_size_gb                   = var.sql_disk_size_gb

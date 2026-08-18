@@ -25,11 +25,11 @@ module "gcs" {
 module "secrets" {
   source = "../secrets"
 
-  api_secret_env_from_sm      = var.api_secret_env_from_sm
-  project_id                  = var.project_id
-  web_secret_env_from_sm      = var.web_secret_env_from_sm
-  worker_secret_env_from_sm   = local.worker_secret_env_from_sm_effective
-  cloud_run_service_account   = local.cloud_run_service_account
+  api_secret_env_from_sm    = var.api_secret_env_from_sm
+  project_id                = var.project_id
+  web_secret_env_from_sm    = var.web_secret_env_from_sm
+  worker_secret_env_from_sm = local.worker_secret_env_from_sm_effective
+  cloud_run_service_account = local.cloud_run_service_account
 }
 
 module "pubsub" {
@@ -46,6 +46,9 @@ module "cloud_sql" {
   source = "../cloud_sql"
 
   enable_cloud_sql                   = var.enable_cloud_sql
+  cloud_sql_source                   = var.cloud_sql_source
+  external_connection_name           = var.external_connection_name
+  external_database_url              = var.external_database_url
   enable_sql_audit                   = var.enable_sql_audit
   env_suffix                         = var.env_suffix
   project_id                         = var.project_id
@@ -71,65 +74,65 @@ module "cloud_run" {
     module.cloud_sql,
     module.gcs,
   ]
-  allow_unauthenticated                 = var.allow_unauthenticated
-  allow_unauthenticated_web             = var.allow_unauthenticated_web
-  api_custom_domain                     = var.api_custom_domain
-  api_secret_env_from_sm                = var.api_secret_env_from_sm
-  cloud_run_migrate_job_name            = var.cloud_run_migrate_job_name
-  cloud_run_service_name                = local.cloud_run_service_name_effective
-  cloud_run_ingress                     = var.cloud_run_ingress
-  web_cloud_run_ingress                 = var.web_cloud_run_ingress
-  container_image                       = var.container_image
-  container_port                        = var.container_port
-  enable_cloud_sql                      = var.enable_cloud_sql
-  enable_vpc_access                     = local.network_stack_required
-  enable_cron_cloud_scheduler           = var.enable_cron_cloud_scheduler
-  enable_gcs                            = var.enable_gcs
-  enable_vertex_ai                      = var.enable_vertex_ai
-  enable_web                            = var.enable_web
-  enable_worker                         = var.enable_worker
-  env_suffix                            = var.env_suffix
-  env_vars                              = var.env_vars
-  network_remote_state_bucket           = var.network_remote_state_bucket
-  network_remote_state_prefix           = var.network_remote_state_prefix
-  project_id                            = var.project_id
-  region                                = var.region
-  vertex_ai_location                    = var.vertex_ai_location
-  web_cloud_run_service_name            = local.web_cloud_run_service_name_effective
-  web_container_image                   = var.web_container_image
-  web_container_port                    = var.web_container_port
-  web_custom_domain                     = var.web_custom_domain
-  web_env_vars                          = var.web_env_vars
-  web_secret_env_from_sm                = var.web_secret_env_from_sm
-  network_id                            = local.network_stack_required ? data.terraform_remote_state.network[0].outputs.network_id : ""
-  connector_subnet_name                 = local.network_stack_required ? data.terraform_remote_state.network[0].outputs.connector_subnet_name : ""
-  cloud_sql_connection_name             = module.cloud_sql.cloud_sql_connection_name != null ? module.cloud_sql.cloud_sql_connection_name : ""
-  database_url_secret_name              = module.cloud_sql.database_url_secret_name != null ? module.cloud_sql.database_url_secret_name : ""
-  database_url_secret_version_name      = module.cloud_sql.database_url_secret_version_name != null ? module.cloud_sql.database_url_secret_version_name : ""
-  cloudsql_client_iam_member_id         = module.cloud_sql.cloudsql_client_iam_member_id != null ? module.cloud_sql.cloudsql_client_iam_member_id : ""
-  database_url_secret_id                = module.cloud_sql.database_url_secret_id != null ? module.cloud_sql.database_url_secret_id : ""
-  gcs_uploads_bucket_name               = module.gcs.gcs_bucket_name_effective
-  cloud_run_service_account             = local.cloud_run_service_account
-  runtime_service_account_email         = local.runtime_service_account_email
-  cron_scheduler_service_account_email  = var.enable_cron_cloud_scheduler ? local.cron_api_sa_email : ""
-  pubsub_topic_call_completed           = var.enable_worker ? module.pubsub[0].call_completed_topic_name : ""
-  pubsub_subscription_id                = var.enable_worker ? module.pubsub[0].summarize_subscription_id : ""
-  worker_cloud_run_service_name         = local.worker_cloud_run_service_name_effective
-  worker_container_image                = local.worker_container_image_effective
-  worker_dashboard_url                  = local.worker_dashboard_url_effective
-  worker_secret_env_from_sm               = local.worker_secret_env_from_sm_effective
-  cloud_run_api_min_instances_effective = local.cloud_run_api_min_instances_effective
-  cloud_run_api_max_instances_effective = local.cloud_run_api_max_instances_effective
-  cloud_run_api_cpu_effective           = local.cloud_run_api_cpu_effective
-  cloud_run_api_memory_effective        = local.cloud_run_api_memory_effective
-  cloud_run_api_timeout_effective       = local.cloud_run_api_timeout_effective
-  cloud_run_api_concurrency_effective   = local.cloud_run_api_concurrency_effective
-  cloud_run_web_min_instances_effective = local.cloud_run_web_min_instances_effective
-  cloud_run_web_max_instances_effective = local.cloud_run_web_max_instances_effective
-  cloud_run_web_cpu_effective           = local.cloud_run_web_cpu_effective
-  cloud_run_web_memory_effective        = local.cloud_run_web_memory_effective
-  cloud_run_web_timeout_effective       = local.cloud_run_web_timeout_effective
-  cloud_run_web_concurrency_effective   = local.cloud_run_web_concurrency_effective
+  allow_unauthenticated                    = var.allow_unauthenticated
+  allow_unauthenticated_web                = var.allow_unauthenticated_web
+  api_custom_domain                        = var.api_custom_domain
+  api_secret_env_from_sm                   = var.api_secret_env_from_sm
+  cloud_run_migrate_job_name               = var.cloud_run_migrate_job_name
+  cloud_run_service_name                   = local.cloud_run_service_name_effective
+  cloud_run_ingress                        = var.cloud_run_ingress
+  web_cloud_run_ingress                    = var.web_cloud_run_ingress
+  container_image                          = var.container_image
+  container_port                           = var.container_port
+  enable_cloud_sql                         = var.enable_cloud_sql
+  enable_vpc_access                        = local.network_stack_required
+  enable_cron_cloud_scheduler              = var.enable_cron_cloud_scheduler
+  enable_gcs                               = var.enable_gcs
+  enable_vertex_ai                         = var.enable_vertex_ai
+  enable_web                               = var.enable_web
+  enable_worker                            = var.enable_worker
+  env_suffix                               = var.env_suffix
+  env_vars                                 = var.env_vars
+  network_remote_state_bucket              = var.network_remote_state_bucket
+  network_remote_state_prefix              = var.network_remote_state_prefix
+  project_id                               = var.project_id
+  region                                   = var.region
+  vertex_ai_location                       = var.vertex_ai_location
+  web_cloud_run_service_name               = local.web_cloud_run_service_name_effective
+  web_container_image                      = var.web_container_image
+  web_container_port                       = var.web_container_port
+  web_custom_domain                        = var.web_custom_domain
+  web_env_vars                             = var.web_env_vars
+  web_secret_env_from_sm                   = var.web_secret_env_from_sm
+  network_id                               = local.network_stack_required ? local.cloud_sql_vpc_network_effective : ""
+  connector_subnet_name                    = local.network_stack_required ? local.cloud_sql_vpc_subnet_effective : ""
+  cloud_sql_connection_name                = module.cloud_sql.cloud_sql_connection_name != null ? module.cloud_sql.cloud_sql_connection_name : ""
+  database_url_secret_name                 = module.cloud_sql.database_url_secret_name != null ? module.cloud_sql.database_url_secret_name : ""
+  database_url_secret_version_name         = module.cloud_sql.database_url_secret_version_name != null ? module.cloud_sql.database_url_secret_version_name : ""
+  cloudsql_client_iam_member_id            = module.cloud_sql.cloudsql_client_iam_member_id != null ? module.cloud_sql.cloudsql_client_iam_member_id : ""
+  database_url_secret_id                   = module.cloud_sql.database_url_secret_id != null ? module.cloud_sql.database_url_secret_id : ""
+  gcs_uploads_bucket_name                  = module.gcs.gcs_bucket_name_effective
+  cloud_run_service_account                = local.cloud_run_service_account
+  runtime_service_account_email            = local.runtime_service_account_email
+  cron_scheduler_service_account_email     = var.enable_cron_cloud_scheduler ? local.cron_api_sa_email : ""
+  pubsub_topic_call_completed              = var.enable_worker ? module.pubsub[0].call_completed_topic_name : ""
+  pubsub_subscription_id                   = var.enable_worker ? module.pubsub[0].summarize_subscription_id : ""
+  worker_cloud_run_service_name            = local.worker_cloud_run_service_name_effective
+  worker_container_image                   = local.worker_container_image_effective
+  worker_dashboard_url                     = local.worker_dashboard_url_effective
+  worker_secret_env_from_sm                = local.worker_secret_env_from_sm_effective
+  cloud_run_api_min_instances_effective    = local.cloud_run_api_min_instances_effective
+  cloud_run_api_max_instances_effective    = local.cloud_run_api_max_instances_effective
+  cloud_run_api_cpu_effective              = local.cloud_run_api_cpu_effective
+  cloud_run_api_memory_effective           = local.cloud_run_api_memory_effective
+  cloud_run_api_timeout_effective          = local.cloud_run_api_timeout_effective
+  cloud_run_api_concurrency_effective      = local.cloud_run_api_concurrency_effective
+  cloud_run_web_min_instances_effective    = local.cloud_run_web_min_instances_effective
+  cloud_run_web_max_instances_effective    = local.cloud_run_web_max_instances_effective
+  cloud_run_web_cpu_effective              = local.cloud_run_web_cpu_effective
+  cloud_run_web_memory_effective           = local.cloud_run_web_memory_effective
+  cloud_run_web_timeout_effective          = local.cloud_run_web_timeout_effective
+  cloud_run_web_concurrency_effective      = local.cloud_run_web_concurrency_effective
   cloud_run_worker_min_instances_effective = local.cloud_run_worker_min_instances_effective
   cloud_run_worker_max_instances_effective = local.cloud_run_worker_max_instances_effective
   cloud_run_worker_cpu_effective           = local.cloud_run_worker_cpu_effective
@@ -167,6 +170,7 @@ module "sql_schedule" {
     google_project_service.cloudscheduler,
   ]
   enable_cloud_sql                  = var.enable_cloud_sql
+  sql_managed                       = module.cloud_sql.sql_managed
   enable_sql_night_weekend_schedule = var.enable_sql_night_weekend_schedule
   env_suffix                        = var.env_suffix
   project_id                        = var.project_id
