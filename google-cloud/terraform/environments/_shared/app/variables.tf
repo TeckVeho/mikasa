@@ -322,7 +322,43 @@ variable "vertex_ai_location" {
 variable "enable_cloud_sql" {
   type        = bool
   default     = false
-  description = "Create MySQL instance, database, user, Secret Manager secret, and attach to the API Cloud Run service."
+  description = "Wire Cloud SQL to Cloud Run (managed instance or external hub). When true, creates DATABASE_URL secret and cloudsql.client IAM."
+}
+
+variable "cloud_sql_source" {
+  type        = string
+  default     = "managed"
+  description = "managed: create instance in this project. external: Dev SQL hub (issue #24)."
+
+  validation {
+    condition     = contains(["managed", "external"], var.cloud_sql_source)
+    error_message = "cloud_sql_source must be managed or external."
+  }
+}
+
+variable "external_connection_name" {
+  type        = string
+  default     = ""
+  description = "Hub connection name when cloud_sql_source = external."
+}
+
+variable "external_database_url" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Full DATABASE_URL for external SQL. Pass via TF_VAR_external_database_url."
+}
+
+variable "cloud_sql_vpc_network" {
+  type        = string
+  default     = ""
+  description = "Override Direct VPC network for Cloud Run ↔ Cloud SQL. Required for Dev SQL hub."
+}
+
+variable "cloud_sql_vpc_subnet" {
+  type        = string
+  default     = ""
+  description = "Override Direct VPC subnet for Cloud Run ↔ Cloud SQL. Pair with cloud_sql_vpc_network."
 }
 
 variable "enable_memorystore" {

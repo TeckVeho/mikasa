@@ -3,7 +3,7 @@
 
 locals {
   name_prefix                 = replace(var.project_id, "_", "-")
-  sql_schedule_enabled        = var.enable_cloud_sql && var.enable_sql_night_weekend_schedule
+  sql_schedule_enabled        = var.sql_managed && var.enable_cloud_sql && var.enable_sql_night_weekend_schedule
   sql_schedule_fn_name        = substr("${local.name_prefix}-sql-sched-${var.env_suffix}", 0, 63)
   sql_instance_name_effective = var.scheduled_sql_instance_name != "" ? var.scheduled_sql_instance_name : var.sql_instance_name
   sql_activation_zip_relpath  = "./.build/sql-activation-${var.env_suffix}.zip"

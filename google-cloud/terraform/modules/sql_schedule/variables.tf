@@ -4,7 +4,13 @@
 variable "enable_cloud_sql" {
   type        = bool
   default     = false
-  description = "Create MySQL instance, database, user, Secret Manager secret, and attach to the API Cloud Run service."
+  description = "Wire Cloud SQL to Cloud Run (managed instance or external hub)."
+}
+
+variable "sql_managed" {
+  type        = bool
+  default     = true
+  description = "True when this stack manages the Cloud SQL instance (not external hub)."
 }
 
 variable "enable_sql_night_weekend_schedule" {

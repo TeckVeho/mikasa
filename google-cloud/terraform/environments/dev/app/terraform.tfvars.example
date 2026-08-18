@@ -79,3 +79,10 @@ enable_sql_night_weekend_schedule = true
 sql_schedule_timezone             = "Asia/Tokyo"
 sql_schedule_start_cron           = "0 8 * * 1-5"
 sql_schedule_stop_cron            = "0 20 * * 1-5"
+
+# --- Dev SQL hub (issue #24) — uncomment after manual cutover + TF_VAR_external_database_url ---
+# cloud_sql_source = "external"
+# external_connection_name = "gcp-dev-sql-hub:asia-northeast1:dev-sql-hub"
+# cloud_sql_vpc_network = "projects/gcp-dev-sql-hub/global/networks/dev-sql-hub-vpc"
+# cloud_sql_vpc_subnet  = "projects/gcp-dev-sql-hub/regions/asia-northeast1/subnetworks/dev-sql-hub-subnet"
+# enable_sql_night_weekend_schedule = false

@@ -4,7 +4,31 @@
 variable "enable_cloud_sql" {
   type        = bool
   default     = false
-  description = "Create MySQL instance, database, user, Secret Manager secret, and attach to the API Cloud Run service."
+  description = "Wire Cloud SQL to Cloud Run (managed instance or external hub). When true, creates DATABASE_URL secret and cloudsql.client IAM."
+}
+
+variable "cloud_sql_source" {
+  type        = string
+  default     = "managed"
+  description = "managed: create instance in this project. external: Dev SQL hub (issue #24)."
+
+  validation {
+    condition     = contains(["managed", "external"], var.cloud_sql_source)
+    error_message = "cloud_sql_source must be managed or external."
+  }
+}
+
+variable "external_connection_name" {
+  type        = string
+  default     = ""
+  description = "Hub connection name when cloud_sql_source = external."
+}
+
+variable "external_database_url" {
+  type        = string
+  default     = ""
+  sensitive   = true
+  description = "Full DATABASE_URL for external SQL. Pass via TF_VAR_external_database_url."
 }
 
 variable "enable_sql_audit" {

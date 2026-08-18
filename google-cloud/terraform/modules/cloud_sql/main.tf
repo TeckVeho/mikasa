@@ -1,24 +1,42 @@
 # Optional Cloud SQL (MySQL) + Secret Manager DATABASE_URL + Cloud Run unix socket.
-# Enable with enable_cloud_sql = true after enabling billing and APIs.
+# managed: create instance in this project. external: Dev SQL hub (issue #24).
+
+locals {
+  sql_managed  = var.enable_cloud_sql && var.cloud_sql_source == "managed"
+  sql_external = var.enable_cloud_sql && var.cloud_sql_source == "external"
+  sql_wired    = var.enable_cloud_sql
+}
+
+check "external_cloud_sql_requires_connection" {
+  assert {
+    condition     = !local.sql_external || trimspace(var.external_connection_name) != ""
+    error_message = "external_connection_name is required when cloud_sql_source = external."
+  }
+}
+
+check "external_cloud_sql_requires_database_url" {
+  assert {
+    condition     = !local.sql_external || trimspace(var.external_database_url) != ""
+    error_message = "external_database_url is required when cloud_sql_source = external (use TF_VAR_external_database_url)."
+  }
+}
 
 resource "google_project_service" "sqladmin" {
-  count   = var.enable_cloud_sql ? 1 : 0
-  service = "sqladmin.googleapis.com"
-  # Single-project, many-env: destroying one env must not disable the API for others.
+  count              = local.sql_wired ? 1 : 0
+  service            = "sqladmin.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "google_project_service" "secretmanager" {
-  count              = var.enable_cloud_sql ? 1 : 0
+  count              = local.sql_wired ? 1 : 0
   service            = "secretmanager.googleapis.com"
   disable_on_destroy = false
 }
 
 resource "random_password" "sql_app" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_managed ? 1 : 0
 
-  length = 24
-  # Cloud SQL password_validation_policy (COMPLEXITY_DEFAULT) requires lower, upper, numeric, and special.
+  length      = 24
   lower       = true
   upper       = true
   numeric     = true
@@ -29,9 +47,8 @@ resource "random_password" "sql_app" {
   min_special = 1
 }
 
-# Root password is required when password_validation_policy is enabled (not embedded in app DATABASE_URL).
 resource "random_password" "sql_root" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_managed ? 1 : 0
 
   length      = 24
   lower       = true
@@ -74,11 +91,19 @@ locals {
     0,
     32,
   )
-  database_url_secret_id = substr("${local.name_prefix}-database-url-${var.env_suffix}", 0, 63)
+  database_url_secret_id    = substr("${local.name_prefix}-database-url-${var.env_suffix}", 0, 63)
+  connection_name_effective = local.sql_managed ? google_sql_database_instance.main[0].connection_name : var.external_connection_name
+  database_url_effective = local.sql_managed ? format(
+    "mysql://%s:%s@localhost/%s?socket=/cloudsql/%s",
+    local.sql_user_name_effective,
+    urlencode(random_password.sql_app[0].result),
+    local.sql_logical_name_effective,
+    google_sql_database_instance.main[0].connection_name,
+  ) : var.external_database_url
 }
 
 resource "google_sql_database_instance" "main" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_managed ? 1 : 0
 
   name             = local.sql_instance_name_effective
   database_version = "MYSQL_8_0"
@@ -86,17 +111,15 @@ resource "google_sql_database_instance" "main" {
   root_password    = random_password.sql_root[0].result
 
   settings {
-    tier              = var.sql_tier_effective
-    disk_size         = var.sql_disk_size_gb_effective
-    disk_type         = var.sql_disk_type_effective
-    activation_policy = "ALWAYS"
-    # API-level protection (Console / gcloud). Root `deletion_protection` below is Terraform-only.
+    tier                        = var.sql_tier_effective
+    disk_size                   = var.sql_disk_size_gb_effective
+    disk_type                   = var.sql_disk_type_effective
+    activation_policy           = "ALWAYS"
     deletion_protection_enabled = true
     ip_configuration {
       ipv4_enabled    = false
       private_network = var.network_self_link
       ssl_mode        = "ENCRYPTED_ONLY"
-      # Org policy sql.restrictPublicIp: no public IPv4; Cloud Run uses unix socket + Direct VPC for private path.
     }
 
     password_validation_policy {
@@ -123,7 +146,6 @@ resource "google_sql_database_instance" "main" {
 
   deletion_protection = true
 
-  # Cloud Scheduler may set NEVER overnight; do not revert on the next terraform apply.
   lifecycle {
     ignore_changes = [settings[0].activation_policy]
   }
@@ -134,14 +156,14 @@ resource "google_sql_database_instance" "main" {
 }
 
 resource "google_sql_database" "app" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_managed ? 1 : 0
 
   name     = local.sql_logical_name_effective
   instance = google_sql_database_instance.main[0].name
 }
 
 resource "google_sql_user" "app" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_managed ? 1 : 0
 
   name     = local.sql_user_name_effective
   instance = google_sql_database_instance.main[0].name
@@ -149,7 +171,7 @@ resource "google_sql_user" "app" {
 }
 
 resource "google_secret_manager_secret" "database_url" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_wired ? 1 : 0
 
   secret_id = local.database_url_secret_id
 
@@ -161,21 +183,14 @@ resource "google_secret_manager_secret" "database_url" {
 }
 
 resource "google_secret_manager_secret_version" "database_url" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_wired ? 1 : 0
 
-  secret = google_secret_manager_secret.database_url[0].id
-  secret_data = format(
-    # socket= for Prisma migrate CLI + Cloud SQL; API maps to socketPath in db.service (mariadb adapter).
-    "mysql://%s:%s@localhost/%s?socket=/cloudsql/%s",
-    local.sql_user_name_effective,
-    urlencode(random_password.sql_app[0].result),
-    local.sql_logical_name_effective,
-    google_sql_database_instance.main[0].connection_name,
-  )
+  secret      = google_secret_manager_secret.database_url[0].id
+  secret_data = local.database_url_effective
 }
 
 resource "google_secret_manager_secret_iam_member" "cloudrun_database_url" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_wired ? 1 : 0
 
   project   = var.project_id
   secret_id = google_secret_manager_secret.database_url[0].secret_id
@@ -184,7 +199,7 @@ resource "google_secret_manager_secret_iam_member" "cloudrun_database_url" {
 }
 
 resource "google_project_iam_member" "cloudrun_sql_client" {
-  count = var.enable_cloud_sql ? 1 : 0
+  count = local.sql_wired ? 1 : 0
 
   project = var.project_id
   role    = "roles/cloudsql.client"
