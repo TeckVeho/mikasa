@@ -22,6 +22,9 @@ region     = "asia-northeast1"
 
 resource_tier = "tier3"
 
+# One-time per app stack state:
+# terragrunt import 'module.app_compose.module.iam.google_project.wiki_labels' mikasa-load-management
+
 cloud_run_api_timeout = "3600s"
 cloud_run_api_memory  = "512Mi"
 

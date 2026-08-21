@@ -26,8 +26,9 @@ locals {
 }
 
 resource "google_project" "wiki_labels" {
-  project_id = var.project_id
-  name       = var.project_display_name != "" ? var.project_display_name : var.project_id
+  project_id      = var.project_id
+  name            = var.project_display_name != "" ? var.project_display_name : var.project_id
+  deletion_policy = "ABANDON"
 
   labels = {
     tier = local.tier_label
