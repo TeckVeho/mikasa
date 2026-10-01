@@ -53,6 +53,7 @@ web_env_vars = {
   NEXT_PUBLIC_USE_DEV_AUTH = "false"
 }
 
+# Issue #28: prefer app bundle — app_secrets_bundle_secret_id = "mikasa-app-secrets-prod"
 api_secret_env_from_sm = [
   { env_name = "TWILIO_AUTH_TOKEN", secret_id = "logivoice-twilio-auth-token-prod", version = "latest" },
   { env_name = "OPENAI_API_KEY",    secret_id = "logivoice-openai-prod",            version = "latest" },

@@ -32,8 +32,32 @@ variable "api_secret_env_from_sm" {
   default     = []
   description = <<-EOT
     Inject env vars from Secret Manager (create secrets in GCP first). Runtime SA gets secretAccessor on each secret_id.
-    Do not use env names that already exist in env_vars.
+    Prefer app_secrets_bundle_secret_id for app keys (issue #28). Do not use env names that already exist in env_vars.
   EOT
+}
+
+variable "app_secrets_bundle_secret_id" {
+  type        = string
+  default     = ""
+  description = "Secret Manager secret id for app .env bundle (mounted file). Empty disables mount."
+}
+
+variable "app_secrets_bundle_version" {
+  type        = string
+  default     = "latest"
+  description = "Secret version for app bundle mount."
+}
+
+variable "app_secrets_mount_path" {
+  type        = string
+  default     = "/secrets"
+  description = "Directory where app.env bundle is mounted on API Cloud Run."
+}
+
+variable "app_secrets_file_name" {
+  type        = string
+  default     = "app.env"
+  description = "File name within the bundle secret (items.path)."
 }
 
 variable "cloud_run_migrate_job_name" {

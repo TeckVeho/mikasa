@@ -226,6 +226,30 @@ variable "web_secret_env_from_sm" {
   description = "Same as api_secret_env_from_sm for the web Cloud Run service when enable_web = true."
 }
 
+variable "app_secrets_bundle_secret_id" {
+  type        = string
+  default     = ""
+  description = "Secret Manager id for app keys .env bundle (API volume mount + APP_SECRETS_FILE)."
+}
+
+variable "app_secrets_bundle_version" {
+  type        = string
+  default     = "latest"
+  description = "Bundle secret version for Cloud Run mount."
+}
+
+variable "app_secrets_mount_path" {
+  type        = string
+  default     = "/secrets"
+  description = "Mount path for app bundle on API Cloud Run."
+}
+
+variable "app_secrets_file_name" {
+  type        = string
+  default     = "app.env"
+  description = "Filename inside bundle secret."
+}
+
 # --- Project IAM (custom roles always on; bind users via env_iam_principals) ---
 
 variable "env_iam_principals" {

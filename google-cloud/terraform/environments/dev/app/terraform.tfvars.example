@@ -63,11 +63,16 @@ web_env_vars = {
   NEXT_PUBLIC_DEV_TENANT_ID = "01HZXEXAMPLE00000000000000"
 }
 
-# Create secrets in GCP Secret Manager before apply (values not in git).
-api_secret_env_from_sm = [
-  { env_name = "FIREBASE_PRIVATE_KEY", secret_id = "mikasa-firebase-private-key-dev", version = "latest" },
-  { env_name = "FIREBASE_CLIENT_EMAIL", secret_id = "mikasa-firebase-client-email-dev", version = "latest" },
-]
+# App secrets — bundle .env file (issue #28). Create with google-cloud/scripts/create-mikasa-app-secrets-bundle.sh
+app_secrets_bundle_secret_id = "mikasa-app-secrets-dev"
+# DATABASE_URL remains a separate secret from the cloud_sql module (not in the bundle).
+api_secret_env_from_sm = []
+
+# Legacy (per-key) — remove after bundle cutover + smoke on dev:
+# api_secret_env_from_sm = [
+#   { env_name = "FIREBASE_PRIVATE_KEY", secret_id = "mikasa-firebase-private-key-dev", version = "latest" },
+#   { env_name = "FIREBASE_CLIENT_EMAIL", secret_id = "mikasa-firebase-client-email-dev", version = "latest" },
+# ]
 
 # --- Custom domains (optional; leave empty to use default *.run.app URLs) ---
 api_custom_domain = ""

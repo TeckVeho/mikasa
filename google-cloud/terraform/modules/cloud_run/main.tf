@@ -99,6 +99,20 @@ resource "google_cloud_run_v2_service" "api" {
       }
     }
 
+    dynamic "volumes" {
+      for_each = local.app_secrets_bundle_enabled ? [1] : []
+      content {
+        name = "app-secrets"
+        secret {
+          secret = var.app_secrets_bundle_secret_id
+          items {
+            version = var.app_secrets_bundle_version
+            path    = var.app_secrets_file_name
+          }
+        }
+      }
+    }
+
     containers {
       image = var.container_image
 
@@ -119,6 +133,14 @@ resource "google_cloud_run_v2_service" "api" {
         content {
           name       = "cloudsql"
           mount_path = "/cloudsql"
+        }
+      }
+
+      dynamic "volume_mounts" {
+        for_each = local.app_secrets_bundle_enabled ? [1] : []
+        content {
+          name       = "app-secrets"
+          mount_path = var.app_secrets_mount_path
         }
       }
 
@@ -153,6 +175,14 @@ resource "google_cloud_run_v2_service" "api" {
               version = "latest"
             }
           }
+        }
+      }
+
+      dynamic "env" {
+        for_each = local.app_secrets_bundle_enabled ? [1] : []
+        content {
+          name  = "APP_SECRETS_FILE"
+          value = local.app_secrets_full_path
         }
       }
     }
