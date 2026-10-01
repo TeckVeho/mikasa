@@ -43,3 +43,9 @@ variable "cloud_run_service_account" {
   type        = string
   description = "Cloud Run runtime SA email."
 }
+
+variable "app_secrets_bundle_secret_id" {
+  type        = string
+  default     = ""
+  description = "App .env bundle secret id for Cloud Run volume mount (issue #28)."
+}

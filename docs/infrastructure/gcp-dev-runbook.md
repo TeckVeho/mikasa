@@ -68,11 +68,11 @@ terragrunt init && terragrunt apply
 
 Create Secret Manager secrets (before dev/app apply):
 
+**Preferred (issue [#28](https://github.com/TeckVeho/mikasa/issues/28)):** single app bundle `mikasa-app-secrets-dev` (`.env` file) + Terraform `app_secrets_bundle_secret_id`. See `google-cloud/scripts/create-mikasa-app-secrets-bundle.sh` and `docs/issues/mikasa/28/dev.md`.
+
 ```bash
-# Firebase Admin (API)
-gcloud secrets create mikasa-firebase-private-key-dev --project=mikasa-load-management
-gcloud secrets create mikasa-firebase-client-email-dev --project=mikasa-load-management
-# Add secret versions with actual values (not in git)
+# Legacy per-key Firebase secrets (replace with bundle after #28 cutover)
+# gcloud secrets create mikasa-firebase-private-key-dev ...
 ```
 
 Build and push images (first time):
