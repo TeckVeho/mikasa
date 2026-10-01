@@ -1,26 +1,36 @@
 # Test — Issue #28
 
-## Automated (CI / local)
+## Automated
 
-| Check | Command | Result |
-|-------|---------|--------|
-| App secrets loader | `cd apps/api && npx vitest run src/lib/load-app-secrets-file.test.ts` | **pass** (local) |
+| Check | Result |
+|-------|--------|
+| `load-app-secrets-file.test.ts` | pass (CI on PR #29) |
 
-## GCP cutover smoke (per env)
+## GCP — 2026-10-01
 
-| Env | Bundle secret | terragrunt apply | GET /health | Notes |
-|-----|---------------|------------------|-------------|-------|
-| dev | `mikasa-app-secrets-dev` | pending ops | pending | after PR merge + image deploy |
-| stg | `mikasa-app-secrets-stg` | pending | pending | after dev gate ≥24h |
-| prod | `mikasa-app-secrets-prod` | pending | pending | after stg pass |
+| Step | Result |
+|------|--------|
+| Inventory | 2 secrets; DB 1 ENABLED version |
+| `mikasa-app-secrets-dev` created | yes |
+| PR #29 merged | yes (`1e29189`) |
+| `GET /health` (pre-bundle mount) | **200** `https://mikasa-api.vw-dev.com` |
 
-```bash
-API_URL="https://..." ./google-cloud/scripts/issue-28-smoke.sh
-```
+## Pending (dev cutover)
 
-## Post-close verification
+| Step | Status |
+|------|--------|
+| Live `terraform.tfvars` + `terragrunt apply` (bundle mount) | pending |
+| CD deploy API with loader on develop | pending (after merge) |
+| `issue-28-smoke.sh` post-apply | pending |
 
-- [ ] `gcloud secrets list` → ≤ 6 secrets on `mikasa-load-management`
-- [ ] Each secret: 1 ENABLED version, user-managed single region
-- [ ] Legacy Firebase per-key secrets removed (cleanup script)
-- [ ] Billing note vs prior month (manual Console)
+## Stg / prod
+
+| Env | Status |
+|-----|--------|
+| stg | pending (≥24h after dev) |
+| prod | pending |
+
+## Close #28
+
+- [ ] Bundle mounted on dev + smoke pass
+- [ ] stg/prod + ≤6 secrets + billing note

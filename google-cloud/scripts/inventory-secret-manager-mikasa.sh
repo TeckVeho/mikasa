@@ -14,4 +14,4 @@ while IFS= read -r secret; do
   [[ -z "${secret}" ]] && continue
   count="$(gcloud secrets versions list "${secret}" --project="${PROJECT_ID}" --filter="state=ENABLED" --format="value(name)" | wc -l | tr -d ' ')"
   echo "${secret}: ENABLED versions=${count}"
-done < <(gcloud secrets list --project="${PROJECT_ID}" --format="value(name)")
+done < <(gcloud secrets list --project="${PROJECT_ID}" --format="value(name)" | tr -d '\r')
