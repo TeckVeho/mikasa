@@ -4,7 +4,7 @@
   "description": "Cloud Functions Gen2: patch Cloud SQL activationPolicy (JST schedule)",
   "main": "index.js",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.23.4"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.0",

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build context: repository root (LogiVoice/), e.g.
 #   docker build -f apps/api/Dockerfile -t logivoice-api:dev .
-FROM node:22-bookworm-slim AS deps
+FROM node:22.23.4-bookworm-slim AS deps
 WORKDIR /app
 ENV HUSKY=0
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -12,7 +12,7 @@ COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 RUN npm ci
 
-FROM node:22-bookworm-slim AS builder
+FROM node:22.23.4-bookworm-slim AS builder
 WORKDIR /app
 ENV HUSKY=0
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
@@ -28,7 +28,7 @@ RUN npm run build -w @logivoice/shared
 RUN npm run build -w @logivoice/api
 RUN npm prune --omit=dev
 
-FROM node:22-bookworm-slim AS runner
+FROM node:22.23.4-bookworm-slim AS runner
 WORKDIR /app
 RUN apt-get update && apt-get install -y openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*

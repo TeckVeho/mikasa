@@ -1,17 +1,17 @@
 # Cloud Build: CI（テスト・型チェック）。イメージビルドは Artifact Registry 用に別途調整してください。
 steps:
   - id: install
-    name: node:22-bookworm
+    name: node:22.23.4-bookworm
     entrypoint: npm
     args: ["ci"]
 
   - id: test
-    name: node:22-bookworm
+    name: node:22.23.4-bookworm
     entrypoint: npm
     args: ["test"]
 
   - id: typecheck
-    name: node:22-bookworm
+    name: node:22.23.4-bookworm
     entrypoint: npm
     args: ["run", "typecheck"]
 
