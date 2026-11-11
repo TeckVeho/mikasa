@@ -164,6 +164,10 @@ jobs:
               ;;
           esac
 
+          if [ ! -f apps/worker/Dockerfile ]; then
+            run_worker=false
+          fi
+
           if [ "$run_api" != "true" ] && [ "$run_web" != "true" ] && [ "$run_worker" != "true" ]; then
             skip=true
           fi
@@ -275,7 +279,7 @@ jobs:
 
   submit-worker:
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.run_worker == 'true'
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.run_worker == 'true' && hashFiles('apps/worker/Dockerfile') != ''
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
 
