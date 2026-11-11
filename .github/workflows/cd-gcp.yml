@@ -279,7 +279,7 @@ jobs:
 
   submit-worker:
     needs: plan
-    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.run_worker == 'true' && hashFiles('apps/worker/Dockerfile') != ''
+    if: needs.plan.outputs.skip != 'true' && needs.plan.outputs.run_worker == 'true'
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name }}
 
