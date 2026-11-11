@@ -4,6 +4,17 @@ This guide explains how to create **`GCP_WORKLOAD_IDENTITY_PROVIDER`** and relat
 
 **Quick setup (single project `mikasa-load-management`):** run [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) from a shell with `gcloud` authenticated as project admin. Use `--dry-run` to preview commands.
 
+**WIF least-privilege (issue [#31](https://github.com/TeckVeho/mikasa/issues/31)):** the script in `google-cloud/scripts/` is the **source of truth** (CONFIG block at top). It:
+
+- Locks WIF to `TeckVeho/mikasa` and branches `develop`, `staging`, `production` (`assertion.ref`).
+- Keeps the existing federated SA (`github-actions-mikasa@…`) — **do not** rename without updating every GitHub Environment secret `GCP_SERVICE_ACCOUNT`.
+- Creates **`mikasa-load-mana-cd-build@`** and sets `serviceAccount:` on all `google-cloud/cloudbuild/*.yaml` CD configs.
+- Revokes `run.admin` / `storage.admin` / project `serviceAccountUser` on the federated SA after apply.
+
+**Operator order:** merge PR → **Owner runs script** (`--dry-run` then apply) → re-run CD → verify (issue #31) → playbook cleanup of legacy `…-compute@` / `@cloudbuild` roles.
+
+Manual IAM steps below are **legacy**; use them only if the script cannot be run.
+
 ## What you are creating
 
 | Item | Purpose |

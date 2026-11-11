@@ -41,7 +41,11 @@ Create one trigger per branch (or use regex). Set substitutions per environment.
 
 **IAM — Cloud Build execution SA**
 
-The execution SA (`…@cloudbuild.gserviceaccount.com` or default compute SA) needs:
+CD builds use the dedicated SA **`mikasa-load-mana-cd-build@mikasa-load-management.iam.gserviceaccount.com`** (`serviceAccount:` in each YAML). Bootstrap with [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) after merging the WIF PR — **before** expecting green CD.
+
+**Dev API (`cloudbuild.dev*.yaml`):** deploy includes `--no-invoker-iam-check` so the browser can call `mikasa-api.vw-dev.com` when org policy blocks `allUsers` `run.invoker` (same idea as GBS RUNBOOK §2; see mikasa #24). App auth still applies (`ALLOW_DEV_AUTH` / Firebase).
+
+Legacy default execution SA (`…@cloudbuild.gserviceaccount.com` or `…-compute@`) needs:
 
 - **`roles/storage.objectAdmin`** — read staged source (`gs://…_cloudbuild`).
 

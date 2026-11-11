@@ -43,6 +43,8 @@ substitutions:
   _DEPLOY_PROJECT_ID: ''
   _WORKER_SERVICE_NAME: dx-logivoice-worker-prod
 
+serviceAccount: projects/mikasa-load-management/serviceAccounts/mikasa-load-mana-cd-build@mikasa-load-management.iam.gserviceaccount.com
+
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_MEDIUM

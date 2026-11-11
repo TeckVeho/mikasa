@@ -112,6 +112,7 @@ steps:
       - '--memory'
       - '${_API_MEMORY}'
       - '--no-allow-unauthenticated'
+      - '--no-invoker-iam-check'
     waitFor: ['migrate-execute']
 
   - id: deploy-web
@@ -145,6 +146,8 @@ substitutions:
   _NEXT_PUBLIC_FIREBASE_API_KEY: ''
   _NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ''
   _NEXT_PUBLIC_FIREBASE_PROJECT_ID: ''
+
+serviceAccount: projects/mikasa-load-management/serviceAccounts/mikasa-load-mana-cd-build@mikasa-load-management.iam.gserviceaccount.com
 
 options:
   logging: CLOUD_LOGGING_ONLY
