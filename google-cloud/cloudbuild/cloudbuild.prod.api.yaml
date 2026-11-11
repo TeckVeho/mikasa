@@ -75,6 +75,8 @@ substitutions:
   _API_TIMEOUT: '3600'
   _API_MEMORY: '512Mi'
 
+serviceAccount: projects/mikasa-load-management/serviceAccounts/mikasa-load-mana-cd-build@mikasa-load-management.iam.gserviceaccount.com
+
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: E2_MEDIUM

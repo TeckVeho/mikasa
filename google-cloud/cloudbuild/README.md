@@ -41,7 +41,9 @@ Create one trigger per branch (or use regex). Set substitutions per environment.
 
 **IAM — Cloud Build execution SA**
 
-The execution SA (`…@cloudbuild.gserviceaccount.com` or default compute SA) needs:
+CD builds use the dedicated SA **`mikasa-load-mana-cd-build@mikasa-load-management.iam.gserviceaccount.com`** (`serviceAccount:` in each YAML). Bootstrap with [`../scripts/setup-github-actions-wif.sh`](../scripts/setup-github-actions-wif.sh) after merging the WIF PR — **before** expecting green CD.
+
+Legacy default execution SA (`…@cloudbuild.gserviceaccount.com` or `…-compute@`) needs:
 
 - **`roles/storage.objectAdmin`** — read staged source (`gs://…_cloudbuild`).
 

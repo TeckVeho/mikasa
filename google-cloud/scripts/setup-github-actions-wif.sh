@@ -11,23 +11,32 @@
 # Usage:
 #   ./google-cloud/scripts/setup-github-actions-wif.sh
 #   ./google-cloud/scripts/setup-github-actions-wif.sh --dry-run
-#   GITHUB_REPO=TeckVeho/mikasa ./google-cloud/scripts/setup-github-actions-wif.sh
 #
-# Override defaults via environment:
-#   PROJECT_ID, REGION, GITHUB_REPO, POOL_ID, PROVIDER_ID, SA_ID, ARTIFACT_REPO_ID
+# Edit the CONFIG block below per GCP project (no exports in your shell).
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# --- Defaults (mikasa-load-management single-project) ---
-PROJECT_ID="${PROJECT_ID:-mikasa-load-management}"
-REGION="${REGION:-asia-northeast1}"
-GITHUB_REPO="${GITHUB_REPO:-TeckVeho/mikasa}"
-POOL_ID="${POOL_ID:-github-pool}"
-PROVIDER_ID="${PROVIDER_ID:-github-provider}"
-SA_ID="${SA_ID:-github-actions-mikasa}"
-ARTIFACT_REPO_ID="${ARTIFACT_REPO_ID:-${PROJECT_ID}-docker}"
+# =============================================================================
+# CONFIG — edit for each project / GitHub repo, then run this script
+# =============================================================================
+export PROJECT_ID="mikasa-load-management"
+export REGION="asia-northeast1"
+export GITHUB_REPO="TeckVeho/mikasa"
+export POOL_ID="github-pool"
+export PROVIDER_ID="github-provider"
+# Live federated SA (GitHub secret GCP_SERVICE_ACCOUNT) — do not rename without updating Environments.
+export SA_ID="github-actions-mikasa"
+export ARTIFACT_REPO_ID="mikasa-load-management-docker"
+export CD_BUILD_SA_ID="mikasa-load-mana-cd-build"
+export LISTER_ROLE_ID="mikasaloadmanagementCloudBuildSubmitLister"
+export RUN_SA_DEV_ID="mikasa-load-management-run-dev"
+export RUN_SA_STG_ID="mikasa-load-management-run-stg"
+# Terraform account_id max 30 chars (prod suffix truncates).
+export RUN_SA_PROD_ID="mikasa-load-management-run-pro"
+export WIF_DEPLOY_REFS="develop,staging,production"
+# =============================================================================
 
 DRY_RUN=false
 
@@ -36,9 +45,9 @@ usage() {
   echo
   echo "Options:"
   echo "  --dry-run          Print commands without executing"
-  echo "  --project-id ID    GCP project (default: mikasa-load-management)"
-  echo "  --github-repo O/R  GitHub repo for WIF (default: TeckVeho/mikasa)"
-  echo "  --sa-id ID         Service account id (default: github-actions-mikasa)"
+  echo "  --project-id ID    Override CONFIG PROJECT_ID"
+  echo "  --github-repo O/R  Override CONFIG GITHUB_REPO"
+  echo "  --sa-id ID         Override CONFIG SA_ID"
   echo "  -h, --help         Show this help"
 }
 
@@ -70,6 +79,23 @@ ensure_api_enabled() {
   fi
 }
 
+remove_project_iam_binding() {
+  local member="$1"
+  local role="$2"
+  if [[ "$DRY_RUN" == true ]]; then
+    run gcloud projects remove-iam-policy-binding "$PROJECT_ID" \
+      --member="$member" --role="$role" --condition=None 2>/dev/null || true
+    return
+  fi
+  if gcloud projects get-iam-policy "$PROJECT_ID" --flatten="bindings[].members" \
+    --filter="bindings.role:$role AND bindings.members:$member" --format='value(bindings.role)' \
+    | grep -q "$role"; then
+    log "Removing $role from $member on $PROJECT_ID"
+    gcloud projects remove-iam-policy-binding "$PROJECT_ID" \
+      --member="$member" --role="$role" --condition=None >/dev/null 2>&1 || true
+  fi
+}
+
 ensure_project_iam_binding() {
   local member="$1"
   local role="$2"
@@ -86,6 +112,114 @@ ensure_project_iam_binding() {
     log "Granting $role to $member on $PROJECT_ID"
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \
       --member="$member" --role="$role" --condition=None >/dev/null
+  fi
+}
+
+ensure_sa_iam_binding() {
+  local sa_email="$1"
+  local member="$2"
+  local role="$3"
+  if [[ "$DRY_RUN" == true ]]; then
+    run gcloud iam service-accounts add-iam-policy-binding "$sa_email" \
+      --project="$PROJECT_ID" --member="$member" --role="$role"
+    return
+  fi
+  if gcloud iam service-accounts get-iam-policy "$sa_email" --project="$PROJECT_ID" \
+    --flatten="bindings[].members" \
+    --filter="bindings.role:$role AND bindings.members:$member" \
+    --format='value(bindings.role)' 2>/dev/null | grep -q "$role"; then
+    log "SA IAM already has $role for $member on $sa_email"
+  else
+    log "Granting $role to $member on SA $sa_email"
+    gcloud iam service-accounts add-iam-policy-binding "$sa_email" \
+      --project="$PROJECT_ID" --member="$member" --role="$role" >/dev/null
+  fi
+}
+
+LISTER_PERMISSIONS="storage.buckets.list,storage.buckets.get"
+
+ensure_cloud_build_submit_lister_role() {
+  local member="$1"
+  local role="projects/${PROJECT_ID}/roles/${LISTER_ROLE_ID}"
+  if [[ "$DRY_RUN" == true ]]; then
+    run gcloud iam roles create "$LISTER_ROLE_ID" \
+      --project="$PROJECT_ID" --title="Cloud Build submit — list buckets" \
+      --permissions="$LISTER_PERMISSIONS" --stage=GA
+    run gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+      --member="$member" --role="$role" --condition=None
+    return
+  fi
+  if ! gcloud iam roles describe "$LISTER_ROLE_ID" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    log "Creating custom role $LISTER_ROLE_ID ($LISTER_PERMISSIONS)"
+    gcloud iam roles create "$LISTER_ROLE_ID" \
+      --project="$PROJECT_ID" --title="Cloud Build submit — list buckets" \
+      --permissions="$LISTER_PERMISSIONS" --stage=GA
+  else
+    log "Updating custom role $LISTER_ROLE_ID permissions ($LISTER_PERMISSIONS)"
+    gcloud iam roles update "$LISTER_ROLE_ID" \
+      --project="$PROJECT_ID" --permissions="$LISTER_PERMISSIONS" --stage=GA
+  fi
+  ensure_project_iam_binding "$member" "$role"
+}
+
+bind_cd_build_runtime_actas() {
+  local cb_member="$1"
+  shift
+  local run_email
+  for run_email in "$@"; do
+    [[ -z "$run_email" ]] && continue
+    if [[ "$DRY_RUN" == true ]]; then
+      ensure_sa_iam_binding "$run_email" "$cb_member" "roles/iam.serviceAccountUser"
+      continue
+    fi
+    if gcloud iam service-accounts describe "$run_email" --project="$PROJECT_ID" >/dev/null 2>&1; then
+      ensure_sa_iam_binding "$run_email" "$cb_member" "roles/iam.serviceAccountUser"
+    else
+      warn "Skipping actAs (runtime SA not found yet): $run_email"
+    fi
+  done
+}
+
+ensure_cloud_build_submit_storage() {
+  local member="$1"
+  ensure_cloud_build_submit_lister_role "$member"
+  ensure_staging_bucket_object_admin "$member"
+}
+
+ensure_staging_bucket_object_admin() {
+  local member="$1"
+  local bucket="gs://${PROJECT_ID}_cloudbuild"
+  if [[ "$DRY_RUN" == true ]]; then
+    run gcloud storage buckets add-iam-policy-binding "$bucket" \
+      --member="$member" --role="roles/storage.objectAdmin"
+    return
+  fi
+  log "Granting roles/storage.objectAdmin on $bucket to $member"
+  gcloud storage buckets add-iam-policy-binding "$bucket" \
+    --member="$member" --role="roles/storage.objectAdmin" >/dev/null 2>&1 \
+    || gcloud storage buckets add-iam-policy-binding "$bucket" \
+      --member="$member" --role="roles/storage.objectAdmin"
+}
+
+wif_attribute_condition() {
+  local refs_clause=""
+  local part
+  local first=true
+  IFS=',' read -ra REF_PARTS <<< "$WIF_DEPLOY_REFS"
+  for part in "${REF_PARTS[@]}"; do
+    part="$(echo "$part" | xargs)"
+    [[ -z "$part" ]] && continue
+    if [[ "$first" == true ]]; then
+      refs_clause="assertion.ref == 'refs/heads/${part}'"
+      first=false
+    else
+      refs_clause="${refs_clause} || assertion.ref == 'refs/heads/${part}'"
+    fi
+  done
+  if [[ -z "$refs_clause" ]]; then
+    printf "assertion.repository == '%s'" "$GITHUB_REPO"
+  else
+    printf "assertion.repository == '%s' && (%s)" "$GITHUB_REPO" "$refs_clause"
   fi
 }
 
@@ -165,10 +299,16 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-ARTIFACT_REPO_ID="${ARTIFACT_REPO_ID:-${PROJECT_ID}-docker}"
 SA_EMAIL="${SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+CD_BUILD_SA_EMAIL="${CD_BUILD_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+RUN_SA_DEV_EMAIL="${RUN_SA_DEV_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+RUN_SA_STG_EMAIL="${RUN_SA_STG_ID:-}@${PROJECT_ID}.iam.gserviceaccount.com"
+[[ -z "${RUN_SA_STG_ID:-}" ]] && RUN_SA_STG_EMAIL=""
+RUN_SA_PROD_EMAIL="${RUN_SA_PROD_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
+ATTR_CONDITION="$(wif_attribute_condition)"
 
-log "Project: $PROJECT_ID | GitHub repo: $GITHUB_REPO | SA: $SA_EMAIL"
+log "Project: $PROJECT_ID | GitHub repo: $GITHUB_REPO | Federated SA: $SA_EMAIL"
+log "Cloud Build execution SA: $CD_BUILD_SA_EMAIL | WIF refs: $WIF_DEPLOY_REFS"
 [[ "$DRY_RUN" == true ]] && warn "Dry-run mode — no changes will be applied"
 
 if [[ "$DRY_RUN" == true ]]; then
@@ -180,6 +320,7 @@ else
   fi
   PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
 fi
+CLOUDBUILD_AGENT_SA="service-${PROJECT_NUMBER}@gcp-sa-cloudbuild.iam.gserviceaccount.com"
 WIF_PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/providers/${PROVIDER_ID}"
 WIF_MEMBER="principalSet://iam.googleapis.com/projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}/attribute.repository/${GITHUB_REPO}"
 
@@ -215,26 +356,30 @@ else
 fi
 
 # --- Step 2: OIDC provider ---
-log "Step 2 — OIDC provider: $PROVIDER_ID (repo: $GITHUB_REPO)"
-ATTR_CONDITION="assertion.repository == '${GITHUB_REPO}'"
+log "Step 2 — OIDC provider: $PROVIDER_ID (repo: $GITHUB_REPO, condition: $ATTR_CONDITION)"
+WIF_ATTR_MAPPING="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner"
 if [[ "$DRY_RUN" == true ]]; then
   run gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_ID" \
     --project="$PROJECT_ID" --location="global" \
     --workload-identity-pool="$POOL_ID" --display-name="GitHub OIDC" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+    --attribute-mapping="$WIF_ATTR_MAPPING" \
     --attribute-condition="$ATTR_CONDITION"
 else
   if gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
     --project="$PROJECT_ID" --location="global" \
     --workload-identity-pool="$POOL_ID" >/dev/null 2>&1; then
-    log "Provider already exists: $PROVIDER_ID (update attribute-condition manually if repo changed)"
+    log "Updating provider attribute-condition: $PROVIDER_ID"
+    gcloud iam workload-identity-pools providers update-oidc "$PROVIDER_ID" \
+      --project="$PROJECT_ID" --location="global" \
+      --workload-identity-pool="$POOL_ID" \
+      --attribute-condition="$ATTR_CONDITION"
   else
     gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_ID" \
       --project="$PROJECT_ID" --location="global" \
       --workload-identity-pool="$POOL_ID" --display-name="GitHub OIDC" \
       --issuer-uri="https://token.actions.githubusercontent.com" \
-      --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner" \
+      --attribute-mapping="$WIF_ATTR_MAPPING" \
       --attribute-condition="$ATTR_CONDITION"
   fi
 fi
@@ -243,7 +388,7 @@ fi
 log "Step 4 — Service account: $SA_EMAIL"
 if [[ "$DRY_RUN" == true ]]; then
   run gcloud iam service-accounts create "$SA_ID" \
-    --project="$PROJECT_ID" --display-name="GitHub Actions Mikasa"
+      --project="$PROJECT_ID" --display-name="GitHub Actions Mikasa"
 else
   if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
     log "Service account already exists: $SA_EMAIL"
@@ -265,35 +410,85 @@ else
     --member="$WIF_MEMBER" >/dev/null
 fi
 
-# --- Step 6a: Federated SA (submits Cloud Build) ---
-log "Step 6a — IAM for federated SA (GitHub Actions submitter)"
+# --- Step 6a: Federated SA (submits Cloud Build only — least privilege) ---
 FED_MEMBER="serviceAccount:${SA_EMAIL}"
+
+log "Step 6a-revoke — remove deprecated wide project roles on federated SA (if present)"
+for role in \
+  roles/run.admin \
+  roles/storage.admin \
+  roles/iam.serviceAccountUser \
+  roles/storage.objectCreator \
+  roles/storage.objectAdmin; do
+  remove_project_iam_binding "$FED_MEMBER" "$role"
+done
+
+log "Step 6a — Project IAM for federated SA (no run.admin / storage.admin / project serviceAccountUser)"
 for role in \
   roles/serviceusage.serviceUsageConsumer \
   roles/cloudbuild.builds.editor \
-  roles/iam.serviceAccountUser \
-  roles/artifactregistry.writer \
-  roles/storage.admin \
-  roles/run.admin; do
+  roles/artifactregistry.writer; do
   ensure_project_iam_binding "$FED_MEMBER" "$role"
 done
 
-# --- Step 6b: Cloud Build execution SA (build steps + gcloud run deploy) ---
-CLOUDBUILD_SA="$(detect_cloudbuild_execution_sa)"
-log "Step 6b — IAM for Cloud Build execution SA: $CLOUDBUILD_SA"
-CB_MEMBER="serviceAccount:${CLOUDBUILD_SA}"
+log "Step 6a-storage — ${LISTER_ROLE_ID} + bucket objectAdmin on gs://${PROJECT_ID}_cloudbuild"
+ensure_cloud_build_submit_storage "$FED_MEMBER"
+
+# §8.1 — create cd-build SA before federated actAs (avoids Unknown service account mid-script).
+log "Step 6b-create — Service account: $CD_BUILD_SA_EMAIL"
+if [[ "$DRY_RUN" == true ]]; then
+  run gcloud iam service-accounts create "$CD_BUILD_SA_ID" \
+    --project="$PROJECT_ID" --display-name="Cloud Build CD execution"
+else
+  if gcloud iam service-accounts describe "$CD_BUILD_SA_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
+    log "Cloud Build execution SA already exists: $CD_BUILD_SA_EMAIL"
+  else
+    gcloud iam service-accounts create "$CD_BUILD_SA_ID" \
+      --project="$PROJECT_ID" --display-name="Cloud Build CD execution"
+  fi
+fi
+
+log "Step 6a-actAs — federated SA can actAs user-managed Cloud Build execution SA"
+ensure_sa_iam_binding "$CD_BUILD_SA_EMAIL" "$FED_MEMBER" "roles/iam.serviceAccountUser"
+
+log "Step 6b — Project IAM on Cloud Build execution SA (run.developer — gcloud run in cloudbuild YAML)"
+CB_EXEC_MEMBER="serviceAccount:${CD_BUILD_SA_EMAIL}"
+remove_project_iam_binding "$CB_EXEC_MEMBER" "roles/run.admin"
 for role in \
-  roles/storage.objectAdmin \
-  roles/artifactregistry.writer \
   roles/logging.logWriter \
-  roles/run.admin \
-  roles/iam.serviceAccountUser; do
-  ensure_project_iam_binding "$CB_MEMBER" "$role"
+  roles/artifactregistry.writer \
+  roles/run.developer; do
+  ensure_project_iam_binding "$CB_EXEC_MEMBER" "$role"
 done
 
+log "Step 6b-storage — same lister + bucket objectAdmin as submitter (read staging source)"
+remove_project_iam_binding "$CB_EXEC_MEMBER" "roles/storage.objectAdmin"
+remove_project_iam_binding "$CB_EXEC_MEMBER" "roles/storage.admin"
+ensure_cloud_build_submit_storage "$CB_EXEC_MEMBER"
+
+log "Step 6b-agent — Cloud Build service agent can actAs execution SA"
+ensure_sa_iam_binding "$CD_BUILD_SA_EMAIL" "serviceAccount:${CLOUDBUILD_AGENT_SA}" "roles/iam.serviceAccountUser"
+
+log "Step 6b-runtime — scoped actAs Cloud Run runtime SAs (CONFIG + cloudbuild YAML)"
+RUNTIME_FROM_YAML=()
+if [[ -d "${SCRIPT_DIR}/../cloudbuild" ]]; then
+  while IFS= read -r sa_id; do
+    [[ -z "$sa_id" ]] && continue
+    RUNTIME_FROM_YAML+=("${sa_id}@${PROJECT_ID}.iam.gserviceaccount.com")
+  done < <(grep -rhE '(--service-account=|serviceAccount:)[[:space:]]*[^[:space:]]+' "${SCRIPT_DIR}/../cloudbuild/" 2>/dev/null \
+    | sed -E 's/.*(--service-account=|serviceAccount:[[:space:]]*)//' \
+    | sed -E 's|^.*/||; s/@.*//' | sort -u || true)
+fi
+bind_cd_build_runtime_actas "$CB_EXEC_MEMBER" \
+  "$RUN_SA_DEV_EMAIL" "$RUN_SA_STG_EMAIL" "$RUN_SA_PROD_EMAIL" "${RUNTIME_FROM_YAML[@]}"
+
+warn "Do NOT grant roles/iam.serviceAccountUser at project scope to ${CD_BUILD_SA_EMAIL} (security monitoring alert)."
+
 log "Step 6c — Artifact Registry repo writer on $ARTIFACT_REPO_ID"
-ensure_artifact_repo_writer "$CB_MEMBER"
+ensure_artifact_repo_writer "$CB_EXEC_MEMBER"
 ensure_artifact_repo_writer "$FED_MEMBER"
+
+warn "After first green build using serviceAccount in cloudbuild YAML (${CD_BUILD_SA_EMAIL}), remove IAM on default compute@ if unused (playbook Bước 5 / gcp-monitoring wif-security-audit)."
 
 # --- Summary ---
 cat <<EOF
@@ -317,14 +512,18 @@ Variables (single-project — leave AR/DEPLOY empty or set both to ${PROJECT_ID}
   GCP_NEXT_PUBLIC_FIREBASE_API_KEY=<...>
   GCP_NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${PROJECT_ID}.firebaseapp.com
   GCP_NEXT_PUBLIC_FIREBASE_PROJECT_ID=${PROJECT_ID}
-  # GCP_WORKER_SERVICE_NAME=   # optional; mikasa dev has enable_worker=false (no worker deploy)
+  # GCP_WORKER_SERVICE_NAME=   # optional; dev stack may have enable_worker=false
 
-Cloud Build execution SA used: ${CLOUDBUILD_SA}
-If builds fail with storage/run errors, verify in Console: Cloud Build → Settings.
+Cloud Build execution SA (serviceAccount in google-cloud/cloudbuild/*.yaml): ${CD_BUILD_SA_EMAIL}
+
+WIF attribute-condition (deploy branches): ${ATTR_CONDITION}
+
+After first successful CD with the execution SA above, decommission legacy
+${LEGACY_CB_SA:-compute default} project roles if no longer used.
 
 Optional (IaC): add to google-cloud/terraform/environments/bootstrap/terraform.tfvars:
   additional_artifact_registry_writer_members = [
-    "serviceAccount:${CLOUDBUILD_SA}",
+    "serviceAccount:${CD_BUILD_SA_EMAIL}",
   ]
 
 Docs: ${SCRIPT_DIR}/../cloudbuild/GITHUB_ACTIONS_WIF.md
