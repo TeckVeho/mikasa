@@ -43,7 +43,15 @@ describe("master HTTP", () => {
 
   it("GET /v1/product-types returns list for admin dev auth", async () => {
     vi.mocked(masterSvc.listProductTypes).mockResolvedValue([
-      { id: "ptype-i", name: "I型", category: "kyotai", sortOrder: 1 },
+      {
+        id: "ptype-i",
+        name: "I型",
+        category: "kyotai",
+        sortOrder: 1,
+        regressionA: null,
+        regressionB: null,
+        hasModelConfig: false,
+      },
     ]);
 
     const res = await request(app)
@@ -69,7 +77,7 @@ describe("master HTTP", () => {
 
   it("GET /v1/teams returns list for admin dev auth", async () => {
     vi.mocked(masterSvc.listTeams).mockResolvedValue([
-      { id: "team-nakano", name: "中野班", sortOrder: 1 },
+      { id: "team-nakano", name: "中野班", sortOrder: 1, memberCount: 3 },
     ]);
 
     const res = await request(app)

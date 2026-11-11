@@ -34,8 +34,10 @@ describe("dashboard HTTP", () => {
 
   it("GET /v1/dashboard/summary returns data for admin dev auth", async () => {
     vi.mocked(dashboardSvc.getDashboardSummary).mockResolvedValue({
-      projectCount: 5,
-      teamCount: 3,
+      activeProjectCount: 5,
+      delayedProjectCount: 2,
+      averageProgressRate: 1.8,
+      monthlyLoadRate: 0,
     });
 
     const res = await request(app)
@@ -44,7 +46,7 @@ describe("dashboard HTTP", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-    expect(res.body.data.projectCount).toBe(5);
+    expect(res.body.data.activeProjectCount).toBe(5);
     expect(dashboardSvc.getDashboardSummary).toHaveBeenCalled();
   });
 
