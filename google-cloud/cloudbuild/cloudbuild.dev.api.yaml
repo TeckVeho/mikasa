@@ -77,6 +77,8 @@ steps:
       - '--update-env-vars'
       - 'ALLOW_DEV_AUTH=true'
       - '--no-allow-unauthenticated'
+      # Browser calls mikasa-api.vw-dev.com directly (not GBS-style proxy). Org may block allUsers.
+      - '--no-invoker-iam-check'
 
 substitutions:
   _REGION: asia-northeast1

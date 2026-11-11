@@ -112,6 +112,7 @@ steps:
       - '--memory'
       - '${_API_MEMORY}'
       - '--no-allow-unauthenticated'
+      - '--no-invoker-iam-check'
     waitFor: ['migrate-execute']
 
   - id: deploy-web
